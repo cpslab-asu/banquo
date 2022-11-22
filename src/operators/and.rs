@@ -6,11 +6,7 @@ use crate::trace::Trace;
 pub struct And<L, R>(BinaryOperator<L, R>);
 
 impl<L, R> And<L, R> {
-    pub fn new<S>(left: L, right: R) -> Self
-    where
-        L: Formula<S>,
-        R: Formula<S>,
-    {
+    pub fn new(left: L, right: R) -> Self {
         Self(BinaryOperator { left, right })
     }
 }

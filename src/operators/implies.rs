@@ -8,11 +8,7 @@ use crate::trace::Trace;
 pub struct Implies<A, C>(BinaryOperator<A, C>);
 
 impl<A, C> Implies<A, C> {
-    pub fn new<S>(antecedent: A, consequent: C) -> Self
-    where
-        A: Formula<S>,
-        C: Formula<S>,
-    {
+    pub fn new(antecedent: A, consequent: C) -> Self {
         Self(BinaryOperator {
             left: antecedent,
             right: consequent,

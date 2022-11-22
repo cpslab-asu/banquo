@@ -7,10 +7,7 @@ pub struct Next<F> {
 }
 
 impl<F> Next<F> {
-    pub fn new<S>(subformula: F) -> Self
-    where
-        F: Formula<S>,
-    {
+    pub fn new(subformula: F) -> Self {
         Self { subformula }
     }
 }

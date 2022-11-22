@@ -8,10 +8,9 @@ use crate::trace::Trace;
 pub struct Eventually<F>(TemporalOperator<F>);
 
 impl<F> Eventually<F> {
-    pub fn new<B, S>(subformula: F, t_bounds: B) -> Self
+    pub fn new<B>(subformula: F, t_bounds: B) -> Self
     where
         B: Into<Option<(usize, usize)>>,
-        F: Formula<S>,
     {
         Self(TemporalOperator {
             subformula,
