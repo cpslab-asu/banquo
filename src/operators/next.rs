@@ -2,13 +2,15 @@ use crate::formula::{DebugFormula, DebugRobustness, Formula, HybridDistance, Hyb
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
-pub struct Next<F> {
-    subformula: F,
-}
+pub struct Next<F>(F);
 
 impl<F> Next<F> {
     pub fn new(subformula: F) -> Self {
-        Self { subformula }
+        Self(subformula)
+    }
+
+    pub fn subformula(&self) -> &F {
+        &self.0
     }
 }
 
@@ -21,7 +23,7 @@ where
     type Prev = DebugRobustness<F::Prev>;
 
     fn debug_robustness(&self, trace: &Trace<S>) -> crate::formula::Result<DebugRobustness<Self::Prev>, Self::Error> {
-        let inner = self.subformula.debug_robustness(trace)?;
+        let inner = self.0.debug_robustness(trace)?;
         let mut iter = inner.into_iter().peekable();
         let mut trace = Trace::default();
 
@@ -52,7 +54,7 @@ where
     type Error = F::Error;
 
     fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
-        let inner = self.subformula.robustness(trace)?;
+        let inner = self.0.robustness(trace)?;
         let mut iter = inner.into_iter().peekable();
         let mut trace = Trace::default();
 
@@ -77,7 +79,7 @@ where
     type Error = F::Error;
 
     fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        let inner = self.subformula.hybrid_distance(trace)?;
+        let inner = self.0.hybrid_distance(trace)?;
         let mut iter = inner.into_iter().peekable();
         let mut trace = Trace::default();
 
