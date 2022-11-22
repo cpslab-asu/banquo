@@ -41,6 +41,7 @@ where
 {
 }
 
+#[derive(Clone, Debug)]
 pub struct BinaryOperator<L, R> {
     pub left: L,
     pub right: R,

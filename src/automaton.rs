@@ -6,6 +6,7 @@ use petgraph::graphmap::DiGraphMap;
 
 use crate::expressions::{Expression, PolynomialError, Predicate};
 
+#[derive(Clone, Debug)]
 pub struct Guard {
     constraints: Vec<Predicate>,
 }
@@ -27,6 +28,7 @@ impl Guard {
     }
 }
 
+#[derive(Clone)]
 pub struct Automaton<L> {
     state_graph: DiGraphMap<L, Guard>,
 }

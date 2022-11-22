@@ -2,6 +2,7 @@ use super::binary::{BinaryOperator, BinaryOperatorError};
 use crate::formula::{DebugFormula, DebugRobustness, Formula, HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
+#[derive(Clone, Debug)]
 pub struct And<L, R>(BinaryOperator<L, R>);
 
 impl<L, R> And<L, R> {

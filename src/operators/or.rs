@@ -4,6 +4,7 @@ use crate::formula::{Formula, Result};
 use crate::formula::{HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
+#[derive(Clone, Debug)]
 pub struct Or<L, R>(BinaryOperator<L, R>);
 
 impl<L, R> Or<L, R> {

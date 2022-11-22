@@ -4,6 +4,7 @@ use super::temporal::TemporalOperator;
 use crate::formula::{DebugFormula, DebugRobustness, Formula, HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
+#[derive(Clone, Debug)]
 pub struct Eventually<F>(TemporalOperator<F>);
 
 impl<F> Eventually<F> {

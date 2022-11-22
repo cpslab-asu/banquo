@@ -4,6 +4,7 @@ use super::or::MaxOf;
 use crate::formula::{DebugFormula, DebugRobustness, Formula, HybridDistance, HybridDistanceFormula, Result};
 use crate::trace::Trace;
 
+#[derive(Clone, Debug)]
 pub struct Implies<A, C>(BinaryOperator<A, C>);
 
 impl<A, C> Implies<A, C> {

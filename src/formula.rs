@@ -40,7 +40,7 @@ pub fn evaluate_robustness<T, F: Formula<T>>(formula: &F, trace: &Trace<T>) -> s
     Ok(*first.1)
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub struct DebugRobustness<T> {
     pub robustness: f64,
     pub previous: T,
@@ -113,7 +113,7 @@ pub trait DebugFormula<T> {
     fn debug_robustness(&self, trace: &Trace<T>) -> Result<DebugRobustness<Self::Prev>, Self::Error>;
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum HybridDistance {
     Infinite,
     PathDistance { path_distance: usize, guard_distance: f64 },

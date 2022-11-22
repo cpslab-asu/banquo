@@ -4,6 +4,7 @@ use crate::formula::{DebugFormula, Formula, HybridDistanceFormula, Result};
 use crate::formula::{DebugRobustness, HybridDistance};
 use crate::trace::Trace;
 
+#[derive(Clone, Debug)]
 pub struct Not<F>(F);
 
 impl<F> Not<F> {

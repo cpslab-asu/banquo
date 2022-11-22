@@ -1,5 +1,6 @@
 use crate::trace::Trace;
 
+#[derive(Clone, Debug)]
 pub struct TemporalOperator<F> {
     pub subformula: F,
     pub t_bounds: Option<(usize, usize)>,

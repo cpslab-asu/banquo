@@ -6,6 +6,7 @@ use crate::automaton::Automaton;
 use crate::formula::{HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
+#[derive(Clone)]
 pub struct HybridPredicate<L> {
     predicate: Predicate,
     location: L,
