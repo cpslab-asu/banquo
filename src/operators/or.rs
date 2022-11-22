@@ -11,6 +11,14 @@ impl<L, R> Or<L, R> {
     pub fn new(left: L, right: R) -> Self {
         Self(BinaryOperator { left, right })
     }
+
+    pub fn left(&self) -> &L {
+        &self.0.left
+    }
+
+    pub fn right(&self) -> &R {
+        &self.0.right
+    }
 }
 
 impl<S, L, R> Formula<S> for Or<L, R>

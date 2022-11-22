@@ -12,10 +12,20 @@ impl<F> Eventually<F> {
     where
         B: Into<Option<(usize, usize)>>,
     {
-        Self(TemporalOperator {
+        let operator = TemporalOperator {
             subformula,
             t_bounds: t_bounds.into(),
-        })
+        };
+
+        Self(operator)
+    }
+
+    pub fn subformula(&self) -> &F {
+        &self.0.subformula
+    }
+
+    pub fn t_bounds(&self) -> &Option<(usize, usize)> {
+        &self.0.t_bounds
     }
 }
 

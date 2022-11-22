@@ -11,6 +11,10 @@ impl<F> Not<F> {
     pub fn new(subformula: F) -> Self {
         Self(subformula)
     }
+
+    pub fn subformula(&self) -> &F {
+        &self.0
+    }
 }
 
 fn not<S>(trace: Trace<S>) -> Trace<S::Output>

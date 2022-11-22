@@ -9,10 +9,20 @@ pub struct Implies<A, C>(BinaryOperator<A, C>);
 
 impl<A, C> Implies<A, C> {
     pub fn new(antecedent: A, consequent: C) -> Self {
-        Self(BinaryOperator {
+        let operator = BinaryOperator {
             left: antecedent,
             right: consequent,
-        })
+        };
+
+        Self(operator)
+    }
+
+    pub fn antecedent(&self) -> &A {
+        &self.0.left
+    }
+
+    pub fn consequent(&self) -> &C {
+        &self.0.right
     }
 }
 
