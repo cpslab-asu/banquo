@@ -46,12 +46,11 @@ where
     }
 }
 
-impl<T, S, E> Formula<S> for Arc<T>
+impl<T, S> Formula<S> for Arc<T>
 where
-    E: Error,
-    T: Formula<S, Error = E> + ?Sized,
+    T: Formula<S> + ?Sized,
 {
-    type Error = E;
+    type Error = T::Error;
 
     fn robustness(&self, trace: &Trace<S>) -> Result<f64, Self::Error> {
         (**self).robustness(trace)
