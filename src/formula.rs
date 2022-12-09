@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::error::Error;
 use std::ops::Neg;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::trace::Trace;
 
@@ -35,6 +36,17 @@ where
 }
 
 impl<T, S> Formula<S> for Rc<T>
+where
+    T: Formula<S> + ?Sized,
+{
+    type Error = T::Error;
+
+    fn robustness(&self, trace: &Trace<S>) -> Result<f64, Self::Error> {
+        (**self).robustness(trace)
+    }
+}
+
+impl<T, S> Formula<S> for Arc<T>
 where
     T: Formula<S> + ?Sized,
 {
