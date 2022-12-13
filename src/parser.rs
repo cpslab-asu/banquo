@@ -11,7 +11,7 @@ use nom::multi::many0;
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use nom::IResult;
 
-use crate::expressions::{Polynomial, Predicate};
+use crate::HybridDistanceFormula;
 use crate::formula::Formula;
 use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or};
 use crate::trace::Trace;
@@ -82,6 +82,21 @@ impl Formula<HashMap<String, f64>> for ParsedFormula {
 impl From<Predicate> for ParsedFormula {
     fn from(p: Predicate) -> Self {
         Self::new(WrappedFormula(p))
+    }
+}
+
+pub struct ParsedHybridFormula<L> {
+    inner: Box<dyn HybridDistanceFormula<HashMap<String, f64>, L, Error = ParsedFormulaError>>
+}
+
+impl<L> ParsedHybridFormula<L> {
+    fn wrap<F>(formula: F) -> Self
+    where
+        F: HybridDistanceFormula<HashMap<String, f64>, L> + 'static
+    {
+        Self {
+            inner: Box::new(WrappedFormula(formula))
+        }
     }
 }
 
