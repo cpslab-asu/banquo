@@ -28,6 +28,14 @@ impl Guard {
     }
 }
 
+impl FromIterator<Predicate> for Guard {
+    fn from_iter<T: IntoIterator<Item = Predicate>>(iter: T) -> Self {
+        Self {
+            constraints: Vec::from_iter(iter)
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Automaton<L> {
     state_graph: DiGraphMap<L, Guard>,
