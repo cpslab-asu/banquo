@@ -293,6 +293,16 @@ pub fn parse_formula<'a>(input: &'a str) -> Result<ParsedFormula, Box<dyn Error 
     }
 }
 
+pub fn parse_predicate<'a>(input: &'a str) -> Result<Predicate, Box<dyn Error + 'a>> {
+    let (rest, predicate) = predicate(input)?;
+
+    if rest.len() > 0 {
+        Err(Box::new(IncompleteParseError(rest)))
+    } else {
+        Ok(predicate)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
