@@ -177,6 +177,14 @@ fn predicate(input: &str) -> IResult<&str, Predicate> {
     Ok((rest, predicate))
 }
 
+fn hybrid_predicate<'a, L>(predicates: &HashMap<String, HybridPredicate<L>>) -> impl Fn(&'a str) -> IResult<&'a str, HybridPredicate<L>> {
+    let parser = |input: &str| -> IResult<&str, HybridPredicate<L>> {
+        todo!()
+    };
+
+    parser
+}
+
 fn parsed_predicate(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = map(predicate, |p| p.into());
     parser(input)
