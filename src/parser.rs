@@ -5,13 +5,14 @@ use std::str::FromStr;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, digit1, space0, space1};
+use nom::character::complete::{alpha1, digit1, space0, space1, digit0};
 use nom::combinator::{map, map_res, opt, recognize};
 use nom::multi::many0;
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use nom::IResult;
 
 use crate::HybridDistanceFormula;
+use crate::expressions::{Polynomial, Predicate, HybridPredicate};
 use crate::formula::Formula;
 use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or};
 use crate::trace::Trace;
@@ -123,6 +124,14 @@ fn op0<'a>(value: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
         let mut parser = delimited(space0, tag(value), space0);
         parser(input)
     }
+}
+
+fn var_name(input: &str) -> IResult<&str, String> {
+    let mut parser = pair(alpha1, digit0);
+    let (rest, (s1, s2)) = parser(input)?;
+    let name = s1.to_string() + s2;
+
+    Ok((rest, name))
 }
 
 fn coeff(input: &str) -> IResult<&str, (f64, String)> {
