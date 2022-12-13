@@ -54,6 +54,17 @@ where
     }
 }
 
+impl<L, F> HybridDistanceFormula<HashMap<String, f64>, L> for WrappedFormula<F>
+where
+    F: HybridDistanceFormula<HashMap<String, f64>, L>
+{
+    type Error = ParsedFormulaError;
+
+    fn hybrid_distance(&self, trace: &Trace<(HashMap<String, f64>, L)>) -> crate::Result<crate::HybridDistance, Self::Error> {
+        self.0.hybrid_distance(trace).map_err(ParsedFormulaError::from_err)
+    }
+}
+
 type InnerFormula = Box<dyn Formula<HashMap<String, f64>, Error = ParsedFormulaError>>;
 
 pub struct ParsedFormula {
