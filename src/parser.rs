@@ -306,6 +306,10 @@ fn formula(input: &str) -> IResult<&str, ParsedFormula> {
     parser(input)
 }
 
+fn hybrid_formula<L>(input: &str, predicates: HashMap<String, HybridPredicate<L>>) -> IResult<&str, ParsedHybridFormula<L>> {
+    todo!()
+}
+
 #[derive(Debug)]
 struct IncompleteParseError<'a>(&'a str);
 
@@ -334,6 +338,16 @@ pub fn parse_predicate<'a>(input: &'a str) -> Result<Predicate, Box<dyn Error + 
         Err(Box::new(IncompleteParseError(rest)))
     } else {
         Ok(predicate)
+    }
+}
+
+pub fn parse_hybrid_formula<'a, L>(input: &'a str, predicates: HashMap<String, HybridPredicate<L>>) -> Result<ParsedHybridFormula<L>, Box<dyn Error + 'a>> {
+    let (rest, formula) = hybrid_formula(input, predicates)?;
+
+    if rest.len() > 0 {
+        Err(Box::new(IncompleteParseError(rest)))
+    } else {
+        Ok(formula)
     }
 }
 
