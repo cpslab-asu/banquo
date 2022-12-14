@@ -4,17 +4,17 @@ use std::str::FromStr;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, digit1, space0, space1, digit0};
-use nom::combinator::{map, map_res, opt, recognize};
+use nom::character::complete::{alpha1, digit1};
+use nom::combinator::{map, opt, recognize};
 use nom::multi::many0;
-use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
+use nom::sequence::{pair, preceded, tuple};
 use nom::IResult;
 
 use crate::expressions::{Polynomial, Predicate};
 use crate::formula::Formula;
-use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or};
 use crate::trace::Trace;
-use super::common::{WrappedFormula, ParsedFormulaError, IncompleteParseError};
+use super::common::{WrappedFormula, ParsedFormulaError, IncompleteParseError, op0, subformula, var_name};
+use super::operators;
 
 type FormulaObject = Box<dyn Formula<HashMap<String, f64>, Error = ParsedFormulaError>>;
 
@@ -25,10 +25,10 @@ pub struct ParsedFormula {
 impl ParsedFormula {
     fn new<F>(formula: F) -> Self
     where
-        F: Formula<HashMap<String, f64>, Error = ParsedFormulaError> + 'static,
+        F: Formula<HashMap<String, f64>> + 'static,
     {
         Self {
-            inner: Box::new(formula),
+            inner: Box::new(WrappedFormula::wrap(formula)),
         }
     }
 }
@@ -41,42 +41,21 @@ impl Formula<HashMap<String, f64>> for ParsedFormula {
     }
 }
 
-impl From<Predicate> for ParsedFormula {
-    fn from(p: Predicate) -> Self {
-        Self::new(WrappedFormula::wrap(p))
-    }
-}
-
-fn decimal(input: &str) -> IResult<&str, f64> {
+pub fn decimal(input: &str) -> IResult<&str, f64> {
     let mut parser = recognize(tuple((opt(tag("-")), digit1, tag("."), digit1)));
     let (rest, value) = parser(input)?;
 
     Ok((rest, f64::from_str(value).unwrap()))
 }
 
-fn op0<'a>(value: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
-    move |input: &'a str| -> IResult<&'a str, &'a str> {
-        let mut parser = delimited(space0, tag(value), space0);
-        parser(input)
-    }
-}
-
-fn var_name(input: &str) -> IResult<&str, String> {
-    let mut parser = pair(alpha1, digit0);
-    let (rest, (s1, s2)) = parser(input)?;
-    let name = s1.to_string() + s2;
-
-    Ok((rest, name))
-}
-
-fn coeff(input: &str) -> IResult<&str, (f64, String)> {
-    let mut parser = tuple((decimal, op0("*"), alpha1));
+pub fn coeff(input: &str) -> IResult<&str, (f64, String)> {
+    let mut parser = tuple((decimal, op0("*"), var_name));
     let (rest, (coefficient, _, variable_name)) = parser(input)?;
 
     Ok((rest, (coefficient, variable_name.to_string())))
 }
 
-fn term(input: &str) -> IResult<&str, (f64, Option<String>)> {
+pub fn term(input: &str) -> IResult<&str, (f64, Option<String>)> {
     let p1 = map(coeff, |(value, name): (f64, String)| (value, Some(name)));
     let p2 = map(decimal, |value: f64| (value, None));
     let mut parser = alt((p1, p2));
@@ -85,7 +64,7 @@ fn term(input: &str) -> IResult<&str, (f64, Option<String>)> {
     Ok((rest, result))
 }
 
-fn polynomial(input: &str) -> IResult<&str, Polynomial> {
+pub fn polynomial(input: &str) -> IResult<&str, Polynomial> {
     let terms = many0(preceded(op0("+"), term));
     let mut parser = pair(term, terms);
     let (rest, (first, others)) = parser(input)?;
@@ -121,110 +100,61 @@ fn predicate(input: &str) -> IResult<&str, Predicate> {
     Ok((rest, predicate))
 }
 
-fn parsed_predicate(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = map(predicate, |p| p.into());
+fn operand(input: &str) -> IResult<&str, ParsedFormula> {
+    let p1 = map(predicate, ParsedFormula::new);
+    let p2 = subformula(formula);
+    let mut parser = alt((p1, p2));
+
     parser(input)
 }
 
-fn subformula(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = delimited(tag("("), formula, tag(")"));
-    parser(input)
+fn not(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = operators::not(operand);
+    let (rest, formula) = parser(input)?;
+
+    Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn not(input: &str) -> IResult<&str, Not<FormulaObject>> {
-    let form1 = preceded(tag("!"), subformula);
-    let form2 = preceded(pair(tag("not"), space1), alt((subformula, parsed_predicate)));
-
-    let mut parser = alt((form1, form2));
-    let (rest, parsed_formula) = parser(input)?;
-    let formula = Not::new(parsed_formula.inner);
-
-    Ok((rest, formula))
+fn and(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = operators::and(operand, operand);
+    let (rest, formula) = parser(input)?;
+    
+    Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn and(input: &str) -> IResult<&str, WrappedFormula<And<FormulaObject, FormulaObject>>> {
-    let p1 = alt((subformula, parsed_predicate));
-    let p2 = alt((map(and, ParsedFormula::new), subformula, parsed_predicate));
-    let mut parser = separated_pair(p1, alt((op0("/\\"), op0("and"))), p2);
-
-    let (rest, (left, right)) = parser(input)?;
-    let formula = And::new(left.inner, right.inner);
-    let wrapped = WrappedFormula::wrap(formula);
-
-    Ok((rest, wrapped))
+fn or(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = operators::or(operand, operand);
+    let (rest, formula) = parser(input)?;
+    
+    Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn or(input: &str) -> IResult<&str, WrappedFormula<Or<FormulaObject, FormulaObject>>> {
-    let p1 = alt((subformula, parsed_predicate));
-    let p2 = alt((map(or, ParsedFormula::new), subformula, parsed_predicate));
-    let mut parser = separated_pair(p1, alt((op0("\\/"), op0("or"))), p2);
-
-    let (rest, (left, right)) = parser(input)?;
-    let formula = Or::new(left.inner, right.inner);
-    let wrapped = WrappedFormula::wrap(formula);
-
-    Ok((rest, wrapped))
+fn implies(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = operators::implies(operand, operand);
+    let (rest, formula) = parser(input)?;
+    
+    Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn implies(input: &str) -> IResult<&str, WrappedFormula<Implies<FormulaObject, FormulaObject>>> {
-    let ante = terminated(alt((parsed_predicate, subformula)), space1);
-    let op = alt((tag("->"), tag("implies")));
-    let cons = preceded(space1, alt((parsed_predicate, subformula)));
-
-    let mut parser = separated_pair(ante, op, cons);
-    let (rest, (ante_formula, cons_formula)) = parser(input)?;
-    let formula = Implies::new(ante_formula.inner, cons_formula.inner);
-    let wrapped = WrappedFormula::wrap(formula);
-
-    Ok((rest, wrapped))
+fn next(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = operators::next(operand);
+    let (rest, formula) = parser(input)?;
+    
+    Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn next(input: &str) -> IResult<&str, Next<FormulaObject>> {
-    let ops = alt((tag("X"), tag("()"), tag("next")));
-    let p1 = preceded(space1, parsed_predicate);
-    let p2 = preceded(space0, subformula);
-
-    let mut parser = preceded(ops, alt((p1, p2)));
-    let (rest, parsed_formula) = parser(input)?;
-    let formula = Next::new(parsed_formula.inner);
-
-    Ok((rest, formula))
+fn always(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = operators::always(operand);
+    let (rest, formula) = parser(input)?;
+    
+    Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn integer(input: &str) -> IResult<&str, usize> {
-    let mut parser = map_res(digit1, usize::from_str);
-    parser(input)
-}
-
-fn time_bounds(input: &str) -> IResult<&str, (usize, usize)> {
-    let mut parser = tuple((tag("{"), integer, tag(","), integer, tag("}")));
-    let (rest, (_, t_start, _, t_end, _)) = parser(input)?;
-
-    Ok((rest, (t_start, t_end)))
-}
-
-fn always(input: &str) -> IResult<&str, Always<FormulaObject>> {
-    let op = alt((tag("always"), tag("[]"), tag("G")));
-    let p1 = preceded(space1, parsed_predicate);
-    let p2 = preceded(space0, subformula);
-
-    let mut parser = preceded(op, pair(opt(time_bounds), alt((p1, p2))));
-    let (rest, (t_bounds, parsed_formula)) = parser(input)?;
-    let formula = Always::new(parsed_formula.inner, t_bounds);
-
-    Ok((rest, formula))
-}
-
-fn eventually(input: &str) -> IResult<&str, Eventually<FormulaObject>> {
-    let op = alt((tag("eventually"), tag("<>"), tag("F")));
-    let p1 = preceded(space1, parsed_predicate);
-    let p2 = preceded(space0, subformula);
-
-    let mut parser = preceded(op, pair(opt(time_bounds), alt((p1, p2))));
-    let (rest, (t_bounds, parsed_formula)) = parser(input)?;
-    let formula = Eventually::new(parsed_formula.inner, t_bounds);
-
-    Ok((rest, formula))
+fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = operators::eventually(operand);
+    let (rest, formula) = parser(input)?;
+    
+    Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn formula(input: &str) -> IResult<&str, ParsedFormula> {
@@ -236,7 +166,7 @@ fn formula(input: &str) -> IResult<&str, ParsedFormula> {
         map(and, ParsedFormula::new),
         map(or, ParsedFormula::new),
         map(implies, ParsedFormula::new),
-        parsed_predicate,
+        operand,
     ));
 
     parser(input)
@@ -341,7 +271,7 @@ mod tests {
 
     #[test]
     fn parse_not() -> Result<(), Box<dyn Error>> {
-        let (rest, _) = not("!(3.1*x <= 0.5*y)")?;
+        let (rest, _) = not("! (3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
 
         let (rest, _) = not("not 3.1*x <= 0.5*y")?;
@@ -355,13 +285,13 @@ mod tests {
 
     #[test]
     fn parse_and() -> Result<(), Box<dyn Error>> {
-        let (rest, _) = and("(3.1*x <= 0.5*y) /\\ (2.0*x <= 4.0)")?;
+        let (rest, _) = and(r"(3.1*x <= 0.5*y) /\ (2.0*x <= 4.0)")?;
         assert_eq!(rest, "");
 
         let (rest, _) = and("3.1*x <= 0.5*y and 2.0*x <= 4.0")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = and("3.1*x <= 0.5*y and 2.0*x <= 4.0 /\\ (2.0 <= 1.5*x)")?;
+        let (rest, _) = and(r"3.1*x <= 0.5*y and (2.0*x <= 4.0 /\ (2.0 <= 1.5*x))")?;
         assert_eq!(rest, "");
 
         Ok(())
@@ -369,13 +299,13 @@ mod tests {
 
     #[test]
     fn parse_or() -> Result<(), Box<dyn Error>> {
-        let (rest, _) = or("(3.1*x <= 0.5*y) \\/ (2.0*x <= 4.0)")?;
+        let (rest, _) = or(r"(3.1*x <= 0.5*y) \/ (2.0*x <= 4.0)")?;
         assert_eq!(rest, "");
 
         let (rest, _) = or("3.1*x <= 0.5*y or 2.0*x <= 4.0")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = or("3.1*x <= 0.5*y or 2.0*x <= 4.0 \\/ (2.0 <= 1.5*x)")?;
+        let (rest, _) = or(r"(3.1*x <= 0.5*y or 2.0*x <= 4.0) \/ (2.0 <= 1.5*x)")?;
         assert_eq!(rest, "");
 
         Ok(())
@@ -397,7 +327,7 @@ mod tests {
         let (rest, _) = next("X 3.1*x <= 0.5*y")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = next("()(3.1*x <= 0.5*y)")?;
+        let (rest, _) = next("() (3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
 
         let (rest, _) = next("next (3.1*x <= 0.5*y)")?;
@@ -414,7 +344,7 @@ mod tests {
         let (rest, _) = always("[]{0,10} 3.1*x <= 0.5*y")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = always("G{1,2}(3.1*x <= 0.5*y)")?;
+        let (rest, _) = always("G{1,2} (3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
 
         Ok(())
@@ -428,7 +358,7 @@ mod tests {
         let (rest, _) = eventually("<>{0,10} 3.1*x <= 0.5*y")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = eventually("F{1,2}(3.1*x <= 0.5*y)")?;
+        let (rest, _) = eventually("F{1,2} (3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
 
         Ok(())
@@ -436,7 +366,7 @@ mod tests {
 
     #[test]
     fn parse_formula() -> Result<(), Box<dyn Error>> {
-        let (rest, _) = formula("[]{0,10} (3.1*x <= 0.5*y /\\ (not 1.0*x <= 2.0))")?;
+        let (rest, _) = formula(r"[]{0,10} (3.1*x <= 0.5*y /\ (not 1.0*x <= 2.0))")?;
         assert_eq!(rest, "");
 
         Ok(())
