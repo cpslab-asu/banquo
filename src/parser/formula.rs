@@ -17,10 +17,8 @@ use super::common::{WrappedFormula, op0, subformula, var_name};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 
-type FormulaObject = Box<dyn Formula<HashMap<String, f64>, Error = ParsedFormulaError>>;
-
 pub struct ParsedFormula {
-    inner: FormulaObject,
+    inner: Box<dyn Formula<HashMap<String, f64>, Error = ParsedFormulaError>>,
 }
 
 impl ParsedFormula {
