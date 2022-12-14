@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, digit1};
+use nom::character::complete::digit1;
 use nom::combinator::{map, opt, recognize};
 use nom::multi::many0;
 use nom::sequence::{pair, preceded, tuple};
