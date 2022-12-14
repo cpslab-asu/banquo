@@ -41,6 +41,17 @@ pub struct Automaton<L> {
     state_graph: DiGraphMap<L, Guard>,
 }
 
+impl<L> Default for Automaton<L>
+where
+    L: Copy + Ord + Hash
+{
+    fn default() -> Self {
+        Self {
+            state_graph: DiGraphMap::default()
+        }
+    }
+}
+
 impl<L> From<HashMap<(L, L), Guard>> for Automaton<L>
 where
     L: Copy + Ord + Hash,
