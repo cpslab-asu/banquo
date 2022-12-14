@@ -35,6 +35,7 @@ impl ParsedFormula {
 impl Formula<HashMap<String, f64>> for ParsedFormula {
     type Error = ParsedFormulaError;
 
+    #[inline]
     fn robustness(&self, trace: &Trace<HashMap<String, f64>>) -> Result<Trace<f64>, Self::Error> {
         self.inner.robustness(trace)
     }
