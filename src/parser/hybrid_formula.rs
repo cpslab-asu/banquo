@@ -181,3 +181,38 @@ where
         Ok(formula)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::error::Error;
+
+    use crate::automaton::Automaton;
+    use crate::expressions::HybridPredicate;
+    use super::predicate;
+
+    #[test]
+    fn parse_predicate() -> Result<(), Box<dyn Error>> {
+        let predicates = HashMap::from_iter([
+            ("p1".to_string(), HybridPredicate::new(None, 1, Automaton::default())),
+        ]);
+
+        let mut parser = predicate(&predicates);
+        let (rest, _) = parser("p1")?;
+
+        assert!(rest.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic]
+    fn parse_missing_predicate() {
+        let predicates = HashMap::from_iter([
+            ("p1".to_string(), HybridPredicate::new(None, 1, Automaton::default())),
+        ]);
+
+        let mut parser = predicate(&predicates);
+        parser("p2").unwrap();
+    }
+}
