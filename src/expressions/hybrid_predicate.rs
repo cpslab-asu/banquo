@@ -8,7 +8,7 @@ use crate::trace::Trace;
 
 #[derive(Clone)]
 pub struct HybridPredicate<L> {
-    predicate: Predicate,
+    predicate: Option<Predicate>,
     location: L,
     automaton: Automaton<L>,
 }
