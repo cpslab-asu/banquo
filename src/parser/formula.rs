@@ -158,17 +158,7 @@ fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
 }
 
 fn formula(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = alt((
-        map(next, ParsedFormula::new),
-        map(always, ParsedFormula::new),
-        map(eventually, ParsedFormula::new),
-        map(not, ParsedFormula::new),
-        map(and, ParsedFormula::new),
-        map(or, ParsedFormula::new),
-        map(implies, ParsedFormula::new),
-        operand,
-    ));
-
+    let mut parser = alt((next, always, eventually, next, not, and, or, implies, operand));
     parser(input)
 }
 
