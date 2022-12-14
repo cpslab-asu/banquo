@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
 
 use nom::{IResult, Parser};
 use nom::bytes::complete::tag;
@@ -9,30 +7,7 @@ use nom::sequence::{delimited, pair};
 
 use crate::formula::{Formula, HybridDistanceFormula};
 use crate::trace::Trace;
-
-pub struct ParsedFormulaError {
-    inner: Box<dyn Error>,
-}
-
-impl ParsedFormulaError {
-    fn from_err<E: Error + 'static>(err: E) -> Self {
-        Self { inner: Box::new(err) }
-    }
-}
-
-impl Display for ParsedFormulaError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.inner, f)
-    }
-}
-
-impl Debug for ParsedFormulaError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&self.inner, f)
-    }
-}
-
-impl Error for ParsedFormulaError {}
+use super::errors::ParsedFormulaError;
 
 pub struct WrappedFormula<F>(F);
 
@@ -65,23 +40,6 @@ where
         self.0.hybrid_distance(trace).map_err(ParsedFormulaError::from_err)
     }
 }
-
-#[derive(Debug)]
-pub struct IncompleteParseError<'a>(&'a str);
-
-impl<'a> From<&'a str> for IncompleteParseError<'a> {
-    fn from(rest: &'a str) -> Self {
-        Self(rest)
-    }
-}
-
-impl<'a> Display for IncompleteParseError<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "could not parse remaining input \"{}\")", self.0)
-    }
-}
-
-impl<'a> Error for IncompleteParseError<'a> {}
 
 pub fn var_name(input: &str) -> IResult<&str, String> {
     let mut parser = pair(alpha1, digit0);

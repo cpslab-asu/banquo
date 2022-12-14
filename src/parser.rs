@@ -1,4 +1,5 @@
 mod common;
+mod errors;
 mod formula;
 mod hybrid_formula;
 mod operators;

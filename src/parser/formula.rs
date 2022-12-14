@@ -13,7 +13,8 @@ use nom::IResult;
 use crate::expressions::{Polynomial, Predicate};
 use crate::formula::Formula;
 use crate::trace::Trace;
-use super::common::{WrappedFormula, ParsedFormulaError, IncompleteParseError, op0, subformula, var_name};
+use super::common::{WrappedFormula, op0, subformula, var_name};
+use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 
 type FormulaObject = Box<dyn Formula<HashMap<String, f64>, Error = ParsedFormulaError>>;
