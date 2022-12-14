@@ -13,6 +13,19 @@ pub struct HybridPredicate<L> {
     automaton: Automaton<L>,
 }
 
+impl<L> HybridPredicate<L> {
+    pub fn new<P>(predicate: P, location: L, automaton: Automaton<L>) -> Self
+    where
+        P: Into<Option<Predicate>>
+    {
+        Self {
+            predicate: predicate.into(),
+            location,
+            automaton,
+        }
+    }
+}
+
 impl<L> HybridDistanceFormula<VariableMap, L> for HybridPredicate<L>
 where
     L: Copy + Ord + Hash,
