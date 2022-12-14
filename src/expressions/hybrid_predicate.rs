@@ -26,6 +26,32 @@ impl<L> HybridPredicate<L> {
     }
 }
 
+fn state_distance(predicate: &Option<Predicate>, state: &VariableMap) -> Result<HybridDistance, PolynomialError> {
+    let distance = match predicate {
+        Some(predicate) => predicate.evaluate_state(state)?,
+        None => f64::INFINITY,
+    };
+
+    Ok(HybridDistance::Robustness(distance))
+}
+
+fn guard_distance<L>(automaton: &Automaton<L>, current: L, target: L, state: &VariableMap) -> Result<HybridDistance, PolynomialError>
+where
+    L: Copy + Ord + Hash,
+{
+    let shortest_path = automaton.shortest_path(current, target);
+
+    let distance = match shortest_path {
+        Some(path) => path
+            .next_guard
+            .min_distance(state)
+            .map(|guard_distance| HybridDistance::PathDistance { path_distance: path.length, guard_distance })?,
+        None => HybridDistance::Infinite,
+    };
+
+    Ok(distance)
+}
+
 impl<L> HybridDistanceFormula<VariableMap, L> for HybridPredicate<L>
 where
     L: Copy + Ord + Hash,
@@ -35,15 +61,9 @@ where
     fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
         let evaluate_time_state = |(time, (state, location)): (usize, &(VariableMap, L))| {
             let distance = if location == &self.location {
-                HybridDistance::Robustness(self.predicate.evaluate_state(state)?)
+                state_distance(&self.predicate, state)?
             } else {
-                match self.automaton.shortest_path(*location, self.location) {
-                    Some(path) => HybridDistance::PathDistance {
-                        path_distance: path.length,
-                        guard_distance: path.next_guard.min_distance(state)?,
-                    },
-                    None => HybridDistance::Infinite,
-                }
+                guard_distance(&self.automaton,*location, self.location, state)?
             };
 
             Ok((time, distance))
