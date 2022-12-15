@@ -6,8 +6,9 @@ use std::rc::Rc;
 use nom::Parser;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::combinator::map_res;
-use nom::sequence::delimited;
+use nom::character::complete::{space0, space1};
+use nom::combinator::{map, map_res};
+use nom::sequence::{delimited, terminated, preceded};
 
 use crate::expressions::HybridPredicate;
 use crate::formula::HybridDistanceFormula;
@@ -66,11 +67,11 @@ impl<'a, L> Parser<&'a str, Rc<HybridPredicate<L>>, nom::error::Error<&'a str>> 
     }
 }
 
-struct OperandParser<L> {
+struct SubformulaParser<L> {
     predicates: Rc<PredicateMap<L>>,
 }
 
-impl<L> OperandParser<L> {
+impl<L> SubformulaParser<L> {
     fn new(predicates: &Rc<PredicateMap<L>>) -> Self {
         Self {
             predicates: predicates.clone()
@@ -78,14 +79,42 @@ impl<L> OperandParser<L> {
     }
 }
 
-impl<'a, L> Parser<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>> for OperandParser<L>
+impl<'a, L> Parser<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>> for SubformulaParser<L>
 where
     L: Copy + Ord + Hash + 'static
 {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
-        let mut p1 = PredicateParser::new(&self.predicates);
-        let mut p2 = delimited(tag("("), hybrid_formula(self.predicates.clone()), tag(")"));
+        let inner = delimited(space0, hybrid_formula(self.predicates.clone()), space0);
+        let mut parser = delimited(tag("("), inner, tag(")"));
 
+        parser.parse(input)
+    }
+}
+
+fn left_operand<'a, L>(predicates: &Rc<PredicateMap<L>>) -> impl Parser<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>>
+where
+    L: Copy + Ord + Hash + 'static,
+{
+    let mut p1 = terminated(PredicateParser::new(predicates), space1);
+    let mut p2 = terminated(SubformulaParser::new(predicates), space0);
+    
+    move |input: &'a str| {
+        if let Ok((rest, pred)) = p1.parse(input) {
+            Ok((rest, ParsedHybridFormula::new(pred)))
+        } else {
+            p2.parse(input)
+        }
+    }
+}
+
+fn right_operand<'a, L>(predicates: &Rc<PredicateMap<L>>) -> impl Parser<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>>
+where
+    L: Copy + Ord + Hash + 'static,
+{
+    let mut p1 = preceded(space1, PredicateParser::new(predicates));
+    let mut p2 = preceded(space0, SubformulaParser::new(predicates));
+    
+    move |input: &'a str| {
         if let Ok((rest, pred)) = p1.parse(input) {
             Ok((rest, ParsedHybridFormula::new(pred)))
         } else {
@@ -111,8 +140,7 @@ where
     L: Copy + Ord + Hash + 'static
 {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
-        let p1 = OperandParser::new(&self.predicates);
-        let mut parser = operators::not(p1);
+        let mut parser = operators::not(right_operand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
         Ok((rest, ParsedHybridFormula::new(formula)))
@@ -136,9 +164,7 @@ where
     L: Copy + Ord + Hash + 'static
 {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>> {
-        let left_parser = OperandParser::new(&self.predicates);
-        let right_parser = OperandParser::new(&self.predicates);
-        let mut parser = operators::and(left_parser, right_parser);
+        let mut parser = operators::and(left_operand(&self.predicates), right_operand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
         Ok((rest, ParsedHybridFormula::new(formula)))
@@ -162,9 +188,7 @@ where
     L: Copy + Ord + Hash + 'static
 {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>> {
-        let left_parser = OperandParser::new(&self.predicates);
-        let right_parser = OperandParser::new(&self.predicates);
-        let mut parser = operators::or(left_parser, right_parser);
+        let mut parser = operators::or(left_operand(&self.predicates), right_operand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
         Ok((rest, ParsedHybridFormula::new(formula)))
@@ -188,9 +212,7 @@ where
     L: Copy + Ord + Hash + 'static
 {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>> {
-        let ante_parser = OperandParser::new(&self.predicates);
-        let cons_parser = OperandParser::new(&self.predicates);
-        let mut parser = operators::implies(ante_parser, cons_parser);
+        let mut parser = operators::implies(left_operand(&self.predicates), right_operand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
         Ok((rest, ParsedHybridFormula::new(formula)))
@@ -214,8 +236,7 @@ where
     L: Copy + Ord + Hash + 'static
 {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>> {
-        let p1 = OperandParser::new(&self.predicates);
-        let mut parser = operators::next(p1);
+        let mut parser = operators::next(right_operand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
         Ok((rest, ParsedHybridFormula::new(formula)))
@@ -239,8 +260,7 @@ where
     L: Copy + Ord + Hash + 'static
 {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>> {
-        let p1 = OperandParser::new(&self.predicates);
-        let mut parser = operators::always(p1);
+        let mut parser = operators::always(right_operand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
         Ok((rest, ParsedHybridFormula::new(formula)))
@@ -264,8 +284,7 @@ where
     L: Copy + Ord + Hash + 'static
 {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>, nom::error::Error<&'a str>> {
-        let p1 = OperandParser::new(&self.predicates);
-        let mut parser = operators::eventually(p1);
+        let mut parser = operators::eventually(right_operand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
         Ok((rest, ParsedHybridFormula::new(formula)))
@@ -284,7 +303,8 @@ where
         AndParser::new(&predicates),
         OrParser::new(&predicates),
         ImpliesParser::new(&predicates),
-        OperandParser::new(&predicates),
+        SubformulaParser::new(&predicates),
+        map(PredicateParser::new(&predicates), ParsedHybridFormula::new)        
     ));
 
     move |input: &'a str| {
@@ -378,7 +398,7 @@ mod tests {
         let predicates = get_predicates();
         let mut parser = AndParser::new(&predicates);
 
-        let (rest, _) = parser.parse(r"(p1) /\ (p1)")?;
+        let (rest, _) = parser.parse(r"(p1)/\(p1)")?;
         assert_eq!(rest, "");
 
         let (rest, _) = parser.parse("p1 and p1")?;

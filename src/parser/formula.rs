@@ -4,10 +4,10 @@ use std::str::FromStr;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::digit1;
+use nom::character::complete::{digit1, space0, space1};
 use nom::combinator::{map, opt, recognize};
 use nom::multi::many0;
-use nom::sequence::{pair, preceded, tuple, delimited};
+use nom::sequence::{pair, preceded, tuple, delimited, terminated};
 use nom::IResult;
 
 use crate::expressions::{Polynomial, Predicate};
@@ -100,65 +100,80 @@ fn predicate(input: &str) -> IResult<&str, Predicate> {
     Ok((rest, predicate))
 }
 
-fn operand(input: &str) -> IResult<&str, ParsedFormula> {
-    let p1 = map(predicate, ParsedFormula::new);
-    let p2 = delimited(tag("("), formula, tag(")"));
+fn subformula(input: &str) -> IResult<&str, ParsedFormula> {
+    let inner = delimited(space0, formula, space0);
+    let mut parser = delimited(tag("("), inner, tag(")"));
+
+    parser(input)
+}
+
+fn left_operand(input: &str) -> IResult<&str, ParsedFormula> {
+    let p1 = terminated(map(predicate, ParsedFormula::new), space1);
+    let p2 = terminated(subformula, space0);
+    let mut parser = alt((p1, p2));
+
+    parser(input)
+}
+
+fn right_operand(input: &str) -> IResult<&str, ParsedFormula> {
+    let p1 = preceded(space1, map(predicate, ParsedFormula::new));
+    let p2 = preceded(space0, subformula);
     let mut parser = alt((p1, p2));
 
     parser(input)
 }
 
 fn not(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::not(operand);
+    let mut parser = operators::not(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn and(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::and(operand, operand);
+    let mut parser = operators::and(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
     
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn or(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::or(operand, operand);
+    let mut parser = operators::or(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
     
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn implies(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::implies(operand, operand);
+    let mut parser = operators::implies(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
     
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn next(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::next(operand);
+    let mut parser = operators::next(right_operand);
     let (rest, formula) = parser(input)?;
     
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn always(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::always(operand);
+    let mut parser = operators::always(right_operand);
     let (rest, formula) = parser(input)?;
     
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::eventually(operand);
+    let mut parser = operators::eventually(right_operand);
     let (rest, formula) = parser(input)?;
     
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn formula(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = alt((next, always, eventually, next, not, and, or, implies, operand));
+    let mut parser = alt((next, always, eventually, next, not, and, or, implies, subformula, map(predicate, ParsedFormula::new)));
     parser(input)
 }
 
@@ -261,9 +276,9 @@ mod tests {
 
     #[test]
     fn parse_not() -> Result<(), Box<dyn Error>> {
-        let (rest, _) = not("! (3.1*x <= 0.5*y)")?;
+        let (rest, _) = not("!(3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
-
+        
         let (rest, _) = not("not 3.1*x <= 0.5*y")?;
         assert_eq!(rest, "");
 
@@ -275,7 +290,7 @@ mod tests {
 
     #[test]
     fn parse_and() -> Result<(), Box<dyn Error>> {
-        let (rest, _) = and(r"(3.1*x <= 0.5*y) /\ (2.0*x <= 4.0)")?;
+        let (rest, _) = and(r"(3.1*x <= 0.5*y)/\(2.0*x <= 4.0)")?;
         assert_eq!(rest, "");
 
         let (rest, _) = and("3.1*x <= 0.5*y and 2.0*x <= 4.0")?;
@@ -295,7 +310,7 @@ mod tests {
         let (rest, _) = or("3.1*x <= 0.5*y or 2.0*x <= 4.0")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = or(r"(3.1*x <= 0.5*y or 2.0*x <= 4.0) \/ (2.0 <= 1.5*x)")?;
+        let (rest, _) = or(r"(3.1*x <= 0.5*y or 2.0*x <= 4.0)\/(2.0 <= 1.5*x)")?;
         assert_eq!(rest, "");
 
         Ok(())
@@ -317,7 +332,7 @@ mod tests {
         let (rest, _) = next("X 3.1*x <= 0.5*y")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = next("() (3.1*x <= 0.5*y)")?;
+        let (rest, _) = next("()(3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
 
         let (rest, _) = next("next (3.1*x <= 0.5*y)")?;
@@ -334,7 +349,7 @@ mod tests {
         let (rest, _) = always("[]{0,10} 3.1*x <= 0.5*y")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = always("G{1,2} (3.1*x <= 0.5*y)")?;
+        let (rest, _) = always("G{1,2}(3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
 
         Ok(())
@@ -348,7 +363,7 @@ mod tests {
         let (rest, _) = eventually("<>{0,10} 3.1*x <= 0.5*y")?;
         assert_eq!(rest, "");
 
-        let (rest, _) = eventually("F{1,2} (3.1*x <= 0.5*y)")?;
+        let (rest, _) = eventually("F{1,2}(3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
 
         Ok(())
