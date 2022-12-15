@@ -74,9 +74,11 @@ where
     binop((tag("->"), tag("implies")), left_parser, right_parser, Implies::new)
 }
 
-pub fn next<'a, S, T>(subparser: S) -> impl FnMut(&'a str) -> IResult<&'a str, Next<T>>
+pub fn next<'a, 's, S, T>(subparser: S) -> impl FnMut(&'a str) -> IResult<&'a str, Next<T>>
 where
-    S: Parser<&'a str, T, nom::error::Error<&'a str>>,
+    's: 'a,
+    T: 's,
+    S: Parser<&'a str, T, nom::error::Error<&'a str>> + 's,
 {
     unaryop((tag("X"), tag("()"), tag("next")), subparser, Next::new)
 }
