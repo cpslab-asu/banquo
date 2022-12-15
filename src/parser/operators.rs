@@ -3,9 +3,9 @@ use std::str::FromStr;
 use nom::{IResult, Parser};
 use nom::branch::{Alt, alt};
 use nom::bytes::complete::tag;
-use nom::character::complete::{digit1, space1};
+use nom::character::complete::digit1;
 use nom::combinator::{map_res, opt};
-use nom::sequence::{preceded, terminated, tuple, delimited};
+use nom::sequence::{preceded, tuple};
 
 use crate::operators::{Always, And, Eventually, Next, Not, Or, Implies};
 
@@ -15,7 +15,7 @@ where
     S: Parser<&'a str, T, nom::error::Error<&'a str>>,
     F: Fn(T) -> U
 {
-    let mut op = terminated(alt(ops), space1);
+    let mut op = alt(ops);
     
     move |input: &'a str| {
         let (next, _) = op.parse(input)?;
@@ -39,8 +39,7 @@ where
     P2: Parser<&'a str, R, nom::error::Error<&'a str>>,
     F: Fn(L, R) -> T
 {
-    let op = delimited(space1, alt(ops), space1);
-    let mut right_parser = preceded(op, right_parser);
+    let mut right_parser = preceded(alt(ops), right_parser);
 
     move |input: &'a str| {
         let (next, left) = left_parser.parse(input)?;
@@ -101,7 +100,7 @@ where
     S: Parser<&'a str, T, nom::error::Error<&'a str>>,
     F: Fn(T, Option<(usize, usize)>) -> U
 {
-    let mut bounds = delimited(alt(ops), opt(time_bounds), space1);
+    let mut bounds = preceded(alt(ops), opt(time_bounds));
 
     move |input: &'a str| {
         let (next, t_bounds) = bounds.parse(input)?;
