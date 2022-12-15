@@ -21,7 +21,7 @@ impl Guard {
 
         let distance = distances?
             .into_iter()
-            .reduce(|d1, d2| f64::min(d1, d2))
+            .reduce(f64::min)
             .expect("At least one constraint must be provided to a guard");
 
         Ok(distance)

@@ -59,7 +59,7 @@ impl<L> PredicateParser<L> {
 
 impl<'a, L> Parser<&'a str, Rc<HybridPredicate<L>>, nom::error::Error<&'a str>> for PredicateParser<L> {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, Rc<HybridPredicate<L>>, nom::error::Error<&'a str>> {
-        let get_predicate = |name: String| self.predicates.get(&name).ok_or(MissingPredicateError::from(name));
+        let get_predicate = |name: String| self.predicates.get(&name).ok_or_else(move || MissingPredicateError::from(name));
         let mut parser = map_res(var_name, get_predicate);
         let (rest, predicate) = parser.parse(input)?;
 
@@ -324,7 +324,7 @@ where
     let mut parser = hybrid_formula(Rc::new(predicates));
     let (rest, formula) = parser.parse(input)?;
 
-    if rest.len() > 0 {
+    if !rest.is_empty() {
         Err(Box::new(IncompleteParseError::from(rest)))
     } else {
         Ok(formula)

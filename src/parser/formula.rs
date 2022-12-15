@@ -52,7 +52,7 @@ pub fn coeff(input: &str) -> IResult<&str, (f64, String)> {
     let mut parser = tuple((decimal, op0("*"), var_name));
     let (rest, (coefficient, _, variable_name)) = parser(input)?;
 
-    Ok((rest, (coefficient, variable_name.to_string())))
+    Ok((rest, (coefficient, variable_name)))
 }
 
 pub fn term(input: &str) -> IResult<&str, (f64, Option<String>)> {
@@ -180,7 +180,7 @@ fn formula(input: &str) -> IResult<&str, ParsedFormula> {
 pub fn parse_formula<'a>(input: &'a str) -> Result<ParsedFormula, Box<dyn Error + 'a>> {
     let (rest, parsed) = formula(input)?;
 
-    if rest.len() > 0 {
+    if !rest.is_empty() {
         Err(Box::new(IncompleteParseError::from(rest)))
     } else {
         Ok(parsed)
@@ -190,7 +190,7 @@ pub fn parse_formula<'a>(input: &'a str) -> Result<ParsedFormula, Box<dyn Error 
 pub fn parse_predicate<'a>(input: &'a str) -> Result<Predicate, Box<dyn Error + 'a>> {
     let (rest, predicate) = predicate(input)?;
 
-    if rest.len() > 0 {
+    if !rest.is_empty() {
         Err(Box::new(IncompleteParseError::from(rest)))
     } else {
         Ok(predicate)
