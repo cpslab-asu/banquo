@@ -232,3 +232,39 @@ pub trait HybridDistanceFormula<S, L> {
     type Error: Error;
     fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<HybridDistance, Self::Error>;
 }
+
+impl<S, L, T> HybridDistanceFormula<S, L> for &T
+where
+    T: HybridDistanceFormula<S, L> + ?Sized
+{
+    type Error = T::Error;
+
+    #[inline]
+    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<HybridDistance, Self::Error> {
+        (**self).hybrid_distance(trace)
+    }
+}
+
+impl<S, L, T> HybridDistanceFormula<S, L> for Box<T> 
+where
+    T: HybridDistanceFormula<S, L> + ?Sized
+{
+    type Error = T::Error;
+
+    #[inline]
+    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<HybridDistance, Self::Error> {
+        (**self).hybrid_distance(trace)
+    }
+}
+
+impl<S, L, T> HybridDistanceFormula<S, L> for Rc<T> 
+where
+    T: HybridDistanceFormula<S, L> + ?Sized
+{
+    type Error = T::Error;
+
+    #[inline]
+    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<HybridDistance, Self::Error> {
+        (**self).hybrid_distance(trace)
+    }
+}
