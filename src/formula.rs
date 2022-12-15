@@ -235,7 +235,7 @@ pub trait HybridDistanceFormula<S, L> {
 
 impl<S, L, T> HybridDistanceFormula<S, L> for &T
 where
-    T: HybridDistanceFormula<S, L> + ?Sized
+    T: HybridDistanceFormula<S, L> + ?Sized,
 {
     type Error = T::Error;
 
@@ -245,9 +245,9 @@ where
     }
 }
 
-impl<S, L, T> HybridDistanceFormula<S, L> for Box<T> 
+impl<S, L, T> HybridDistanceFormula<S, L> for Box<T>
 where
-    T: HybridDistanceFormula<S, L> + ?Sized
+    T: HybridDistanceFormula<S, L> + ?Sized,
 {
     type Error = T::Error;
 
@@ -257,9 +257,9 @@ where
     }
 }
 
-impl<S, L, T> HybridDistanceFormula<S, L> for Rc<T> 
+impl<S, L, T> HybridDistanceFormula<S, L> for Rc<T>
 where
-    T: HybridDistanceFormula<S, L> + ?Sized
+    T: HybridDistanceFormula<S, L> + ?Sized,
 {
     type Error = T::Error;
 

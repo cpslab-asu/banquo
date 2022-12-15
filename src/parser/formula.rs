@@ -7,15 +7,15 @@ use nom::bytes::complete::tag;
 use nom::character::complete::{digit1, space0, space1};
 use nom::combinator::{map, opt, recognize};
 use nom::multi::many0;
-use nom::sequence::{pair, preceded, tuple, delimited, terminated};
+use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::IResult;
 
+use super::common::{op0, var_name, WrappedFormula};
+use super::errors::{IncompleteParseError, ParsedFormulaError};
+use super::operators;
 use crate::expressions::{Polynomial, Predicate};
 use crate::formula::Formula;
 use crate::trace::Trace;
-use super::common::{WrappedFormula, op0, var_name};
-use super::errors::{IncompleteParseError, ParsedFormulaError};
-use super::operators;
 
 pub struct ParsedFormula {
     inner: Box<dyn Formula<HashMap<String, f64>, Error = ParsedFormulaError>>,
@@ -133,47 +133,58 @@ fn not(input: &str) -> IResult<&str, ParsedFormula> {
 fn and(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = operators::and(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
-    
+
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn or(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = operators::or(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
-    
+
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn implies(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = operators::implies(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
-    
+
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn next(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = operators::next(right_operand);
     let (rest, formula) = parser(input)?;
-    
+
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn always(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = operators::always(right_operand);
     let (rest, formula) = parser(input)?;
-    
+
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = operators::eventually(right_operand);
     let (rest, formula) = parser(input)?;
-    
+
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn formula(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = alt((next, always, eventually, next, not, and, or, implies, subformula, map(predicate, ParsedFormula::new)));
+    let mut parser = alt((
+        next,
+        always,
+        eventually,
+        next,
+        not,
+        and,
+        or,
+        implies,
+        subformula,
+        map(predicate, ParsedFormula::new),
+    ));
     parser(input)
 }
 
@@ -278,7 +289,7 @@ mod tests {
     fn parse_not() -> Result<(), Box<dyn Error>> {
         let (rest, _) = not("!(3.1*x <= 0.5*y)")?;
         assert_eq!(rest, "");
-        
+
         let (rest, _) = not("not 3.1*x <= 0.5*y")?;
         assert_eq!(rest, "");
 

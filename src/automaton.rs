@@ -31,7 +31,7 @@ impl Guard {
 impl FromIterator<Predicate> for Guard {
     fn from_iter<T: IntoIterator<Item = Predicate>>(iter: T) -> Self {
         Self {
-            constraints: Vec::from_iter(iter)
+            constraints: Vec::from_iter(iter),
         }
     }
 }
@@ -43,11 +43,11 @@ pub struct Automaton<L> {
 
 impl<L> Default for Automaton<L>
 where
-    L: Copy + Ord + Hash
+    L: Copy + Ord + Hash,
 {
     fn default() -> Self {
         Self {
-            state_graph: DiGraphMap::default()
+            state_graph: DiGraphMap::default(),
         }
     }
 }

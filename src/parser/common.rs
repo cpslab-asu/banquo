@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use nom::IResult;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, digit0, space0};
 use nom::sequence::{delimited, pair};
+use nom::IResult;
 
+use super::errors::ParsedFormulaError;
 use crate::formula::{Formula, HybridDistanceFormula};
 use crate::trace::Trace;
-use super::errors::ParsedFormulaError;
 
 pub struct WrappedFormula<F>(F);
 
@@ -36,7 +36,10 @@ where
 {
     type Error = ParsedFormulaError;
 
-    fn hybrid_distance(&self, trace: &Trace<(HashMap<String, f64>, L)>) -> crate::Result<crate::HybridDistance, Self::Error> {
+    fn hybrid_distance(
+        &self,
+        trace: &Trace<(HashMap<String, f64>, L)>,
+    ) -> crate::Result<crate::HybridDistance, Self::Error> {
         self.0.hybrid_distance(trace).map_err(ParsedFormulaError::from_err)
     }
 }

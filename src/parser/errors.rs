@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Clone, Debug)]
 pub struct MissingPredicateError {
-    name: String
+    name: String,
 }
 
 impl From<String> for MissingPredicateError {

@@ -16,7 +16,7 @@ pub struct HybridPredicate<L> {
 impl<L> HybridPredicate<L> {
     pub fn new<P>(predicate: P, location: L, automaton: Automaton<L>) -> Self
     where
-        P: Into<Option<Predicate>>
+        P: Into<Option<Predicate>>,
     {
         Self {
             predicate: predicate.into(),
@@ -35,7 +35,12 @@ fn state_distance(predicate: &Option<Predicate>, state: &VariableMap) -> Result<
     Ok(HybridDistance::Robustness(distance))
 }
 
-fn guard_distance<L>(automaton: &Automaton<L>, current: L, target: L, state: &VariableMap) -> Result<HybridDistance, PolynomialError>
+fn guard_distance<L>(
+    automaton: &Automaton<L>,
+    current: L,
+    target: L,
+    state: &VariableMap,
+) -> Result<HybridDistance, PolynomialError>
 where
     L: Copy + Ord + Hash,
 {
@@ -45,7 +50,10 @@ where
         Some(path) => path
             .next_guard
             .min_distance(state)
-            .map(|guard_distance| HybridDistance::PathDistance { path_distance: path.length, guard_distance })?,
+            .map(|guard_distance| HybridDistance::PathDistance {
+                path_distance: path.length,
+                guard_distance,
+            })?,
         None => HybridDistance::Infinite,
     };
 
@@ -63,7 +71,7 @@ where
             let distance = if location == &self.location {
                 state_distance(&self.predicate, state)?
             } else {
-                guard_distance(&self.automaton,*location, self.location, state)?
+                guard_distance(&self.automaton, *location, self.location, state)?
             };
 
             Ok((time, distance))

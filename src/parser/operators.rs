@@ -1,22 +1,22 @@
 use std::str::FromStr;
 
-use nom::{IResult, Parser};
-use nom::branch::{Alt, alt};
+use nom::branch::{alt, Alt};
 use nom::bytes::complete::tag;
 use nom::character::complete::digit1;
 use nom::combinator::{map_res, opt};
 use nom::sequence::{preceded, tuple};
+use nom::{IResult, Parser};
 
-use crate::operators::{Always, And, Eventually, Next, Not, Or, Implies};
+use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or};
 
 fn unaryop<'a, O, S, T, F, U>(ops: O, mut subparser: S, func: F) -> impl FnMut(&'a str) -> IResult<&'a str, U>
 where
     O: Alt<&'a str, &'a str, nom::error::Error<&'a str>>,
     S: Parser<&'a str, T, nom::error::Error<&'a str>>,
-    F: Fn(T) -> U
+    F: Fn(T) -> U,
 {
     let mut op = alt(ops);
-    
+
     move |input: &'a str| {
         let (next, _) = op.parse(input)?;
         let (rest, subformula) = subparser.parse(next)?;
@@ -27,17 +27,22 @@ where
 
 pub fn not<'a, F, T>(subparser: F) -> impl FnMut(&'a str) -> IResult<&'a str, Not<T>>
 where
-    F: Parser<&'a str, T, nom::error::Error<&'a str>>
+    F: Parser<&'a str, T, nom::error::Error<&'a str>>,
 {
     unaryop((tag("!"), tag("not")), subparser, Not::new)
 }
 
-fn binop<'a, O, P1, L, P2, R, F, T>(ops: O, mut left_parser: P1, right_parser: P2, func: F) -> impl FnMut(&'a str) -> IResult<&'a str, T>
+fn binop<'a, O, P1, L, P2, R, F, T>(
+    ops: O,
+    mut left_parser: P1,
+    right_parser: P2,
+    func: F,
+) -> impl FnMut(&'a str) -> IResult<&'a str, T>
 where
     O: Alt<&'a str, &'a str, nom::error::Error<&'a str>>,
     P1: Parser<&'a str, L, nom::error::Error<&'a str>>,
     P2: Parser<&'a str, R, nom::error::Error<&'a str>>,
-    F: Fn(L, R) -> T
+    F: Fn(L, R) -> T,
 {
     let mut right_parser = preceded(alt(ops), right_parser);
 
@@ -65,7 +70,10 @@ where
     binop((tag(r"\/"), tag("or")), left_parser, right_parser, Or::new)
 }
 
-pub fn implies<'a, P1, A, P2, C>(left_parser: P1, right_parser: P2) -> impl FnMut(&'a str) -> IResult<&'a str, Implies<A, C>>
+pub fn implies<'a, P1, A, P2, C>(
+    left_parser: P1,
+    right_parser: P2,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Implies<A, C>>
 where
     P1: Parser<&'a str, A, nom::error::Error<&'a str>>,
     P2: Parser<&'a str, C, nom::error::Error<&'a str>>,
@@ -93,12 +101,12 @@ fn time_bounds(input: &str) -> IResult<&str, (usize, usize)> {
 
     Ok((rest, (t_start, t_end)))
 }
- 
+
 fn boundedop<'a, O, S, T, F, U>(ops: O, mut subparser: S, func: F) -> impl FnMut(&'a str) -> IResult<&'a str, U>
 where
     O: Alt<&'a str, &'a str, nom::error::Error<&'a str>>,
     S: Parser<&'a str, T, nom::error::Error<&'a str>>,
-    F: Fn(T, Option<(usize, usize)>) -> U
+    F: Fn(T, Option<(usize, usize)>) -> U,
 {
     let mut bounds = preceded(alt(ops), opt(time_bounds));
 
