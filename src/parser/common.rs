@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use nom::{IResult, Parser};
+use nom::IResult;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, digit0, space0};
 use nom::sequence::{delimited, pair};
@@ -53,16 +53,5 @@ pub fn op0<'a>(op: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> 
     move |input: &'a str| -> IResult<&'a str, &'a str> {
         let mut parser = delimited(space0, tag(op), space0);
         parser(input)
-    }
-}
-
-pub fn subformula<'a, F, T>(subparser: F) -> impl FnMut(&'a str) -> IResult<&'a str, T>
-where
-    F: Parser<&'a str, T, nom::error::Error<&'a str>>    
-{
-    let mut parser = delimited(tag("("), subparser, tag(")"));
-
-    move |input: &str| {
-        parser.parse(input)
     }
 }
