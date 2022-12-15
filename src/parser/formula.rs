@@ -7,13 +7,13 @@ use nom::bytes::complete::tag;
 use nom::character::complete::digit1;
 use nom::combinator::{map, opt, recognize};
 use nom::multi::many0;
-use nom::sequence::{pair, preceded, tuple};
+use nom::sequence::{pair, preceded, tuple, delimited};
 use nom::IResult;
 
 use crate::expressions::{Polynomial, Predicate};
 use crate::formula::Formula;
 use crate::trace::Trace;
-use super::common::{WrappedFormula, op0, subformula, var_name};
+use super::common::{WrappedFormula, op0, var_name};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 
@@ -102,7 +102,7 @@ fn predicate(input: &str) -> IResult<&str, Predicate> {
 
 fn operand(input: &str) -> IResult<&str, ParsedFormula> {
     let p1 = map(predicate, ParsedFormula::new);
-    let p2 = subformula(formula);
+    let p2 = delimited(tag("("), formula, tag(")"));
     let mut parser = alt((p1, p2));
 
     parser(input)
