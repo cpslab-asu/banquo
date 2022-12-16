@@ -18,14 +18,14 @@ use crate::trace::Trace;
 
 type VariableMap = HashMap<String, f64>;
 
-pub struct ParsedHybridFormula<L> {
-    inner: Box<dyn HybridDistanceFormula<HashMap<String, f64>, L, Error = ParsedFormulaError> + 'static>,
+pub struct ParsedHybridFormula<'a, L> {
+    inner: Box<dyn HybridDistanceFormula<HashMap<String, f64>, L, Error = ParsedFormulaError> + 'a>,
 }
 
-impl<L> ParsedHybridFormula<L> {
+impl<'a, L> ParsedHybridFormula<'a, L> {
     fn new<F>(formula: F) -> Self
     where
-        F: HybridDistanceFormula<HashMap<String, f64>, L> + 'static,
+        F: HybridDistanceFormula<HashMap<String, f64>, L> + 'a,
         F::Error: 'static,
     {
         Self {
@@ -34,7 +34,7 @@ impl<L> ParsedHybridFormula<L> {
     }
 }
 
-impl<L> HybridDistanceFormula<VariableMap, L> for ParsedHybridFormula<L> {
+impl<'a, L> HybridDistanceFormula<VariableMap, L> for ParsedHybridFormula<'a, L> {
     type Error = ParsedFormulaError;
 
     #[inline]
@@ -81,13 +81,14 @@ impl<F> SubformulaParser<F> {
     }
 }
 
-impl<'a, F, L> Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>> for SubformulaParser<F>
+impl<'a, 'b, F, L> Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>> for SubformulaParser<F>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<'b, L>> {
         let inner = delimited(space0, hybrid_formula(self.predicates.clone()), space0);
         let mut parser = delimited(tag("("), inner, tag(")"));
 
@@ -95,11 +96,14 @@ where
     }
 }
 
-fn loperand<'a, F, L>(predicates: &Rc<HashMap<String, Rc<F>>>) -> impl Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>>
+fn loperand<'a, 'b, F, L>(
+    predicates: &Rc<HashMap<String, Rc<F>>>,
+) -> impl Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
     let mut p1 = terminated(PredicateParser::new(predicates), space1);
     let mut p2 = terminated(SubformulaParser::new(predicates), space0);
@@ -113,11 +117,14 @@ where
     }
 }
 
-fn roperand<'a, F, L>(predicates: &Rc<HashMap<String, Rc<F>>>) -> impl Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>>
+fn roperand<'a, 'b, F, L>(
+    predicates: &Rc<HashMap<String, Rc<F>>>,
+) -> impl Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
     let mut p1 = preceded(space1, PredicateParser::new(predicates));
     let mut p2 = preceded(space0, SubformulaParser::new(predicates));
@@ -143,13 +150,14 @@ impl<F> NotParser<F> {
     }
 }
 
-impl<'a, F, L> Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>> for NotParser<F>
+impl<'a, 'b, F, L> Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>> for NotParser<F>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<'b, L>> {
         let mut parser = operators::not(roperand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
@@ -169,13 +177,14 @@ impl<F> AndParser<F> {
     }
 }
 
-impl<'a, F, L> Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>> for AndParser<F>
+impl<'a, 'b, F, L> Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>> for AndParser<F>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<'b, L>> {
         let mut parser = operators::and(loperand(&self.predicates), roperand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
@@ -195,13 +204,14 @@ impl<F> OrParser<F> {
     }
 }
 
-impl<'a, F, L> Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>> for OrParser<F>
+impl<'a, 'b, F, L> Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>> for OrParser<F>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<'b, L>> {
         let mut parser = operators::or(loperand(&self.predicates), roperand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
@@ -221,13 +231,14 @@ impl<F> ImpliesParser<F> {
     }
 }
 
-impl<'a, F, L> Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>> for ImpliesParser<F>
+impl<'a, 'b, F, L> Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>> for ImpliesParser<F>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<'b, L>> {
         let mut parser = operators::implies(loperand(&self.predicates), roperand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
@@ -247,13 +258,14 @@ impl<F> NextParser<F> {
     }
 }
 
-impl<'a, F, L> Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>> for NextParser<F>
+impl<'a, 'b, F, L> Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>> for NextParser<F>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<'b, L>> {
         let mut parser = operators::next(roperand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
@@ -273,13 +285,14 @@ impl<F> AlwaysParser<F> {
     }
 }
 
-impl<'a, F, L> Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>> for AlwaysParser<F>
+impl<'a, 'b, F, L> Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>> for AlwaysParser<F>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<'b, L>> {
         let mut parser = operators::always(roperand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
@@ -299,13 +312,14 @@ impl<F> EventuallyParser<F> {
     }
 }
 
-impl<'a, F, L> Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>> for EventuallyParser<F>
+impl<'a, 'b, F, L> Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>> for EventuallyParser<F>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedHybridFormula<'b, L>> {
         let mut parser = operators::eventually(roperand(&self.predicates));
         let (rest, formula) = parser.parse(input)?;
 
@@ -313,11 +327,14 @@ where
     }
 }
 
-fn hybrid_formula<'a, F, L>(predicates: Rc<HashMap<String, Rc<F>>>) -> impl Parser<&'a str, ParsedHybridFormula<L>, NomError<&'a str>>
+fn hybrid_formula<'a, 'b, F, L>(
+    predicates: Rc<HashMap<String, Rc<F>>>,
+) -> impl Parser<&'a str, ParsedHybridFormula<'b, L>, NomError<&'a str>>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
+    'b: 'a,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
     F::Error: 'static,
-    L: 'static,
+    L: 'b,
 {
     let mut parser = alt((
         NotParser::new(&predicates),
@@ -334,13 +351,15 @@ where
     move |input: &'a str| parser.parse(input)
 }
 
-pub fn parse_hybrid_formula<'a, F, L>(
+pub fn parse_hybrid_formula<'a, 'b, F, L>(
     input: &'a str,
     predicates: HashMap<String, F>,
-) -> Result<ParsedHybridFormula<L>, Box<dyn Error + 'a>>
+) -> Result<ParsedHybridFormula<'b, L>, Box<dyn Error + 'a>>
 where
-    F: HybridDistanceFormula<VariableMap, L> + 'static,
-    L: 'static,
+    F: HybridDistanceFormula<VariableMap, L> + 'b,
+    F::Error: 'static,
+    L: 'b,
+    'b: 'a,
 {
     let predicates = predicates
         .into_iter()
