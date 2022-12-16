@@ -6,7 +6,7 @@ use nom::sequence::{delimited, pair};
 use nom::IResult;
 
 use super::errors::ParsedFormulaError;
-use crate::formula::{Formula, HybridDistanceFormula};
+use crate::formula::{Formula, HybridDistance, HybridDistanceFormula, Result};
 use crate::trace::Trace;
 
 pub struct WrappedFormula<F>(F);
@@ -24,7 +24,7 @@ where
 {
     type Error = ParsedFormulaError;
 
-    fn robustness(&self, trace: &Trace<HashMap<String, f64>>) -> Result<Trace<f64>, Self::Error> {
+    fn robustness(&self, trace: &Trace<HashMap<String, f64>>) -> Result<f64, Self::Error> {
         self.0.robustness(trace).map_err(ParsedFormulaError::from_err)
     }
 }
@@ -36,10 +36,7 @@ where
 {
     type Error = ParsedFormulaError;
 
-    fn hybrid_distance(
-        &self,
-        trace: &Trace<(HashMap<String, f64>, L)>,
-    ) -> crate::Result<crate::HybridDistance, Self::Error> {
+    fn hybrid_distance(&self, trace: &Trace<(HashMap<String, f64>, L)>) -> Result<HybridDistance, Self::Error> {
         self.0.hybrid_distance(trace).map_err(ParsedFormulaError::from_err)
     }
 }
