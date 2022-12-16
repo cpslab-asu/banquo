@@ -2,26 +2,27 @@ use std::hash::Hash;
 
 use super::predicate::{PolynomialError, Predicate};
 use super::{Expression, VariableMap};
-use crate::automaton::Automaton;
-use crate::formula::{HybridDistance, HybridDistanceFormula};
+use crate::automaton::{StatePath, ShortestPath};
+use crate::formula::{self, HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
 #[derive(Clone)]
-pub struct HybridPredicate<L> {
+pub struct HybridPredicate<S, L> {
     predicate: Option<Predicate>,
+    automaton: S,
     location: L,
-    automaton: Automaton<L>,
 }
 
-impl<L> HybridPredicate<L> {
-    pub fn new<P>(predicate: P, location: L, automaton: Automaton<L>) -> Self
+impl<S, L> HybridPredicate<S, L> {
+    pub fn new<P>(predicate: P, location: L, automaton: S) -> Self
     where
         P: Into<Option<Predicate>>,
+        S: StatePath<L>,
     {
         Self {
             predicate: predicate.into(),
-            location,
             automaton,
+            location,
         }
     }
 }
@@ -35,17 +36,7 @@ fn state_distance(predicate: &Option<Predicate>, state: &VariableMap) -> Result<
     Ok(HybridDistance::Robustness(distance))
 }
 
-fn guard_distance<L>(
-    automaton: &Automaton<L>,
-    current: L,
-    target: L,
-    state: &VariableMap,
-) -> Result<HybridDistance, PolynomialError>
-where
-    L: Copy + Ord + Hash,
-{
-    let shortest_path = automaton.shortest_path(current, target);
-
+fn guard_distance(shortest_path: Option<ShortestPath>, state: &VariableMap) -> Result<HybridDistance, PolynomialError> {
     let distance = match shortest_path {
         Some(path) => path
             .next_guard
@@ -60,18 +51,19 @@ where
     Ok(distance)
 }
 
-impl<L> HybridDistanceFormula<VariableMap, L> for HybridPredicate<L>
+impl<S, L> HybridDistanceFormula<VariableMap, L> for HybridPredicate<S, L>
 where
+    S: StatePath<L>,
     L: Copy + Ord + Hash,
 {
     type Error = PolynomialError;
 
-    fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
+    fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> formula::Result<HybridDistance, Self::Error> {
         let evaluate_time_state = |(time, (state, location)): (usize, &(VariableMap, L))| {
             let distance = if location == &self.location {
                 state_distance(&self.predicate, state)?
             } else {
-                guard_distance(&self.automaton, *location, self.location, state)?
+                guard_distance(self.automaton.shortest_path(*location, self.location), state)?
             };
 
             Ok((time, distance))
