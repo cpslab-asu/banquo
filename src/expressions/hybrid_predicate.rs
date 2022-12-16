@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use super::predicate::{PolynomialError, Predicate};
 use super::{Expression, VariableMap};
-use crate::automaton::{StatePath, ShortestPath};
+use crate::automaton::{ShortestPath, StatePath};
 use crate::formula::{self, HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
