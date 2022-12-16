@@ -71,11 +71,15 @@ pub struct ShortestPath<'a> {
     pub next_guard: &'a Guard,
 }
 
-impl<L> Automaton<L>
+pub trait StatePath<L> {
+    fn shortest_path(&self, start: L, end: L) -> Option<ShortestPath>;
+}
+
+impl<L> StatePath<L> for Automaton<L>
 where
     L: Copy + Ord + Hash,
 {
-    pub fn shortest_path(&self, start: L, end: L) -> Option<ShortestPath> {
+    fn shortest_path(&self, start: L, end: L) -> Option<ShortestPath> {
         if start == end {
             return None;
         }
@@ -85,5 +89,15 @@ where
         let path = ShortestPath { length, next_guard };
 
         Some(path)
+    }
+}
+
+impl<L> StatePath<L> for &Automaton<L>
+where
+    L: Copy + Ord + Hash,
+{
+    #[inline]
+    fn shortest_path(&self, start: L, end: L) -> Option<ShortestPath> {
+        (**self).shortest_path(start, end)
     }
 }
