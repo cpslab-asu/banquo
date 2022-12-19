@@ -3,7 +3,7 @@ use crate::trace::Trace;
 #[derive(Clone, Debug)]
 pub struct TemporalOperator<F> {
     pub subformula: F,
-    pub t_bounds: Option<(usize, usize)>,
+    pub t_bounds: Option<(f64, f64)>,
 }
 
 impl<F> TemporalOperator<F> {
@@ -18,7 +18,7 @@ impl<F> TemporalOperator<F> {
         F2: Fn(Trace<&T>) -> U,
     {
         let subformula_trace = eval_subformula(&self.subformula, trace)?;
-        let robustness_for_time = |time| -> (usize, U) {
+        let robustness_for_time = |time| -> (f64, U) {
             let subtrace = match self.t_bounds {
                 Some((t_start, t_end)) => subformula_trace.range((time + t_start)..=(time + t_end)),
                 None => subformula_trace.range(time..),

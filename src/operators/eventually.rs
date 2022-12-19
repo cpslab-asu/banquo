@@ -8,13 +8,23 @@ use crate::trace::Trace;
 pub struct Eventually<F>(TemporalOperator<F>);
 
 impl<F> Eventually<F> {
-    pub fn new<B>(subformula: F, t_bounds: B) -> Self
-    where
-        B: Into<Option<(usize, usize)>>,
-    {
+    pub fn new_unbounded(subformula: F) -> Self {
         let operator = TemporalOperator {
             subformula,
-            t_bounds: t_bounds.into(),
+            t_bounds: None,
+        };
+
+        Self(operator)
+    }
+
+    pub fn new_bounded<B>(subformula: F, (lower, upper): (B, B)) -> Self
+    where
+        B: Into<f64>,
+    {
+        let t_bounds = (lower.into(), upper.into());
+        let operator = TemporalOperator {
+            subformula,
+            t_bounds: Some(t_bounds),
         };
 
         Self(operator)
@@ -24,7 +34,7 @@ impl<F> Eventually<F> {
         &self.0.subformula
     }
 
-    pub fn t_bounds(&self) -> &Option<(usize, usize)> {
+    pub fn t_bounds(&self) -> &Option<(f64, f64)> {
         &self.0.t_bounds
     }
 }
@@ -97,7 +107,7 @@ mod tests {
     #[test]
     fn unbounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Eventually::new(Const(inner), None);
+        let formula = Eventually::new_unbounded(Const(inner));
 
         let input = Trace::default();
         let robustness = formula.robustness(&input)?;
@@ -110,7 +120,7 @@ mod tests {
     #[test]
     fn bounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
-        let formula = Eventually::new(Const(inner), (0, 2));
+        let formula = Eventually::new_bounded(Const(inner), (0, 2));
 
         let input = Trace::default();
         let robustness = formula.robustness(&input)?;
