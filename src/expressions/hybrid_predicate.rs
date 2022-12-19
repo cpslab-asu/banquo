@@ -59,7 +59,7 @@ where
     type Error = PolynomialError;
 
     fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> formula::Result<HybridDistance, Self::Error> {
-        let evaluate_time_state = |(time, (state, location)): (usize, &(VariableMap, L))| {
+        let evaluate_time_state = |(time, (state, location)): (f64, &(VariableMap, L))| {
             let distance = if location == &self.location {
                 state_distance(&self.predicate, state)?
             } else {
