@@ -45,22 +45,18 @@ impl<T> Trace<T> {
     }
 }
 
-fn convert_bound<B>(bound: Bound<&B>) -> Bound<NotNan<f64>>
-where
-    B: Into<f64>,
-{
+fn convert_bound(bound: Bound<&f64>) -> Bound<NotNan<f64>> {
     match bound {
         Bound::Unbounded => Bound::Unbounded,
-        Bound::Included(&val) => Bound::Included(NotNan::new(val.into()).unwrap()),
-        Bound::Excluded(&val) => Bound::Excluded(NotNan::new(val.into()).unwrap()),
+        Bound::Included(&val) => Bound::Included(NotNan::new(val).unwrap()),
+        Bound::Excluded(&val) => Bound::Excluded(NotNan::new(val).unwrap()),
     }
 }
 
 impl<T> Trace<T> {
-    pub fn range<R, B>(&self, bounds: R) -> Trace<&T>
+    pub fn range<R>(&self, bounds: R) -> Trace<&T>
     where
-        R: RangeBounds<B>,
-        B: Into<f64>,
+        R: RangeBounds<f64>,
     {
         let start = convert_bound(bounds.start_bound());
         let end = convert_bound(bounds.end_bound());
@@ -228,7 +224,7 @@ mod tests {
         let times = 0..10;
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
         let trace = Trace::from_iter(times.zip(values));
-        let subtrace = trace.range(0..4);
+        let subtrace = trace.range(0f64..4.0);
 
         let subtrace_times: Vec<f64> = subtrace.times().collect::<Vec<_>>();
         let subtrace_states: Vec<f64> = subtrace.states().map(|state| **state).collect::<Vec<f64>>();
