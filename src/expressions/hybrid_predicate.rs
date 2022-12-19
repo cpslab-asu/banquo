@@ -1,3 +1,5 @@
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
 use super::predicate::{PolynomialError, Predicate};
@@ -5,6 +7,36 @@ use super::{Expression, VariableMap};
 use crate::automaton::{ShortestPath, StatePath};
 use crate::formula::{self, HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
+
+#[derive(Debug, Clone, Copy)]
+pub enum ErrorKind {
+    GuardError,
+    PredicateError,
+}
+
+#[derive(Debug)]
+pub struct HybridPredicateError {
+    kind: ErrorKind,
+    inner: PolynomialError,
+    time: f64,
+}
+
+impl Display for HybridPredicateError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let error_source = match self.kind {
+            ErrorKind::GuardError => "guard",
+            ErrorKind::PredicateError => "predicate",
+        };
+
+        write!(
+            f,
+            "error {} encountered at time {} while evaluating {}",
+            &self.inner, &self.time, error_source
+        )
+    }
+}
+
+impl Error for HybridPredicateError {}
 
 #[derive(Clone)]
 pub struct HybridPredicate<S, L> {
@@ -56,17 +88,27 @@ where
     S: StatePath<L>,
     L: Copy + Ord + Hash,
 {
-    type Error = PolynomialError;
+    type Error = HybridPredicateError;
 
     fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> formula::Result<HybridDistance, Self::Error> {
         let evaluate_time_state = |(time, (state, location)): (f64, &(VariableMap, L))| {
             let distance = if location == &self.location {
-                state_distance(&self.predicate, state)?
+                state_distance(&self.predicate, state).map_err(|inner| HybridPredicateError {
+                    inner,
+                    time,
+                    kind: ErrorKind::PredicateError,
+                })
             } else {
-                guard_distance(self.automaton.shortest_path(*location, self.location), state)?
+                guard_distance(self.automaton.shortest_path(*location, self.location), state).map_err(|inner| {
+                    HybridPredicateError {
+                        inner,
+                        time,
+                        kind: ErrorKind::GuardError,
+                    }
+                })
             };
 
-            Ok((time, distance))
+            Ok((time, distance?))
         };
 
         trace.iter().map(evaluate_time_state).collect::<Result<Trace<_>, _>>()
