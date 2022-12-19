@@ -19,7 +19,7 @@ impl<F> Always<F> {
 
     pub fn new_bounded<B>(subformula: F, (lower, upper): (B, B)) -> Self
     where
-        B: Into<f64>
+        B: Into<f64>,
     {
         let t_bounds = (lower.into(), upper.into());
         let operator = TemporalOperator {

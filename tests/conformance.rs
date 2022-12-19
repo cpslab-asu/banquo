@@ -146,7 +146,10 @@ fn case06() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case07() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new_unbounded(Eventually::new_unbounded(And::new(p2(), Eventually::new_unbounded(p1()))));
+    let f1 = Always::new_unbounded(Eventually::new_unbounded(And::new(
+        p2(),
+        Eventually::new_unbounded(p1()),
+    )));
     let f2 = r"[] (<> (1.0*x <= 2.0 /\ (<> -1.0*x <= 2.0)))";
 
     conformance_test(&f1, f2, 1.184)
@@ -181,9 +184,10 @@ fn case10() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case11() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new_unbounded(
-        Or::new(Not::new(p1()), Eventually::new_unbounded(Always::new_unbounded(Not::new(p1())))),
-    );
+    let f1 = Always::new_unbounded(Or::new(
+        Not::new(p1()),
+        Eventually::new_unbounded(Always::new_unbounded(Not::new(p1()))),
+    ));
     let f2 = r"[] ((not -1.0*x <= 2.0) \/ (<> ([] (not -1.0*x <= 2.0))))";
 
     conformance_test(&f1, f2, -1.184)

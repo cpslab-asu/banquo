@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::ops::{Index, RangeBounds, Bound};
+use std::ops::{Bound, Index, RangeBounds};
 use std::rc::Rc;
 
 use ordered_float::NotNan;
@@ -134,19 +134,15 @@ pub struct MapStates<I, F> {
     func: F,
 }
 
-
 impl<I, K, T1, F, T2> Iterator for MapStates<I, F>
 where
     I: Iterator<Item = (K, T1)>,
-    F: Fn(T1) -> T2
+    F: Fn(T1) -> T2,
 {
     type Item = (K, T2);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self
-            .inner
-            .next()
-            .map(|(key, value)| (key, (self.func)(value)))
+        self.inner.next().map(|(key, value)| (key, (self.func)(value)))
     }
 }
 
@@ -157,7 +153,7 @@ pub struct Iter<'a, T> {
 impl<'a, T> Iter<'a, T> {
     pub fn map_states<F, U>(self, func: F) -> MapStates<Self, F>
     where
-        F: Fn(T) -> U
+        F: Fn(T) -> U,
     {
         MapStates { inner: self, func }
     }
@@ -169,7 +165,6 @@ impl<'a, T> Iterator for Iter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.values.next().map(|(time, state)| (time.into_inner(), state))
     }
-
 }
 
 impl<'a, T> IntoIterator for &'a Trace<T> {
@@ -196,7 +191,7 @@ pub struct IntoIter<T> {
 impl<T> IntoIter<T> {
     pub fn map_states<F, U>(self, func: F) -> MapStates<Self, F>
     where
-        F: Fn(T) -> U
+        F: Fn(T) -> U,
     {
         MapStates { inner: self, func }
     }
