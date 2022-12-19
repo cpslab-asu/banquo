@@ -67,7 +67,7 @@ impl<L, R> BinaryOperator<L, R> {
         let trace = left
             .zip(right)
             .into_iter()
-            .map(|(time, (lvalue, rvalue))| (time, combine(lvalue, rvalue)))
+            .map_states(|(lvalue, rvalue)| combine(lvalue, rvalue))
             .collect();
 
         Ok(trace)

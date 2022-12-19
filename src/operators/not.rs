@@ -21,7 +21,7 @@ fn not<S>(trace: Trace<S>) -> Trace<S::Output>
 where
     S: Neg,
 {
-    trace.into_iter().map(|(time, state)| (time, -state)).collect()
+    trace.into_iter().map_states(|value| -value).collect()
 }
 
 impl<S, F> Formula<S> for Not<F>
