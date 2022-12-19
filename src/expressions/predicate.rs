@@ -76,6 +76,20 @@ impl Expression for Polynomial {
     }
 }
 
+#[derive(Debug)]
+pub struct PredicateError {
+    inner: PolynomialError,
+    time: f64,
+}
+
+impl Display for PredicateError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "error {} at time {}", &self.inner, self.time)
+    }
+}
+
+impl Error for PredicateError {}
+
 /// Representation of a predicate composed of two polynomials with left <= right.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Predicate {
@@ -107,12 +121,18 @@ impl Expression for Predicate {
 }
 
 impl Formula<VariableMap> for Predicate {
-    type Error = PolynomialError;
+    type Error = PredicateError;
 
     fn robustness(&self, trace: &Trace<VariableMap>) -> crate::formula::Result<f64, Self::Error> {
+        let eval_timed_state = |(time, state)| -> Result<(f64, f64), PredicateError> {
+            self.evaluate_state(state)
+                .map(|robustness| (time, robustness))
+                .map_err(|inner| PredicateError { inner, time })
+        };
+
         let robustness = trace
             .into_iter()
-            .map(|(time, state)| self.evaluate_state(state).map(|robustness| (time, robustness)))
+            .map(eval_timed_state)
             .collect::<Result<Trace<_>, _>>()?;
 
         Ok(robustness)
