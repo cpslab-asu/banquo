@@ -21,9 +21,7 @@ fn not<S>(trace: Trace<S>) -> Trace<S::Output>
 where
     S: Neg,
 {
-    let elements = trace.into_iter().map(|(time, state)| (time, -state)).collect();
-
-    Trace::new(elements)
+    trace.into_iter().map(|(time, state)| (time, -state)).collect()
 }
 
 impl<S, F> Formula<S> for Not<F>
@@ -39,7 +37,7 @@ where
 
 pub struct NegOf<T>(pub DebugRobustness<T>);
 
-fn make_debug<T>((time, previous): (usize, DebugRobustness<T>)) -> (usize, DebugRobustness<NegOf<T>>) {
+fn make_debug<T>((time, previous): (f64, DebugRobustness<T>)) -> (f64, DebugRobustness<NegOf<T>>) {
     let neg_robustness = DebugRobustness {
         robustness: -previous.robustness,
         previous: NegOf(previous),
