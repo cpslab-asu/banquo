@@ -12,40 +12,40 @@ const EPSILON: f64 = 1.0e-5;
 
 fn get_trace() -> Trace<HashMap<String, f64>> {
     let entries = [
-        (00000, 0.0000),
-        (03947, 0.5881),
-        (07587, 1.1068),
-        (10660, 1.4967),
-        (12998, 1.7169),
-        (14546, 1.7508),
-        (15377, 1.6075),
-        (15675, 1.3204),
-        (15708, 0.9412),
-        (15787, 0.5313),
-        (16216, 0.1525),
-        (17242, -0.1431),
-        (19019, -0.3207),
-        (21583, -0.368),
-        (24844, -0.2963),
-        (28603, -0.1383),
-        (32583, 0.0582),
-        (36471, 0.2386),
-        (39968, 0.3511),
-        (42840, 0.3561),
-        (44947, 0.2326),
-        (46273, -0.017),
-        (46925, -0.3667),
-        (47114, -0.7708),
-        (47128, -1.1705),
-        (47280, -1.5029),
-        (47861, -1.7113),
-        (49095, -1.7537),
-        (51104, -1.6104),
-        (53886, -1.2874),
-        (57317, -0.816),
+        (0.0000, 0.0000),
+        (0.3947, 0.5881),
+        (0.7587, 1.1068),
+        (1.0660, 1.4967),
+        (1.2998, 1.7169),
+        (1.4546, 1.7508),
+        (1.5377, 1.6075),
+        (1.5675, 1.3204),
+        (1.5708, 0.9412),
+        (1.5787, 0.5313),
+        (1.6216, 0.1525),
+        (1.7242, -0.1431),
+        (1.9019, -0.3207),
+        (2.1583, -0.368),
+        (2.4844, -0.2963),
+        (2.8603, -0.1383),
+        (3.2583, 0.0582),
+        (3.6471, 0.2386),
+        (3.9968, 0.3511),
+        (4.2840, 0.3561),
+        (4.4947, 0.2326),
+        (4.6273, -0.017),
+        (4.6925, -0.3667),
+        (4.7114, -0.7708),
+        (4.7128, -1.1705),
+        (4.7280, -1.5029),
+        (4.7861, -1.7113),
+        (4.9095, -1.7537),
+        (5.1104, -1.6104),
+        (5.3886, -1.2874),
+        (5.7317, -0.816),
     ];
 
-    let elements = entries
+    entries
         .into_iter()
         .map(|(time, var_value)| {
             let mut state = HashMap::new();
@@ -53,9 +53,7 @@ fn get_trace() -> Trace<HashMap<String, f64>> {
 
             (time, state)
         })
-        .collect();
-
-    Trace::new(elements)
+        .collect()
 }
 
 fn p1() -> Predicate {
@@ -108,7 +106,7 @@ fn case01() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case02() -> Result<(), Box<dyn Error>> {
-    let f1 = Eventually::new(p1(), None);
+    let f1 = Eventually::new_unbounded(p1());
     let f2 = "<> -1.0*x <= 2.0";
 
     conformance_test(&f1, f2, 3.7508)
@@ -116,7 +114,7 @@ fn case02() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case03() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new(p2(), None);
+    let f1 = Always::new_unbounded(p2());
     let f2 = "[] 1.0*x <= 2.0";
 
     conformance_test(&f1, f2, 0.2492)
@@ -148,7 +146,7 @@ fn case06() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case07() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new(Eventually::new(And::new(p2(), Eventually::new(p1(), None)), None), None);
+    let f1 = Always::new_unbounded(Eventually::new_unbounded(And::new(p2(), Eventually::new_unbounded(p1()))));
     let f2 = r"[] (<> (1.0*x <= 2.0 /\ (<> -1.0*x <= 2.0)))";
 
     conformance_test(&f1, f2, 1.184)
@@ -165,8 +163,8 @@ fn case08() -> Result<(), Box<dyn Error>> {
 #[test]
 fn case09() -> Result<(), Box<dyn Error>> {
     let f1 = And::new(
-        Eventually::new(p1(), None),
-        Always::new(Implies::new(p1(), Eventually::new(p2(), None)), None),
+        Eventually::new_unbounded(p1()),
+        Always::new_unbounded(Implies::new(p1(), Eventually::new_unbounded(p2()))),
     );
     let f2 = r"(<> -1.0*x <= 2.0) /\ ([] (-1.0*x <= 2.0 -> (<> 1.0*x <= 2.0)))";
 
@@ -175,7 +173,7 @@ fn case09() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case10() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new(Implies::new(p1(), Eventually::new(Not::new(p1()), None)), None);
+    let f1 = Always::new_unbounded(Implies::new(p1(), Eventually::new_unbounded(Not::new(p1()))));
     let f2 = "[] (-1.0*x <= 2.0 -> (<> (not -1.0*x <= 2.0)))";
 
     conformance_test(&f1, f2, -1.184)
@@ -183,9 +181,8 @@ fn case10() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case11() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new(
-        Or::new(Not::new(p1()), Eventually::new(Always::new(Not::new(p1()), None), None)),
-        None,
+    let f1 = Always::new_unbounded(
+        Or::new(Not::new(p1()), Eventually::new_unbounded(Always::new_unbounded(Not::new(p1())))),
     );
     let f2 = r"[] ((not -1.0*x <= 2.0) \/ (<> ([] (not -1.0*x <= 2.0))))";
 
@@ -194,7 +191,7 @@ fn case11() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case12() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new(Next::new(p1()), None);
+    let f1 = Always::new_unbounded(Next::new(p1()));
     let f2 = "[] (X -1.0*x <= 2.0)";
 
     conformance_test(&f1, f2, f64::NEG_INFINITY)
@@ -202,7 +199,7 @@ fn case12() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case13() -> Result<(), Box<dyn Error>> {
-    let f1 = Eventually::new(Next::new(p1()), None);
+    let f1 = Eventually::new_unbounded(Next::new(p1()));
     let f2 = "<> (X -1.0*x <= 2.0)";
 
     conformance_test(&f1, f2, 3.7508)
@@ -210,7 +207,7 @@ fn case13() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case14() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new(Next::new(Next::new(p1())), None);
+    let f1 = Always::new_unbounded(Next::new(Next::new(p1())));
     let f2 = "[] (X (X -1.0*x <= 2.0))";
 
     conformance_test(&f1, f2, f64::NEG_INFINITY)
@@ -218,7 +215,7 @@ fn case14() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case15() -> Result<(), Box<dyn Error>> {
-    let f1 = Next::new(Eventually::new(Next::new(p1()), None));
+    let f1 = Next::new(Eventually::new_unbounded(Next::new(p1())));
     let f2 = "X (<> (X -1.0*x <= 2.0))";
 
     conformance_test(&f1, f2, 3.7508)
@@ -226,24 +223,24 @@ fn case15() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case23() -> Result<(), Box<dyn Error>> {
-    let f1 = Not::new(Eventually::new(Not::new(And::new(p2(), p1())), (0, 35000)));
-    let f2 = r"not (<>{0,35000} (not (1.0*x <= 2.0 /\ -1.0*x <= 2.0)))";
+    let f1 = Not::new(Eventually::new_bounded(Not::new(And::new(p2(), p1())), (0.0, 3.5)));
+    let f2 = r"not (<>{0,3.5} (not (1.0*x <= 2.0 /\ -1.0*x <= 2.0)))";
 
     conformance_test(&f1, f2, 0.2492)
 }
 
 #[test]
 fn case24() -> Result<(), Box<dyn Error>> {
-    let f1 = Not::new(Eventually::new(Not::new(p1()), (0, 10000)));
-    let f2 = "not (<>{0,10000} (not -1.0*x <= 2.0))";
+    let f1 = Not::new(Eventually::new_bounded(Not::new(p1()), (0.0, 1.0)));
+    let f2 = "not (<>{0,1.0} (not -1.0*x <= 2.0))";
 
     conformance_test(&f1, f2, 2.0)
 }
 
 #[test]
 fn case25() -> Result<(), Box<dyn Error>> {
-    let f1 = Eventually::new(p1(), (1000, 300000));
-    let f2 = "<>{1000,300000} (-1.0*x <= 2.0)";
+    let f1 = Eventually::new_bounded(p1(), (0.1, 30.0));
+    let f2 = "<>{0.1,30.0} (-1.0*x <= 2.0)";
 
     conformance_test(&f1, f2, 3.7508)
 }
