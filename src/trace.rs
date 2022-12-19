@@ -1,14 +1,16 @@
 use std::collections::BTreeMap;
-use std::ops::{Index, RangeBounds};
+use std::ops::{Index, RangeBounds, Bound};
 use std::rc::Rc;
+
+use ordered_float::NotNan;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Trace<T> {
-    elements: BTreeMap<usize, T>,
+    elements: BTreeMap<NotNan<f64>, T>,
 }
 
 impl<T> Trace<T> {
-    pub fn new(elements: BTreeMap<usize, T>) -> Self {
+    pub fn new(elements: BTreeMap<NotNan<f64>, T>) -> Self {
         Self { elements }
     }
 
@@ -22,12 +24,14 @@ impl<T> Trace<T> {
         Trace { elements }
     }
 
-    pub fn get(&self, time: &usize) -> Option<&T> {
-        self.elements.get(time)
+    pub fn get(&self, time: &f64) -> Option<&T> {
+        let key = NotNan::new(*time).unwrap();
+        self.elements.get(&key)
     }
 
-    pub fn insert_state(&mut self, time: usize, state: T) -> Option<T> {
-        self.elements.insert(time, state)
+    pub fn insert_state(&mut self, time: f64, state: T) -> Option<T> {
+        let key = NotNan::new(time).unwrap();
+        self.elements.insert(key, state)
     }
 
     pub fn into_shared(self) -> Trace<Rc<T>> {
@@ -41,14 +45,29 @@ impl<T> Trace<T> {
     }
 }
 
+fn convert_bound<B>(bound: Bound<&B>) -> Bound<NotNan<f64>>
+where
+    B: Into<f64>,
+{
+    match bound {
+        Bound::Unbounded => Bound::Unbounded,
+        Bound::Included(&val) => Bound::Included(NotNan::new(val.into()).unwrap()),
+        Bound::Excluded(&val) => Bound::Excluded(NotNan::new(val.into()).unwrap()),
+    }
+}
+
 impl<T> Trace<T> {
-    pub fn range<R>(&self, bounds: R) -> Trace<&T>
+    pub fn range<R, B>(&self, bounds: R) -> Trace<&T>
     where
-        R: RangeBounds<usize>,
+        R: RangeBounds<B>,
+        B: Into<f64>,
     {
+        let start = convert_bound(bounds.start_bound());
+        let end = convert_bound(bounds.end_bound());
+
         let elements = self
             .elements
-            .range(bounds)
+            .range((start, end))
             .map(|(time, state)| (*time, state))
             .collect();
 
@@ -57,14 +76,14 @@ impl<T> Trace<T> {
 }
 
 pub struct Times<'a, T> {
-    times: std::collections::btree_map::Keys<'a, usize, T>,
+    times: std::collections::btree_map::Keys<'a, NotNan<f64>, T>,
 }
 
 impl<'a, T> Iterator for Times<'a, T> {
-    type Item = usize;
+    type Item = f64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.times.next().cloned()
+        self.times.next().cloned().map(NotNan::into_inner)
     }
 }
 
@@ -77,7 +96,7 @@ impl<T> Trace<T> {
 }
 
 pub struct States<'a, T> {
-    states: std::collections::btree_map::Values<'a, usize, T>,
+    states: std::collections::btree_map::Values<'a, NotNan<f64>, T>,
 }
 
 impl<'a, T> Iterator for States<'a, T> {
@@ -96,36 +115,38 @@ impl<T> Trace<T> {
     }
 }
 
-impl<T> Index<&usize> for Trace<T> {
+impl<T> Index<&f64> for Trace<T> {
     type Output = T;
 
-    fn index(&self, index: &usize) -> &Self::Output {
-        self.elements.index(index)
+    fn index(&self, index: &f64) -> &Self::Output {
+        let index = NotNan::new(*index).unwrap();
+        self.elements.index(&index)
     }
 }
 
-impl<T> Index<usize> for Trace<T> {
+impl<T> Index<f64> for Trace<T> {
     type Output = T;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: f64) -> &Self::Output {
+        let index = NotNan::new(index).unwrap();
         self.elements.index(&index)
     }
 }
 
 pub struct Iter<'a, T> {
-    values: std::collections::btree_map::Iter<'a, usize, T>,
+    values: std::collections::btree_map::Iter<'a, NotNan<f64>, T>,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
-    type Item = (usize, &'a T);
+    type Item = (f64, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.values.next().map(|(time, state)| (*time, state))
+        self.values.next().map(|(time, state)| (time.into_inner(), state))
     }
 }
 
 impl<'a, T> IntoIterator for &'a Trace<T> {
-    type Item = (usize, &'a T);
+    type Item = (f64, &'a T);
     type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -142,19 +163,19 @@ impl<T> Trace<T> {
 }
 
 pub struct IntoIter<T> {
-    values: std::collections::btree_map::IntoIter<usize, T>,
+    values: std::collections::btree_map::IntoIter<NotNan<f64>, T>,
 }
 
 impl<T> Iterator for IntoIter<T> {
-    type Item = (usize, T);
+    type Item = (f64, T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.values.next()
+        self.values.next().map(|(time, state)| (time.into_inner(), state))
     }
 }
 
 impl<T> IntoIterator for Trace<T> {
-    type Item = (usize, T);
+    type Item = (f64, T);
     type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -164,23 +185,18 @@ impl<T> IntoIterator for Trace<T> {
     }
 }
 
-impl<T> FromIterator<(usize, T)> for Trace<T> {
+impl<A, T> FromIterator<(A, T)> for Trace<T>
+where
+    A: Into<f64>,
+{
     fn from_iter<I>(iter: I) -> Self
     where
-        I: IntoIterator<Item = (usize, T)>,
+        I: IntoIterator<Item = (A, T)>,
     {
-        Self {
-            elements: BTreeMap::from_iter(iter),
-        }
-    }
-}
-
-impl<'a, T> FromIterator<(&'a usize, T)> for Trace<T> {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = (&'a usize, T)>,
-    {
-        let elements = iter.into_iter().map(|(time, state)| (*time, state)).collect();
+        let elements = iter
+            .into_iter()
+            .map(|(time, state)| (NotNan::new(time.into()).unwrap(), state))
+            .collect();
 
         Self { elements }
     }
@@ -204,7 +220,7 @@ mod tests {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
         let trace = Trace::from_iter(times.zip(values));
 
-        assert_eq!(trace.get(&3), Some(&4.0))
+        assert_eq!(trace.get(&3.0), Some(&4.0))
     }
 
     #[test]
@@ -214,10 +230,10 @@ mod tests {
         let trace = Trace::from_iter(times.zip(values));
         let subtrace = trace.range(0..4);
 
-        let subtrace_times: Vec<usize> = subtrace.times().collect::<Vec<_>>();
-        let subtrace_states: Vec<f64> = subtrace.states().map(|state| **state).collect::<Vec<_>>();
+        let subtrace_times: Vec<f64> = subtrace.times().collect::<Vec<_>>();
+        let subtrace_states: Vec<f64> = subtrace.states().map(|state| **state).collect::<Vec<f64>>();
 
-        assert_eq!(subtrace_times, vec![0, 1, 2, 3]);
+        assert_eq!(subtrace_times, vec![0.0, 1.0, 2.0, 3.0]);
         assert_eq!(subtrace_states, vec![1.0, 2.0, 3.0, 4.0]);
     }
 }
