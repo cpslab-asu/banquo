@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 use std::error::Error;
-use std::str::FromStr;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{digit1, space0, space1};
-use nom::combinator::{map, opt, recognize};
+use nom::character::complete::{space0, space1};
+use nom::combinator::{map, opt};
 use nom::multi::many0;
-use nom::sequence::{delimited, pair, preceded, terminated, tuple};
+use nom::sequence::{delimited, pair, preceded, terminated, tuple, separated_pair};
 use nom::IResult;
 
-use super::common::{op0, var_name, WrappedFormula};
+use super::common::{pos_num, op0, var_name, WrappedFormula};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate};
@@ -41,23 +40,31 @@ impl Formula<HashMap<String, f64>> for ParsedFormula {
     }
 }
 
-pub fn decimal(input: &str) -> IResult<&str, f64> {
-    let mut parser = recognize(tuple((opt(tag("-")), digit1, tag("."), digit1)));
-    let (rest, value) = parser(input)?;
+pub fn pos_neg_num(input: &str) -> IResult<&str, f64> {
+    let mut parser = pair(opt(tag("-")), pos_num);
+    let (rest, (sign, num)) = parser(input)?;
+    let signed_num = match sign {
+        Some(_) => -num,
+        None => num,
+    };
 
-    Ok((rest, f64::from_str(value).unwrap()))
+    Ok((rest, signed_num))
 }
 
 pub fn coeff(input: &str) -> IResult<&str, (f64, String)> {
-    let mut parser = tuple((decimal, op0("*"), var_name));
-    let (rest, (coefficient, _, variable_name)) = parser(input)?;
+    let mut p1 = pair(var_name, opt(preceded(op0("*"), pos_neg_num)));
 
-    Ok((rest, (coefficient, variable_name)))
+    if let Ok((rest, (name, coefficient))) = p1(input) {
+        return Ok((rest, (coefficient.unwrap_or(1.0), name)));
+    }
+
+    let mut p2 = separated_pair(pos_neg_num, op0("*"), var_name);
+    p2(input)
 }
 
 pub fn term(input: &str) -> IResult<&str, (f64, Option<String>)> {
     let p1 = map(coeff, |(value, name): (f64, String)| (value, Some(name)));
-    let p2 = map(decimal, |value: f64| (value, None));
+    let p2 = map(pos_neg_num, |value: f64| (value, None));
     let mut parser = alt((p1, p2));
     let (rest, result) = parser(input)?;
 
@@ -213,17 +220,17 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
 
-    use super::{always, and, coeff, decimal, eventually, formula, implies, next, not, or, polynomial, predicate};
+    use super::{always, and, coeff, eventually, formula, implies, next, not, or, polynomial, pos_neg_num, predicate};
     use crate::expressions::{Polynomial, Predicate};
 
     #[test]
-    fn parse_decimal() -> Result<(), Box<dyn Error>> {
-        let (rest, value) = decimal("123.345")?;
+    fn parse_pos_neg_number() -> Result<(), Box<dyn Error>> {
+        let (rest, value) = pos_neg_num("24.77")?;
 
         assert_eq!(rest, "");
-        assert_eq!(value, 123.345);
+        assert_eq!(value, 24.77);
 
-        let (rest, value) = decimal("-24.77")?;
+        let (rest, value) = pos_neg_num("-24.77")?;
 
         assert_eq!(rest, "");
         assert_eq!(value, -24.77);
@@ -242,6 +249,21 @@ mod tests {
 
         assert_eq!(rest, "");
         assert_eq!(value, (1.1f64, "X".to_string()));
+
+        let (rest, value) = coeff("y*3")?;
+
+        assert_eq!(rest, "");
+        assert_eq!(value, (3.0, "y".to_string()));
+
+        let (rest, value) = coeff("z * -0.3")?;
+
+        assert_eq!(rest, "");
+        assert_eq!(value, (-0.3, "z".to_string()));
+
+        let (rest, value) = coeff("L")?;
+
+        assert_eq!(rest, "");
+        assert_eq!(value, (1.0, "L".to_string()));
 
         Ok(())
     }
