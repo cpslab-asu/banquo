@@ -1,13 +1,11 @@
-use std::str::FromStr;
-
 use nom::branch::{alt, Alt};
 use nom::bytes::complete::tag;
-use nom::character::complete::digit1;
-use nom::combinator::{map_res, opt, recognize};
-use nom::sequence::{pair, preceded, tuple};
+use nom::combinator::opt;
+use nom::sequence::{preceded, tuple};
 use nom::{IResult, Parser};
 
 use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or};
+use super::common::pos_num;
 
 fn unaryop<'a, O, S, T, F, U>(ops: O, mut subparser: S, func: F) -> impl FnMut(&'a str) -> IResult<&'a str, U>
 where
@@ -90,21 +88,8 @@ where
     unaryop((tag("X"), tag("()"), tag("next")), subparser, Next::new)
 }
 
-fn number(input: &str) -> IResult<&str, f64> {
-    let make_number = |(front, back): (&str, Option<&str>)| {
-        let num_str = front.to_string() + back.unwrap_or("");
-        f64::from_str(&num_str)
-    };
-
-    let back_parser = pair(tag("."), digit1);
-    let num_parser = pair(digit1, opt(recognize(back_parser)));
-    let mut parser = map_res(num_parser, make_number);
-
-    parser(input)
-}
-
 fn time_bounds(input: &str) -> IResult<&str, (f64, f64)> {
-    let mut parser = tuple((tag("{"), number, tag(","), number, tag("}")));
+    let mut parser = tuple((tag("{"), pos_num, tag(","), pos_num, tag("}")));
     let (rest, (_, t_start, _, t_end, _)) = parser(input)?;
 
     Ok((rest, (t_start, t_end)))
