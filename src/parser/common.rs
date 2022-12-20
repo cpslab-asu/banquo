@@ -70,3 +70,41 @@ pub fn op0<'a>(op: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> 
         parser(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use super::{pos_num, var_name};
+
+    #[test]
+    fn parse_var_name() -> Result<(), Box<dyn Error>> {
+        let (rest, value) = var_name("myvar")?;
+
+        assert_eq!(rest, "");
+        assert_eq!(value, "myvar");
+
+        let (rest, value) = var_name("x1")?;
+
+        assert_eq!(rest, "");
+        assert_eq!(value, "x1");
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_pos_num() -> Result<(), Box<dyn Error>> {
+        let (rest, value) = pos_num("123.345")?;
+
+        assert_eq!(rest, "");
+        assert_eq!(value, 123.345);
+
+        let (rest, value) = pos_num("123")?;
+
+        assert_eq!(rest, "");
+        assert_eq!(value, 123.0);
+
+        Ok(())
+    }
+
+}
