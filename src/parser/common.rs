@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, digit0, space0};
+use nom::character::complete::{alpha1, digit0, digit1, space0};
+use nom::combinator::{map_res, opt, recognize};
 use nom::sequence::{delimited, pair};
 use nom::IResult;
 
@@ -47,6 +49,19 @@ pub fn var_name(input: &str) -> IResult<&str, String> {
     let name = s1.to_string() + s2;
 
     Ok((rest, name))
+}
+
+pub fn pos_num(input: &str) -> IResult<&str, f64> {
+    let make_number = |(front, back): (&str, Option<&str>)| {
+        let num_str = front.to_string() + back.unwrap_or("");
+        f64::from_str(&num_str)
+    };
+
+    let back_parser = pair(tag("."), digit1);
+    let num_parser = pair(digit1, opt(recognize(back_parser)));
+    let mut parser = map_res(num_parser, make_number);
+
+    parser(input)
 }
 
 pub fn op0<'a>(op: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
