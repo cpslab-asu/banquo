@@ -137,6 +137,16 @@ pub trait DebugFormula<T> {
     fn debug_robustness(&self, trace: &Trace<T>) -> Result<DebugRobustness<Self::Prev>, Self::Error>;
 }
 
+pub fn evaluate_debug_robustness<F, S>(formula: F, trace: &Trace<S>) -> std::result::Result<DebugRobustness<F::Prev>, F::Error>
+where
+    F: DebugFormula<S>,
+{
+    let robustness_trace = formula.debug_robustness(trace)?;
+    let (_, debug_robustness) = robustness_trace.into_iter().next().unwrap();
+
+    Ok(debug_robustness)
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum HybridDistance {
     Infinite,
@@ -267,4 +277,14 @@ where
     fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<HybridDistance, Self::Error> {
         (**self).hybrid_distance(trace)
     }
+}
+
+pub fn evaluate_hybrid_distance<F, S, L>(formula: F, trace: &Trace<(S, L)>) -> std::result::Result<HybridDistance, F::Error>
+where
+    F: HybridDistanceFormula<S, L>,
+{
+    let hybrid_distance_trace = formula.hybrid_distance(trace)?;
+    let (_, hybrid_distance) = hybrid_distance_trace.into_iter().next().unwrap();
+
+    Ok(hybrid_distance)
 }
