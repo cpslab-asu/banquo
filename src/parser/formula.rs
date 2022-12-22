@@ -228,7 +228,7 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
 
-    use super::{always, and, coeff, eventually, formula, implies, next, not, or, polynomial, pos_neg_num, predicate};
+    use super::{always, and, coeff, eventually, formula, implies, next, not, or, polynomial, pos_neg_num, predicate, until};
     use crate::expressions::{Polynomial, Predicate};
 
     #[test]
@@ -409,6 +409,18 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn parse_until() -> Result<(), Box<dyn Error>> {
+        let (rest, _) = until("x <= 0.0 U 3.1*x <= 0.5*y")?;
+        assert_eq!(rest, "");
+
+        let (rest, _) = until("(3.1*x <= 0.5*y) U (1.2*x <= 5.1*z)")?;
+        assert_eq!(rest, "");
+
+        Ok(())
+    }
+
 
     #[test]
     fn parse_formula() -> Result<(), Box<dyn Error>> {
