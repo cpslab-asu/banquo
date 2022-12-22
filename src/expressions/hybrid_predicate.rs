@@ -5,7 +5,7 @@ use std::hash::Hash;
 use super::predicate::{PolynomialError, Predicate};
 use super::{Expression, VariableMap};
 use crate::automaton::{ShortestPath, StatePath};
-use crate::formula::{self, HybridDistance, HybridDistanceFormula};
+use crate::formula::{self, HybridDistance, HybridDistanceFormula, PathGuardDistance};
 use crate::trace::Trace;
 
 #[derive(Debug, Clone, Copy)]
@@ -69,18 +69,19 @@ fn state_distance(predicate: &Option<Predicate>, state: &VariableMap) -> Result<
 }
 
 fn guard_distance(shortest_path: Option<ShortestPath>, state: &VariableMap) -> Result<HybridDistance, PolynomialError> {
-    let distance = match shortest_path {
-        Some(path) => path
-            .next_guard
-            .min_distance(state)
-            .map(|guard_distance| HybridDistance::PathDistance {
-                path_distance: path.length,
-                guard_distance,
-            })?,
-        None => HybridDistance::Infinite,
+    let into_path_distance = |path: ShortestPath| -> Result<HybridDistance, PolynomialError> {
+        let guard_distance = path.next_guard.min_distance(state)?;
+        let distance = PathGuardDistance {
+            path_distance: path.length,
+            guard_distance,
+        };
+
+        Ok(HybridDistance::PathDistance(distance))
     };
 
-    Ok(distance)
+    shortest_path
+        .map(into_path_distance)
+        .unwrap_or(Ok(HybridDistance::Infinite))
 }
 
 impl<S, L> HybridDistanceFormula<VariableMap, L> for HybridPredicate<S, L>
