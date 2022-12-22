@@ -199,8 +199,8 @@ where
 
 #[test]
 fn case01() -> Result<(), Box<dyn Error>> {
-    let formula = Eventually::new_unbounded(p2());
-    let formula_str = "<> p2";
+    let formula = Eventually::new_unbounded(p1());
+    let formula_str = "<> p1";
 
     test_case(formula, formula_str, HybridDistance::Robustness(52.0))
 }
