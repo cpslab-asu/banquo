@@ -185,7 +185,7 @@ where
     let trace = get_trace();
     let hybrid_distance = evaluate_hybrid_distance(f1, &trace)?;
 
-    // TODO test output with expected distance
+    assert_eq!(hybrid_distance, expected, "f1 error");
 
     let predicates = HashMap::from_iter([
         ("p1".to_string(), p1()),
@@ -194,7 +194,7 @@ where
     let parsed_formula = parse_hybrid_formula(f2, predicates)?;
     let hybrid_distance = evaluate_hybrid_distance(parsed_formula, &trace)?;
 
-    // TODO test output with expected distance
+    assert_eq!(hybrid_distance, expected, "f2 error");
 
     Ok(())
 }
