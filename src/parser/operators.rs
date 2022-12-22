@@ -5,7 +5,7 @@ use nom::sequence::{preceded, tuple};
 use nom::{IResult, Parser};
 
 use super::common::pos_num;
-use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or};
+use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
 
 fn unaryop<'a, O, S, T, F, U>(ops: O, mut subparser: S, func: F) -> impl FnMut(&'a str) -> IResult<&'a str, U>
 where
@@ -31,18 +31,18 @@ where
 }
 
 fn binop<'a, O, P1, L, P2, R, F, T>(
-    ops: O,
+    ops_parser: O,
     mut left_parser: P1,
     right_parser: P2,
     func: F,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, T>
 where
-    O: Alt<&'a str, &'a str, nom::error::Error<&'a str>>,
+    O: Parser<&'a str, &'a str, nom::error::Error<&'a str>>,
     P1: Parser<&'a str, L, nom::error::Error<&'a str>>,
     P2: Parser<&'a str, R, nom::error::Error<&'a str>>,
     F: Fn(L, R) -> T,
 {
-    let mut right_parser = preceded(alt(ops), right_parser);
+    let mut right_parser = preceded(ops_parser, right_parser);
 
     move |input: &'a str| {
         let (next, left) = left_parser.parse(input)?;
@@ -57,7 +57,7 @@ where
     P1: Parser<&'a str, L, nom::error::Error<&'a str>>,
     P2: Parser<&'a str, R, nom::error::Error<&'a str>>,
 {
-    binop((tag(r"/\"), tag("and")), left_parser, right_parser, And::new)
+    binop(alt((tag(r"/\"), tag("and"))), left_parser, right_parser, And::new)
 }
 
 pub fn or<'a, P1, L, P2, R>(left_parser: P1, right_parser: P2) -> impl FnMut(&'a str) -> IResult<&'a str, Or<L, R>>
@@ -65,7 +65,7 @@ where
     P1: Parser<&'a str, L, nom::error::Error<&'a str>>,
     P2: Parser<&'a str, R, nom::error::Error<&'a str>>,
 {
-    binop((tag(r"\/"), tag("or")), left_parser, right_parser, Or::new)
+    binop(alt((tag(r"\/"), tag("or"))), left_parser, right_parser, Or::new)
 }
 
 pub fn implies<'a, P1, A, P2, C>(
@@ -76,7 +76,15 @@ where
     P1: Parser<&'a str, A, nom::error::Error<&'a str>>,
     P2: Parser<&'a str, C, nom::error::Error<&'a str>>,
 {
-    binop((tag("->"), tag("implies")), left_parser, right_parser, Implies::new)
+    binop(alt((tag("->"), tag("implies"))), left_parser, right_parser, Implies::new)
+}
+
+pub fn until<'a, P1, L, P2, R>(left_parser: P1, right_parser: P2) -> impl FnMut(&'a str) -> IResult<&'a str, Until<L, R>>
+where
+    P1: Parser<&'a str, L, nom::error::Error<&'a str>>,
+    P2: Parser<&'a str, R, nom::error::Error<&'a str>>,
+{
+    binop(tag("U"), left_parser, right_parser, Until::new)
 }
 
 pub fn next<'a, 's, S, T>(subparser: S) -> impl FnMut(&'a str) -> IResult<&'a str, Next<T>>

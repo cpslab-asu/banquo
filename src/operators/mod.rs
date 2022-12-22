@@ -34,6 +34,7 @@ mod next;
 mod not;
 mod or;
 mod temporal;
+mod until;
 
 pub use always::Always;
 pub use and::And;
@@ -42,3 +43,4 @@ pub use implies::Implies;
 pub use next::Next;
 pub use not::Not;
 pub use or::Or;
+pub use until::Until;
