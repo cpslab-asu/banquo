@@ -90,3 +90,39 @@ where
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use crate::{Trace, Formula};
+    use crate::operators::Const;
+    use super::Until;
+
+    #[test]
+    fn test_robustness() -> Result<(), Box<dyn Error>> {
+        let left_trace = Trace::from_iter([
+            (0.0, 3.0),
+            (1.0, 1.5),
+            (2.0, 1.4),
+            (3.0, 1.1),
+        ]);
+
+        let right_trace = Trace::from_iter([
+            (0.0, -2.1),
+            (1.0, 3.7),
+            (2.0, 1.2),
+            (3.0, 2.2),
+        ]);
+
+        let formula = Until::new(Const(left_trace), Const(right_trace));
+        let input = Trace::default();
+        let robustness = formula.robustness(&input)?;
+
+        assert_eq!(robustness[3.0], 1.1);
+        assert_eq!(robustness[2.0], 1.2);
+        assert_eq!(robustness[1.0], 1.5);
+        assert_eq!(robustness[0.0], 1.5);
+
+        Ok(())
+    }
+}
