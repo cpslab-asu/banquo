@@ -189,6 +189,7 @@ where
     let predicates = HashMap::from_iter([
         ("p1".to_string(), p1()),
         ("p2".to_string(), p2()),
+        ("p3".to_string(), p3()),
     ]);
     let parsed_formula = parse_hybrid_formula(f2, predicates)?;
     let hybrid_distance = evaluate_hybrid_distance(parsed_formula, &trace)?;
