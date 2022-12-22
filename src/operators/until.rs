@@ -36,10 +36,9 @@ where
             .fold(subtrace_initial.clone(), |m, (_, &r)| f(m, r));
 
         let time_rob = f(left_rob, right_rob);
-        let next_rob = g(time_rob, last_rob);
 
+        last_rob = g(time_rob, last_rob);
         elements.push((time, last_rob));
-        last_rob = next_rob;
     }
 
     Trace::from_iter(elements)
