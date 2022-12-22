@@ -4,8 +4,8 @@ use nom::combinator::opt;
 use nom::sequence::{preceded, tuple};
 use nom::{IResult, Parser};
 
-use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or};
 use super::common::pos_num;
+use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or};
 
 fn unaryop<'a, O, S, T, F, U>(ops: O, mut subparser: S, func: F) -> impl FnMut(&'a str) -> IResult<&'a str, U>
 where

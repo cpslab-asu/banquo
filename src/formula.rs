@@ -137,7 +137,10 @@ pub trait DebugFormula<T> {
     fn debug_robustness(&self, trace: &Trace<T>) -> Result<DebugRobustness<Self::Prev>, Self::Error>;
 }
 
-pub fn evaluate_debug_robustness<F, S>(formula: F, trace: &Trace<S>) -> std::result::Result<DebugRobustness<F::Prev>, F::Error>
+pub fn evaluate_debug_robustness<F, S>(
+    formula: F,
+    trace: &Trace<S>,
+) -> std::result::Result<DebugRobustness<F::Prev>, F::Error>
 where
     F: DebugFormula<S>,
 {
@@ -207,11 +210,11 @@ impl HybridDistance {
             (HybridDistance::PathDistance(..), HybridDistance::Infinite) => HybridDistance::Infinite,
             (HybridDistance::PathDistance(d1), HybridDistance::PathDistance(d2)) => {
                 HybridDistance::PathDistance(PathGuardDistance::max(d1, d2))
-            },
+            }
             (HybridDistance::PathDistance(d), HybridDistance::Robustness(..)) => HybridDistance::PathDistance(d),
             (HybridDistance::Robustness(r1), HybridDistance::Robustness(r2)) => {
                 HybridDistance::Robustness(f64::min(r1, r2))
-            },
+            }
             (HybridDistance::Robustness(..), other) => other,
         }
     }
@@ -220,7 +223,7 @@ impl HybridDistance {
         match (self, other) {
             (HybridDistance::Robustness(r1), HybridDistance::Robustness(r2)) => {
                 HybridDistance::Robustness(f64::max(r1, r2))
-            },
+            }
             (HybridDistance::Robustness(r), _) => HybridDistance::Robustness(r),
             (HybridDistance::PathDistance(..), HybridDistance::Robustness(r)) => HybridDistance::Robustness(r),
             (HybridDistance::PathDistance(d1), HybridDistance::PathDistance(d2)) => {
@@ -274,7 +277,10 @@ where
     }
 }
 
-pub fn evaluate_hybrid_distance<F, S, L>(formula: F, trace: &Trace<(S, L)>) -> std::result::Result<HybridDistance, F::Error>
+pub fn evaluate_hybrid_distance<F, S, L>(
+    formula: F,
+    trace: &Trace<(S, L)>,
+) -> std::result::Result<HybridDistance, F::Error>
 where
     F: HybridDistanceFormula<S, L>,
 {

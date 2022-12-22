@@ -6,10 +6,10 @@ use nom::bytes::complete::tag;
 use nom::character::complete::{space0, space1};
 use nom::combinator::{map, opt};
 use nom::multi::many0;
-use nom::sequence::{delimited, pair, preceded, terminated, tuple, separated_pair};
+use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use nom::IResult;
 
-use super::common::{pos_num, op0, var_name, WrappedFormula};
+use super::common::{op0, pos_num, var_name, WrappedFormula};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate};

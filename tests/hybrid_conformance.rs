@@ -6,7 +6,7 @@ use banquo::expressions::{HybridPredicate, Polynomial, Predicate};
 use banquo::formula::{evaluate_hybrid_distance, PathGuardDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
-use banquo::{HybridDistanceFormula, Trace, HybridDistance};
+use banquo::{HybridDistance, HybridDistanceFormula, Trace};
 
 type VariableMap = HashMap<String, f64>;
 
@@ -176,7 +176,7 @@ fn trace_test_case<'a, F>(
     f1: F,
     f2: &'a str,
     trace: Trace<(VariableMap, usize)>,
-    expected: HybridDistance
+    expected: HybridDistance,
 ) -> Result<(), Box<dyn Error + 'a>>
 where
     F: HybridDistanceFormula<VariableMap, usize>,
@@ -202,7 +202,7 @@ where
 fn test_case<'a, F>(f1: F, f2: &'a str, expected: HybridDistance) -> Result<(), Box<dyn Error + 'a>>
 where
     F: HybridDistanceFormula<VariableMap, usize>,
-    F::Error: 'a
+    F::Error: 'a,
 {
     trace_test_case(f1, f2, get_trace(), expected)
 }
@@ -235,7 +235,10 @@ fn case03() -> Result<(), Box<dyn Error>> {
 fn case04() -> Result<(), Box<dyn Error>> {
     let formula = Always::new_unbounded(And::new(p1(), p2()));
     let formula_str = r"[] (p1 /\ p2)";
-    let expected_distance = PathGuardDistance { path_distance: 2, guard_distance: -33.0 };
+    let expected_distance = PathGuardDistance {
+        path_distance: 2,
+        guard_distance: -33.0,
+    };
 
     test_case(formula, formula_str, HybridDistance::PathDistance(expected_distance))
 }
@@ -252,7 +255,10 @@ fn case05() -> Result<(), Box<dyn Error>> {
 fn case10() -> Result<(), Box<dyn Error>> {
     let formula = And::new(And::new(p1(), p2()), p3());
     let formula_str = r"(p1 /\ p2) /\ p3";
-    let expected_distance = PathGuardDistance { path_distance: 2, guard_distance: -22.0 };
+    let expected_distance = PathGuardDistance {
+        path_distance: 2,
+        guard_distance: -22.0,
+    };
 
     test_case(formula, formula_str, HybridDistance::PathDistance(expected_distance))
 }
@@ -261,14 +267,19 @@ fn case10() -> Result<(), Box<dyn Error>> {
 fn case11() -> Result<(), Box<dyn Error>> {
     let s1: HashMap<String, f64> = HashMap::from_iter([("x".to_string(), 1.0)]);
     let s2: HashMap<String, f64> = HashMap::from_iter([("x".to_string(), -2.0)]);
-    let trace = Trace::from_iter([
-        (0.1, (s1, 1)),
-        (0.2, (s2, 3)),
-    ]);
+    let trace = Trace::from_iter([(0.1, (s1, 1)), (0.2, (s2, 3))]);
 
     let formula = Always::new_unbounded(And::new(p1(), p2()));
     let formula_str = r"[] (p1 /\ p2)";
-    let expected_distance = PathGuardDistance { path_distance: 1, guard_distance: -2.0 };
+    let expected_distance = PathGuardDistance {
+        path_distance: 1,
+        guard_distance: -2.0,
+    };
 
-    trace_test_case(formula, formula_str, trace, HybridDistance::PathDistance(expected_distance))
+    trace_test_case(
+        formula,
+        formula_str,
+        trace,
+        HybridDistance::PathDistance(expected_distance),
+    )
 }
