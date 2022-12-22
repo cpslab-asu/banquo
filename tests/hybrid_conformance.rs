@@ -258,3 +258,18 @@ fn case10() -> Result<(), Box<dyn Error>> {
     test_case(formula, formula_str, HybridDistance::PathDistance(expected_distance))
 }
 
+#[test]
+fn case11() -> Result<(), Box<dyn Error>> {
+    let s1: HashMap<String, f64> = HashMap::from_iter([("x".to_string(), 1.0)]);
+    let s2: HashMap<String, f64> = HashMap::from_iter([("x".to_string(), -2.0)]);
+    let trace = Trace::from_iter([
+        (0.1, (s1, 1)),
+        (0.2, (s2, 3)),
+    ]);
+
+    let formula = And::new(And::new(p1(), p2()), p3());
+    let formula_str = r"[] (p1 /\ p2)";
+    let expected_distance = PathGuardDistance { path_distance: 1, guard_distance: -2.0 };
+
+    trace_test_case(formula, formula_str, trace, HybridDistance::PathDistance(expected_distance))
+}
