@@ -90,10 +90,10 @@ where
     type Error = F::Error;
 
     fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0
-            .apply(trace, F::hybrid_distance, HybridDistance::Infinite, |d_max, &d_curr| {
-                HybridDistance::max(d_max, d_curr)
-            })
+        let initial = HybridDistance::Infinite;
+        let combine = |d_max: HybridDistance, d_curr: &HybridDistance| HybridDistance::max(d_max, *d_curr);
+
+        self.0.apply(trace, F::hybrid_distance, initial, combine)
     }
 }
 
