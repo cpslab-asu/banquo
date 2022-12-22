@@ -4,7 +4,7 @@ use std::error::Error;
 use approx::assert_relative_eq;
 use banquo::expressions::{Polynomial, Predicate};
 use banquo::formula::{evaluate_robustness, Formula};
-use banquo::operators::{Always, And, Eventually, Implies, Next, Not, Or};
+use banquo::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
 use banquo::parser::parse_formula;
 use banquo::trace::Trace;
 
@@ -223,6 +223,22 @@ fn case15() -> Result<(), Box<dyn Error>> {
     let f2 = "X (<> (X -1.0*x <= 2.0))";
 
     conformance_test(&f1, f2, 3.7508)
+}
+
+#[test]
+fn case16() -> Result<(), Box<dyn Error>> {
+    let f1 = Until::new(p1(), p2());
+    let f2 = "-1.0*x <= 2.0 U 1.0*x <= 2.0";
+
+    conformance_test(&f1, f2, 2.0)
+}
+
+#[test]
+fn case17() -> Result<(), Box<dyn Error>> {
+    let f1 = Until::new(p1(), Until::new(p2(), p1()));
+    let f2 = "-1.0*x <= 2.0 U (1.0*x <= 2.0 U -1.0*x <= 2.0)";
+
+    conformance_test(&f1, f2, 2.0)
 }
 
 #[test]
