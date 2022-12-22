@@ -205,6 +205,12 @@ impl<T> Iterator for IntoIter<T> {
     }
 }
 
+impl<T> DoubleEndedIterator for IntoIter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.values.next_back().map(|(time, state)| (time.into_inner(), state))
+    }
+}
+
 impl<T> IntoIterator for Trace<T> {
     type Item = (f64, T);
     type IntoIter = IntoIter<T>;
