@@ -179,6 +179,13 @@ fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
     Ok((rest, ParsedFormula::new(formula)))
 }
 
+fn until(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = operators::until(left_operand, right_operand);
+    let (rest, formula) = parser(input)?;
+
+    Ok((rest, ParsedFormula::new(formula)))
+}
+
 fn formula(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = alt((
         next,
@@ -189,6 +196,7 @@ fn formula(input: &str) -> IResult<&str, ParsedFormula> {
         and,
         or,
         implies,
+        until,
         subformula,
         map(predicate, ParsedFormula::new),
     ));
