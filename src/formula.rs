@@ -147,10 +147,44 @@ where
     Ok(debug_robustness)
 }
 
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+pub struct PathGuardDistance {
+    pub path_distance: usize,
+    pub guard_distance: f64,
+}
+
+impl PathGuardDistance {
+    fn min(self, other: Self) -> Self {
+        if self.path_distance < other.path_distance {
+            self
+        } else if other.path_distance < self.path_distance {
+            other
+        } else {
+            PathGuardDistance {
+                path_distance: self.path_distance,
+                guard_distance: f64::max(self.guard_distance, other.guard_distance),
+            }
+        }
+    }
+
+    fn max(self, other: Self) -> Self {
+        if self.path_distance > other.path_distance {
+            self
+        } else if other.path_distance > self.path_distance {
+            other
+        } else {
+            PathGuardDistance {
+                path_distance: self.path_distance,
+                guard_distance: f64::min(self.guard_distance, other.guard_distance),
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum HybridDistance {
     Infinite,
-    PathDistance { path_distance: usize, guard_distance: f64 },
+    PathDistance(PathGuardDistance),
     Robustness(f64),
 }
 
