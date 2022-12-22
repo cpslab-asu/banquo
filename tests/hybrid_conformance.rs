@@ -174,12 +174,16 @@ fn p3() -> HybridPredicate<Automaton<usize>, usize> {
     HybridPredicate::new(predicate, 2, automaton)
 }
 
-fn test_case<'a, F>(f1: F, f2: &'a str, expected: HybridDistance) -> Result<(), Box<dyn Error + 'a>>
+fn trace_test_case<'a, F>(
+    f1: F,
+    f2: &'a str,
+    trace: Trace<(VariableMap, usize)>,
+    expected: HybridDistance
+) -> Result<(), Box<dyn Error + 'a>>
 where
     F: HybridDistanceFormula<VariableMap, usize>,
     F::Error: 'a,
 {
-    let trace = get_trace();
     let hybrid_distance = evaluate_hybrid_distance(f1, &trace)?;
 
     assert_eq!(hybrid_distance, expected, "f1 error");
@@ -194,6 +198,14 @@ where
     assert_eq!(hybrid_distance, expected, "f2 error");
 
     Ok(())
+}
+
+fn test_case<'a, F>(f1: F, f2: &'a str, expected: HybridDistance) -> Result<(), Box<dyn Error + 'a>>
+where
+    F: HybridDistanceFormula<VariableMap, usize>,
+    F::Error: 'a
+{
+    trace_test_case(f1, f2, get_trace(), expected)
 }
 
 #[test]
