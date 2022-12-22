@@ -265,7 +265,7 @@ fn case11() -> Result<(), Box<dyn Error>> {
         (0.2, (s2, 3)),
     ]);
 
-    let formula = And::new(And::new(p1(), p2()), p3());
+    let formula = Always::new_unbounded(And::new(p1(), p2()));
     let formula_str = r"[] (p1 /\ p2)";
     let expected_distance = PathGuardDistance { path_distance: 1, guard_distance: -2.0 };
 
