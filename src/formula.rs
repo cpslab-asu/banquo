@@ -200,75 +200,36 @@ impl Neg for HybridDistance {
     }
 }
 
-impl PartialOrd for HybridDistance {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match (self, other) {
-            (HybridDistance::Robustness(r1), HybridDistance::Robustness(r2)) => f64::partial_cmp(r1, r2),
-            (HybridDistance::Robustness(..), _) => Some(Ordering::Less),
-            (HybridDistance::PathDistance { .. }, HybridDistance::Robustness(..)) => Some(Ordering::Greater),
-            (
-                HybridDistance::PathDistance {
-                    path_distance: p1,
-                    guard_distance: g1,
-                },
-                HybridDistance::PathDistance {
-                    path_distance: p2,
-                    guard_distance: g2,
-                },
-            ) => {
-                let location_ordering = usize::cmp(p1, p2);
-
-                if location_ordering == Ordering::Equal {
-                    f64::partial_cmp(g1, g2)
-                } else {
-                    Some(location_ordering)
-                }
-            }
-            (HybridDistance::PathDistance { .. }, HybridDistance::Infinite) => Some(Ordering::Less),
-            (HybridDistance::Infinite, HybridDistance::Infinite) => Some(Ordering::Equal),
-            (HybridDistance::Infinite, _) => Some(Ordering::Greater),
-        }
-    }
-}
-
 impl HybridDistance {
-    fn is_nan(&self) -> bool {
-        match self {
-            Self::Infinite => false,
-            Self::PathDistance { guard_distance, .. } => guard_distance.is_nan(),
-            Self::Robustness(r) => r.is_nan(),
-        }
-    }
-
-    fn concat<F: Fn(Ordering) -> Self>(self, other: Self, f: F) -> Self {
-        match self.partial_cmp(&other) {
-            None => {
-                if self.is_nan() {
-                    other
-                } else {
-                    self
-                }
-            }
-            Some(ordering) => f(ordering),
-        }
-    }
-
     pub fn min(self, other: Self) -> Self {
-        let f = |ordering: Ordering| match ordering {
-            Ordering::Less | Ordering::Equal => self,
-            Ordering::Greater => other,
-        };
-
-        self.concat(other, f)
+        match (self, other) {
+            (HybridDistance::Infinite, _) => HybridDistance::Infinite,
+            (HybridDistance::PathDistance(..), HybridDistance::Infinite) => HybridDistance::Infinite,
+            (HybridDistance::PathDistance(d1), HybridDistance::PathDistance(d2)) => {
+                HybridDistance::PathDistance(PathGuardDistance::max(d1, d2))
+            },
+            (HybridDistance::PathDistance(d), HybridDistance::Robustness(..)) => HybridDistance::PathDistance(d),
+            (HybridDistance::Robustness(r1), HybridDistance::Robustness(r2)) => {
+                HybridDistance::Robustness(f64::min(r1, r2))
+            },
+            (HybridDistance::Robustness(..), other) => other,
+        }
     }
 
     pub fn max(self, other: Self) -> Self {
-        let f = |ordering: Ordering| match ordering {
-            Ordering::Greater | Ordering::Equal => self,
-            Ordering::Less => other,
-        };
-
-        self.concat(other, f)
+        match (self, other) {
+            (HybridDistance::Robustness(r1), HybridDistance::Robustness(r2)) => {
+                HybridDistance::Robustness(f64::max(r1, r2))
+            },
+            (HybridDistance::Robustness(r), _) => HybridDistance::Robustness(r),
+            (HybridDistance::PathDistance(..), HybridDistance::Robustness(r)) => HybridDistance::Robustness(r),
+            (HybridDistance::PathDistance(d1), HybridDistance::PathDistance(d2)) => {
+                HybridDistance::PathDistance(PathGuardDistance::min(d1, d2))
+            }
+            (HybridDistance::PathDistance(d), HybridDistance::Infinite) => HybridDistance::PathDistance(d),
+            (HybridDistance::Infinite, HybridDistance::Infinite) => HybridDistance::Infinite,
+            (HybridDistance::Infinite, other) => other,
+        }
     }
 }
 
