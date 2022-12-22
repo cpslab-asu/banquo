@@ -10,8 +10,6 @@ use banquo::{HybridDistanceFormula, Trace, HybridDistance};
 
 type VariableMap = HashMap<String, f64>;
 
-const EPSILON: f64 = 1.0e-5;
-
 fn get_trace() -> Trace<(VariableMap, usize)> {
     let entries = [
         (1.0, 23.0, 2),
