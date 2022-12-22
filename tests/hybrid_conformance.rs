@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::error::Error;
 
-use approx::assert_relative_eq;
 use banquo::automaton::{Automaton, Guard};
 use banquo::expressions::{HybridPredicate, Polynomial, Predicate};
-use banquo::formula::evaluate_hybrid_distance;
-use banquo::operators::Eventually;
+use banquo::formula::{evaluate_hybrid_distance, PathGuardDistance};
+use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
 use banquo::{HybridDistanceFormula, Trace, HybridDistance};
 
@@ -210,5 +209,40 @@ fn case02() -> Result<(), Box<dyn Error>> {
     let formula = Eventually::new_unbounded(p2());
     let formula_str = "<> p2";
 
+    test_case(formula, formula_str, HybridDistance::Robustness(47.0))
+}
+
+#[test]
+fn case03() -> Result<(), Box<dyn Error>> {
+    let formula = Eventually::new_unbounded(And::new(p1(), p2()));
+    let formula_str = r"<> (p1 /\ p2)";
+
+    test_case(formula, formula_str, HybridDistance::Robustness(47.0))
+}
+
+#[test]
+fn case04() -> Result<(), Box<dyn Error>> {
+    let formula = Always::new_unbounded(And::new(p1(), p2()));
+    let formula_str = r"[] (p1 /\ p2)";
+    let expected_distance = PathGuardDistance { path_distance: 2, guard_distance: -33.0 };
+
+    test_case(formula, formula_str, HybridDistance::PathDistance(expected_distance))
+}
+
+#[test]
+fn case05() -> Result<(), Box<dyn Error>> {
+    let formula = Eventually::new_unbounded(Or::new(p1(), p2()));
+    let formula_str = r"<> (p1 \/ p2)";
+
     test_case(formula, formula_str, HybridDistance::Robustness(52.0))
 }
+
+#[test]
+fn case10() -> Result<(), Box<dyn Error>> {
+    let formula = And::new(And::new(p1(), p2()), p3());
+    let formula_str = r"(p1 /\ p2) /\ p3";
+    let expected_distance = PathGuardDistance { path_distance: 2, guard_distance: -22.0 };
+
+    test_case(formula, formula_str, HybridDistance::PathDistance(expected_distance))
+}
+
