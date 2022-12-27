@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use super::temporal::TemporalOperator;
-use crate::formula::{DebugFormula, DebugRobustness, Formula, HybridDistance, HybridDistanceFormula};
+use crate::formulas::{DebugRobustnessFormula, DebugRobustness, RobustnessFormula, HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
@@ -39,9 +39,9 @@ impl<F> Always<F> {
     }
 }
 
-impl<S, F> Formula<S> for Always<F>
+impl<S, F> RobustnessFormula<S> for Always<F>
 where
-    F: Formula<S>,
+    F: RobustnessFormula<S>,
 {
     type Error = F::Error;
 
@@ -69,14 +69,14 @@ fn make_debug<T>(trace: Trace<&Rc<DebugRobustness<T>>>) -> DebugRobustness<MinOf
     }
 }
 
-impl<S, F> DebugFormula<S> for Always<F>
+impl<S, F> DebugRobustnessFormula<S> for Always<F>
 where
-    F: DebugFormula<S>,
+    F: DebugRobustnessFormula<S>,
 {
     type Error = F::Error;
     type Prev = MinOfTimes<F::Prev>;
 
-    fn debug_robustness(&self, trace: &Trace<S>) -> crate::formula::Result<DebugRobustness<Self::Prev>, Self::Error> {
+    fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
         let debug_eval = |subformula: &F, trace: &Trace<S>| subformula.debug_robustness(trace).map(Trace::into_shared);
 
         self.0.apply_subtrace(trace, debug_eval, make_debug)
@@ -100,7 +100,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::Always;
-    use crate::formula::Formula;
+    use crate::formulas::RobustnessFormula;
     use crate::operators::{Const, ConstError};
     use crate::trace::Trace;
 

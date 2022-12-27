@@ -13,17 +13,17 @@ use super::common::{op0, pos_num, var_name, WrappedFormula};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate};
-use crate::formula::Formula;
+use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
 
 pub struct ParsedFormula {
-    inner: Box<dyn Formula<HashMap<String, f64>, Error = ParsedFormulaError>>,
+    inner: Box<dyn RobustnessFormula<HashMap<String, f64>, Error = ParsedFormulaError>>,
 }
 
 impl ParsedFormula {
     fn new<F>(formula: F) -> Self
     where
-        F: Formula<HashMap<String, f64>> + 'static,
+        F: RobustnessFormula<HashMap<String, f64>> + 'static,
     {
         Self {
             inner: Box::new(WrappedFormula::wrap(formula)),
@@ -31,7 +31,7 @@ impl ParsedFormula {
     }
 }
 
-impl Formula<HashMap<String, f64>> for ParsedFormula {
+impl RobustnessFormula<HashMap<String, f64>> for ParsedFormula {
     type Error = ParsedFormulaError;
 
     #[inline]

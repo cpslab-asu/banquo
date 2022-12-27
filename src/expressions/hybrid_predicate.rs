@@ -5,7 +5,7 @@ use std::hash::Hash;
 use super::predicate::{PolynomialError, Predicate};
 use super::{Expression, VariableMap};
 use crate::automaton::{ShortestPath, StatePath};
-use crate::formula::{self, HybridDistance, HybridDistanceFormula, PathGuardDistance};
+use crate::formulas::{HybridDistance, HybridDistanceFormula, PathGuardDistance};
 use crate::trace::Trace;
 
 #[derive(Debug, Clone, Copy)]
@@ -91,7 +91,7 @@ where
 {
     type Error = HybridPredicateError;
 
-    fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> formula::Result<HybridDistance, Self::Error> {
+    fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
         let evaluate_time_state = |(time, (state, location)): (f64, &(VariableMap, L))| {
             let distance = if location == &self.location {
                 state_distance(&self.predicate, state).map_err(|inner| HybridPredicateError {

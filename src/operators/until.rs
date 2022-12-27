@@ -1,5 +1,5 @@
 use crate::Trace;
-use crate::formula::{Formula, HybridDistance, HybridDistanceFormula, Result};
+use crate::formulas::{RobustnessFormula, HybridDistance, HybridDistanceFormula};
 use super::binary::BinaryOperatorError;
 
 pub struct Until<L, R> {
@@ -44,14 +44,14 @@ where
     Trace::from_iter(elements)
 }
 
-impl<L, R, S> Formula<S> for Until<L, R>
+impl<L, R, S> RobustnessFormula<S> for Until<L, R>
 where
-    L: Formula<S>,
-    R: Formula<S>,
+    L: RobustnessFormula<S>,
+    R: RobustnessFormula<S>,
 {
     type Error = BinaryOperatorError<L::Error, R::Error>;
 
-    fn robustness(&self, trace: &Trace<S>) -> Result<f64, Self::Error> {
+    fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
         let left_trace = self.left.robustness(trace).map_err(BinaryOperatorError::LeftError)?;
         let right_trace = self.right.robustness(trace).map_err(BinaryOperatorError::RightError)?;
         let trace = until(
@@ -74,7 +74,7 @@ where
 {
     type Error = BinaryOperatorError<L::Error, R::Error>;
 
-    fn hybrid_distance(&self, trace: &Trace<(S, T)>) -> Result<HybridDistance, Self::Error> {
+    fn hybrid_distance(&self, trace: &Trace<(S, T)>) -> Result<Trace<HybridDistance>, Self::Error> {
         let left_trace = self.left.hybrid_distance(trace).map_err(BinaryOperatorError::LeftError)?;
         let right_trace = self.right.hybrid_distance(trace).map_err(BinaryOperatorError::RightError)?;
         let trace = until(
@@ -94,7 +94,8 @@ where
 mod tests {
     use std::error::Error;
 
-    use crate::{Trace, Formula};
+    use crate::Trace;
+    use crate::formulas::RobustnessFormula;
     use crate::operators::Const;
     use super::Until;
 

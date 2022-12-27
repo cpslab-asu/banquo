@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-use crate::formula::Formula;
+use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
 
 struct Const(Trace<f64>);
@@ -17,7 +17,7 @@ impl Display for ConstError {
 
 impl Error for ConstError {}
 
-impl Formula<()> for Const {
+impl RobustnessFormula<()> for Const {
     type Error = ConstError;
 
     fn robustness(&self, _: &Trace<()>) -> Result<Trace<f64>, Self::Error> {

@@ -1,7 +1,5 @@
 use super::binary::{BinaryOperator, BinaryOperatorError};
-use crate::formula::{DebugFormula, DebugRobustness};
-use crate::formula::{Formula, Result};
-use crate::formula::{HybridDistance, HybridDistanceFormula};
+use crate::formulas::{DebugRobustnessFormula, DebugRobustness, HybridDistance, HybridDistanceFormula, RobustnessFormula};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
@@ -21,29 +19,29 @@ impl<L, R> Or<L, R> {
     }
 }
 
-impl<S, L, R> Formula<S> for Or<L, R>
+impl<S, L, R> RobustnessFormula<S> for Or<L, R>
 where
-    L: Formula<S>,
-    R: Formula<S>,
+    L: RobustnessFormula<S>,
+    R: RobustnessFormula<S>,
 {
     type Error = BinaryOperatorError<L::Error, R::Error>;
 
-    fn robustness(&self, trace: &Trace<S>) -> Result<f64, Self::Error> {
+    fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
         self.0.apply(trace, L::robustness, R::robustness, f64::max)
     }
 }
 
 pub struct MaxOf<L, R>(pub DebugRobustness<L>, pub DebugRobustness<R>);
 
-impl<S, L, R> DebugFormula<S> for Or<L, R>
+impl<S, L, R> DebugRobustnessFormula<S> for Or<L, R>
 where
-    L: DebugFormula<S>,
-    R: DebugFormula<S>,
+    L: DebugRobustnessFormula<S>,
+    R: DebugRobustnessFormula<S>,
 {
     type Error = BinaryOperatorError<L::Error, R::Error>;
     type Prev = MaxOf<L::Prev, R::Prev>;
 
-    fn debug_robustness(&self, trace: &Trace<S>) -> Result<DebugRobustness<Self::Prev>, Self::Error> {
+    fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
         let make_debug = |left: DebugRobustness<L::Prev>, right: DebugRobustness<R::Prev>| DebugRobustness {
             robustness: f64::max(left.robustness, right.robustness),
             previous: MaxOf(left, right),
@@ -61,7 +59,7 @@ where
 {
     type Error = BinaryOperatorError<F::Error, G::Error>;
 
-    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<HybridDistance, Self::Error> {
+    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
         self.0
             .apply(trace, F::hybrid_distance, G::hybrid_distance, HybridDistance::max)
     }
@@ -70,7 +68,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{BinaryOperatorError, Or};
-    use crate::formula::Formula;
+    use crate::formulas::RobustnessFormula;
     use crate::operators::{Const, ConstError};
     use crate::trace::Trace;
 

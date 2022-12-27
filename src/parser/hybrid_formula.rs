@@ -13,7 +13,7 @@ use nom::Parser;
 use super::common::{var_name, WrappedFormula};
 use super::errors::{IncompleteParseError, MissingPredicateError, ParsedFormulaError};
 use super::operators;
-use crate::formula::{self, HybridDistance, HybridDistanceFormula};
+use crate::formulas::{HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
 type VariableMap = HashMap<String, f64>;
@@ -38,7 +38,7 @@ impl<'a, L> HybridDistanceFormula<VariableMap, L> for ParsedHybridFormula<'a, L>
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> formula::Result<HybridDistance, Self::Error> {
+    fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
         self.inner.hybrid_distance(trace)
     }
 }

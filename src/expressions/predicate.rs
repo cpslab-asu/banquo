@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 use super::{Expression, VariableMap};
-use crate::formula::Formula;
+use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
 
 pub struct PolynomialError {
@@ -120,10 +120,10 @@ impl Expression for Predicate {
     }
 }
 
-impl Formula<VariableMap> for Predicate {
+impl RobustnessFormula<VariableMap> for Predicate {
     type Error = PredicateError;
 
-    fn robustness(&self, trace: &Trace<VariableMap>) -> crate::formula::Result<f64, Self::Error> {
+    fn robustness(&self, trace: &Trace<VariableMap>) -> Result<Trace<f64>, Self::Error> {
         let eval_timed_state = |(time, state)| -> Result<(f64, f64), PredicateError> {
             self.evaluate_state(state)
                 .map(|robustness| (time, robustness))

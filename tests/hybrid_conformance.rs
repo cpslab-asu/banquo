@@ -3,10 +3,10 @@ use std::error::Error;
 
 use banquo::automaton::{Automaton, Guard};
 use banquo::expressions::{HybridPredicate, Polynomial, Predicate};
-use banquo::formula::{evaluate_hybrid_distance, PathGuardDistance};
+use banquo::formulas::{eval_hybrid_dist, HybridDistance, HybridDistanceFormula, PathGuardDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
-use banquo::{HybridDistance, HybridDistanceFormula, Trace};
+use banquo::Trace;
 
 type VariableMap = HashMap<String, f64>;
 
@@ -182,7 +182,7 @@ where
     F: HybridDistanceFormula<VariableMap, usize>,
     F::Error: 'a,
 {
-    let hybrid_distance = evaluate_hybrid_distance(f1, &trace)?;
+    let hybrid_distance = eval_hybrid_dist(f1, &trace)?;
 
     assert_eq!(hybrid_distance, expected, "f1 error");
 
@@ -192,7 +192,7 @@ where
         ("p3".to_string(), p3()),
     ]);
     let parsed_formula = parse_hybrid_formula(f2, predicates)?;
-    let hybrid_distance = evaluate_hybrid_distance(parsed_formula, &trace)?;
+    let hybrid_distance = eval_hybrid_dist(parsed_formula, &trace)?;
 
     assert_eq!(hybrid_distance, expected, "f2 error");
 

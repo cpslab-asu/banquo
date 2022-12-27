@@ -1,5 +1,5 @@
 use super::binary::{BinaryOperator, BinaryOperatorError};
-use crate::formula::{DebugFormula, DebugRobustness, Formula, HybridDistance, HybridDistanceFormula};
+use crate::formulas::{DebugRobustnessFormula, DebugRobustness, RobustnessFormula, HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
@@ -19,10 +19,10 @@ impl<L, R> And<L, R> {
     }
 }
 
-impl<S, L, R> Formula<S> for And<L, R>
+impl<S, L, R> RobustnessFormula<S> for And<L, R>
 where
-    L: Formula<S>,
-    R: Formula<S>,
+    L: RobustnessFormula<S>,
+    R: RobustnessFormula<S>,
 {
     type Error = BinaryOperatorError<L::Error, R::Error>;
 
@@ -40,10 +40,10 @@ fn make_debug<L, R>(left: DebugRobustness<L>, right: DebugRobustness<R>) -> Debu
     }
 }
 
-impl<S, L, R> DebugFormula<S> for And<L, R>
+impl<S, L, R> DebugRobustnessFormula<S> for And<L, R>
 where
-    L: DebugFormula<S>,
-    R: DebugFormula<S>,
+    L: DebugRobustnessFormula<S>,
+    R: DebugRobustnessFormula<S>,
 {
     type Error = BinaryOperatorError<L::Error, R::Error>;
     type Prev = MinOf<L::Prev, R::Prev>;
@@ -70,7 +70,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{And, BinaryOperatorError};
-    use crate::formula::Formula;
+    use crate::formulas::RobustnessFormula;
     use crate::operators::{Const, ConstError};
     use crate::trace::Trace;
 

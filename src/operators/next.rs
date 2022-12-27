@@ -1,4 +1,4 @@
-use crate::formula::{DebugFormula, DebugRobustness, Formula, HybridDistance, HybridDistanceFormula};
+use crate::formulas::{DebugRobustnessFormula, DebugRobustness, RobustnessFormula, HybridDistance, HybridDistanceFormula};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
@@ -14,15 +14,15 @@ impl<F> Next<F> {
     }
 }
 
-impl<S, F> DebugFormula<S> for Next<F>
+impl<S, F> DebugRobustnessFormula<S> for Next<F>
 where
-    F: DebugFormula<S>,
+    F: DebugRobustnessFormula<S>,
     F::Prev: Clone,
 {
     type Error = F::Error;
     type Prev = DebugRobustness<F::Prev>;
 
-    fn debug_robustness(&self, trace: &Trace<S>) -> crate::formula::Result<DebugRobustness<Self::Prev>, Self::Error> {
+    fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
         let inner = self.0.debug_robustness(trace)?;
         let mut iter = inner.into_iter().peekable();
         let mut trace = Trace::default();
@@ -47,9 +47,9 @@ where
     }
 }
 
-impl<S, F> Formula<S> for Next<F>
+impl<S, F> RobustnessFormula<S> for Next<F>
 where
-    F: Formula<S>,
+    F: RobustnessFormula<S>,
 {
     type Error = F::Error;
 
@@ -100,7 +100,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::Next;
-    use crate::formula::Formula;
+    use crate::formulas::RobustnessFormula;
     use crate::operators::{Const, ConstError};
     use crate::trace::Trace;
 

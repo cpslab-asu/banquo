@@ -1,7 +1,6 @@
 use std::ops::Neg;
 
-use crate::formula::{DebugFormula, Formula, HybridDistanceFormula, Result};
-use crate::formula::{DebugRobustness, HybridDistance};
+use crate::formulas::{DebugRobustnessFormula, DebugRobustness, RobustnessFormula, HybridDistanceFormula, HybridDistance};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
@@ -24,13 +23,13 @@ where
     trace.into_iter().map_states(|value| -value).collect()
 }
 
-impl<S, F> Formula<S> for Not<F>
+impl<S, F> RobustnessFormula<S> for Not<F>
 where
-    F: Formula<S>,
+    F: RobustnessFormula<S>,
 {
     type Error = F::Error;
 
-    fn robustness(&self, trace: &Trace<S>) -> Result<f64, Self::Error> {
+    fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
         self.0.robustness(trace).map(not)
     }
 }
@@ -46,14 +45,14 @@ fn make_debug<T>((time, previous): (f64, DebugRobustness<T>)) -> (f64, DebugRobu
     (time, neg_robustness)
 }
 
-impl<S, F> DebugFormula<S> for Not<F>
+impl<S, F> DebugRobustnessFormula<S> for Not<F>
 where
-    F: DebugFormula<S>,
+    F: DebugRobustnessFormula<S>,
 {
     type Error = F::Error;
     type Prev = NegOf<F::Prev>;
 
-    fn debug_robustness(&self, trace: &Trace<S>) -> Result<DebugRobustness<Self::Prev>, Self::Error> {
+    fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
         let previous = self.0.debug_robustness(trace)?;
         let debug_trace = previous.into_iter().map(make_debug).collect();
 
@@ -67,7 +66,7 @@ where
 {
     type Error = F::Error;
 
-    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<HybridDistance, Self::Error> {
+    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
         self.0.hybrid_distance(trace).map(not)
     }
 }
@@ -75,7 +74,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::Not;
-    use crate::formula::Formula;
+    use crate::formulas::RobustnessFormula;
     use crate::operators::{Const, ConstError};
     use crate::trace::Trace;
 
