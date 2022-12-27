@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt::{Display, Formatter};
+
 use crate::trace::Trace;
 
 mod debug_robustness;
@@ -6,12 +9,30 @@ mod hybrid_distance;
 
 pub use robustness::RobustnessFormula;
 pub use debug_robustness::{DebugRobustnessFormula, DebugRobustness};
-pub use hybrid_distance::{HybridDistance, HybridDistanceFormula};
+pub use hybrid_distance::{HybridDistance, HybridDistanceFormula, PathGuardDistance};
 
+#[derive(Debug)]
 pub enum EvaluationError<E> {
     EmptyTrace,
     FormulaError(E),
 }
+
+impl<E> Display for EvaluationError<E>
+where
+    E: Display
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyTrace => write!(f, "Empty trace provided"),
+            Self::FormulaError(e)=> e.fmt(f),
+        }
+    }
+}
+
+impl<E> Error for EvaluationError<E>
+where
+    E: Error
+{}
 
 type EvalResult<T, E> = Result<T, EvaluationError<E>>;
 
