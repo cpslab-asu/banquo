@@ -76,10 +76,18 @@ where
     P1: Parser<&'a str, A, nom::error::Error<&'a str>>,
     P2: Parser<&'a str, C, nom::error::Error<&'a str>>,
 {
-    binop(alt((tag("->"), tag("implies"))), left_parser, right_parser, Implies::new)
+    binop(
+        alt((tag("->"), tag("implies"))),
+        left_parser,
+        right_parser,
+        Implies::new,
+    )
 }
 
-pub fn until<'a, P1, L, P2, R>(left_parser: P1, right_parser: P2) -> impl FnMut(&'a str) -> IResult<&'a str, Until<L, R>>
+pub fn until<'a, P1, L, P2, R>(
+    left_parser: P1,
+    right_parser: P2,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Until<L, R>>
 where
     P1: Parser<&'a str, L, nom::error::Error<&'a str>>,
     P2: Parser<&'a str, R, nom::error::Error<&'a str>>,

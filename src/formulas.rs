@@ -4,12 +4,12 @@ use std::fmt::{Display, Formatter};
 use crate::trace::Trace;
 
 mod debug_robustness;
-mod robustness;
 mod hybrid_distance;
+mod robustness;
 
-pub use robustness::RobustnessFormula;
-pub use debug_robustness::{DebugRobustnessFormula, DebugRobustness};
+pub use debug_robustness::{DebugRobustness, DebugRobustnessFormula};
 pub use hybrid_distance::{HybridDistance, HybridDistanceFormula, PathGuardDistance};
+pub use robustness::RobustnessFormula;
 
 #[derive(Debug)]
 pub enum EvaluationError<E> {
@@ -19,20 +19,17 @@ pub enum EvaluationError<E> {
 
 impl<E> Display for EvaluationError<E>
 where
-    E: Display
+    E: Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EmptyTrace => write!(f, "Empty trace provided"),
-            Self::FormulaError(e)=> e.fmt(f),
+            Self::FormulaError(e) => e.fmt(f),
         }
     }
 }
 
-impl<E> Error for EvaluationError<E>
-where
-    E: Error
-{}
+impl<E> Error for EvaluationError<E> where E: Error {}
 
 type EvalResult<T, E> = Result<T, EvaluationError<E>>;
 
@@ -41,10 +38,7 @@ where
     F: RobustnessFormula<S>,
 {
     let robustness_trace = formula.robustness(trace).map_err(EvaluationError::FormulaError)?;
-    let (_, robustness) = robustness_trace
-        .into_iter()
-        .next()
-        .ok_or(EvaluationError::EmptyTrace)?;
+    let (_, robustness) = robustness_trace.into_iter().next().ok_or(EvaluationError::EmptyTrace)?;
 
     Ok(robustness)
 }
@@ -54,10 +48,7 @@ where
     F: DebugRobustnessFormula<S>,
 {
     let debug_trace = formula.debug_robustness(trace).map_err(EvaluationError::FormulaError)?;
-    let (_, debug_robustness) = debug_trace
-        .into_iter()
-        .next()
-        .ok_or(EvaluationError::EmptyTrace)?;
+    let (_, debug_robustness) = debug_trace.into_iter().next().ok_or(EvaluationError::EmptyTrace)?;
 
     Ok(debug_robustness)
 }
@@ -67,10 +58,7 @@ where
     F: HybridDistanceFormula<S, L>,
 {
     let distance_trace = formula.hybrid_distance(trace).map_err(EvaluationError::FormulaError)?;
-    let (_, hybrid_distance) = distance_trace
-        .into_iter()
-        .next()
-        .ok_or(EvaluationError::EmptyTrace)?;
+    let (_, hybrid_distance) = distance_trace.into_iter().next().ok_or(EvaluationError::EmptyTrace)?;
 
     Ok(hybrid_distance)
 }

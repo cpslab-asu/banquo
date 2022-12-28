@@ -8,7 +8,7 @@ use nom::sequence::{delimited, pair};
 use nom::IResult;
 
 use super::errors::ParsedFormulaError;
-use crate::formulas::{RobustnessFormula, HybridDistance, HybridDistanceFormula};
+use crate::formulas::{HybridDistance, HybridDistanceFormula, RobustnessFormula};
 use crate::trace::Trace;
 
 pub struct WrappedFormula<F>(F);

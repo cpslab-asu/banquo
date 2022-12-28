@@ -1,7 +1,9 @@
 use std::rc::Rc;
 
 use super::temporal::TemporalOperator;
-use crate::formulas::{DebugRobustnessFormula, DebugRobustness, RobustnessFormula, HybridDistance, HybridDistanceFormula};
+use crate::formulas::{
+    DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
+};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]

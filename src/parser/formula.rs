@@ -228,7 +228,9 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
 
-    use super::{always, and, coeff, eventually, formula, implies, next, not, or, polynomial, pos_neg_num, predicate, until};
+    use super::{
+        always, and, coeff, eventually, formula, implies, next, not, or, polynomial, pos_neg_num, predicate, until,
+    };
     use crate::expressions::{Polynomial, Predicate};
 
     #[test]
@@ -420,7 +422,6 @@ mod tests {
 
         Ok(())
     }
-
 
     #[test]
     fn parse_formula() -> Result<(), Box<dyn Error>> {

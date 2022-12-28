@@ -1,7 +1,9 @@
 use super::binary::{BinaryOperator, BinaryOperatorError};
 use super::not::NegOf;
 use super::or::MaxOf;
-use crate::formulas::{DebugRobustnessFormula, DebugRobustness, RobustnessFormula, HybridDistance, HybridDistanceFormula};
+use crate::formulas::{
+    DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
+};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]

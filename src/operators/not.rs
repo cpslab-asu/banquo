@@ -1,6 +1,8 @@
 use std::ops::Neg;
 
-use crate::formulas::{DebugRobustnessFormula, DebugRobustness, RobustnessFormula, HybridDistanceFormula, HybridDistance};
+use crate::formulas::{
+    DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
+};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]

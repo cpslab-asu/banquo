@@ -52,4 +52,3 @@ where
         (**self).robustness(trace)
     }
 }
-

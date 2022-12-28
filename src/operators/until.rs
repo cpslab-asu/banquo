@@ -1,6 +1,6 @@
-use crate::Trace;
-use crate::formulas::{RobustnessFormula, HybridDistance, HybridDistanceFormula};
 use super::binary::BinaryOperatorError;
+use crate::formulas::{HybridDistance, HybridDistanceFormula, RobustnessFormula};
+use crate::Trace;
 
 pub struct Until<L, R> {
     left: L,
@@ -11,7 +11,7 @@ impl<L, R> Until<L, R> {
     pub fn new(left: L, right: R) -> Self {
         Self { left, right }
     }
-} 
+}
 
 fn until<T, F, G>(
     left_trace: Trace<T>,
@@ -75,8 +75,14 @@ where
     type Error = BinaryOperatorError<L::Error, R::Error>;
 
     fn hybrid_distance(&self, trace: &Trace<(S, T)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        let left_trace = self.left.hybrid_distance(trace).map_err(BinaryOperatorError::LeftError)?;
-        let right_trace = self.right.hybrid_distance(trace).map_err(BinaryOperatorError::RightError)?;
+        let left_trace = self
+            .left
+            .hybrid_distance(trace)
+            .map_err(BinaryOperatorError::LeftError)?;
+        let right_trace = self
+            .right
+            .hybrid_distance(trace)
+            .map_err(BinaryOperatorError::RightError)?;
         let trace = until(
             left_trace,
             right_trace,
@@ -94,26 +100,16 @@ where
 mod tests {
     use std::error::Error;
 
-    use crate::Trace;
+    use super::Until;
     use crate::formulas::RobustnessFormula;
     use crate::operators::Const;
-    use super::Until;
+    use crate::Trace;
 
     #[test]
     fn test_robustness() -> Result<(), Box<dyn Error>> {
-        let left_trace = Trace::from_iter([
-            (0.0, 3.0),
-            (1.0, 1.5),
-            (2.0, 1.4),
-            (3.0, 1.1),
-        ]);
+        let left_trace = Trace::from_iter([(0.0, 3.0), (1.0, 1.5), (2.0, 1.4), (3.0, 1.1)]);
 
-        let right_trace = Trace::from_iter([
-            (0.0, -2.1),
-            (1.0, 3.7),
-            (2.0, 1.2),
-            (3.0, 2.2),
-        ]);
+        let right_trace = Trace::from_iter([(0.0, -2.1), (1.0, 3.7), (2.0, 1.2), (3.0, 2.2)]);
 
         let formula = Until::new(Const(left_trace), Const(right_trace));
         let input = Trace::default();

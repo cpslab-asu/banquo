@@ -3,7 +3,7 @@ use std::error::Error;
 
 use approx::assert_relative_eq;
 use banquo::expressions::{Polynomial, Predicate};
-use banquo::formulas::{RobustnessFormula, eval_robustness};
+use banquo::formulas::{eval_robustness, RobustnessFormula};
 use banquo::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
 use banquo::parser::parse_formula;
 use banquo::trace::Trace;

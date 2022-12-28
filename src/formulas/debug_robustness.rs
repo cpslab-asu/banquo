@@ -82,7 +82,7 @@ pub trait DebugRobustnessFormula<T> {
 
 impl<S, T> DebugRobustnessFormula<S> for &T
 where
-    T: DebugRobustnessFormula<S> + ?Sized
+    T: DebugRobustnessFormula<S> + ?Sized,
 {
     type Error = T::Error;
     type Prev = T::Prev;
@@ -94,7 +94,7 @@ where
 
 impl<S, T> DebugRobustnessFormula<S> for Box<T>
 where
-    T: DebugRobustnessFormula<S> + ?Sized
+    T: DebugRobustnessFormula<S> + ?Sized,
 {
     type Error = T::Error;
     type Prev = T::Prev;
@@ -106,7 +106,7 @@ where
 
 impl<S, T> DebugRobustnessFormula<S> for Rc<T>
 where
-    T: DebugRobustnessFormula<S> + ?Sized
+    T: DebugRobustnessFormula<S> + ?Sized,
 {
     type Error = T::Error;
     type Prev = T::Prev;
@@ -118,7 +118,7 @@ where
 
 impl<S, T> DebugRobustnessFormula<S> for Arc<T>
 where
-    T: DebugRobustnessFormula<S> + ?Sized
+    T: DebugRobustnessFormula<S> + ?Sized,
 {
     type Error = T::Error;
     type Prev = T::Prev;
