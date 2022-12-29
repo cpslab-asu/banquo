@@ -226,9 +226,7 @@ mod tests {
 
     #[test]
     fn polynomial_sum() -> Result<(), Box<dyn Error>> {
-        let coefficients = HashMap::from([("x".to_string(), 1.0), ("y".to_string(), 2.0)]);
-        let polynomial = Polynomial::with_constant(coefficients, 2.0);
-
+        let polynomial = Polynomial::new([("x", 1.0), ("y", 2.0)], 2.0);
         let variable_map = HashMap::from([("x".to_string(), 3.0), ("y".to_string(), 5.0)]);
         let sum = polynomial.evaluate_state(&variable_map)?;
 
@@ -238,8 +236,7 @@ mod tests {
 
     #[test]
     fn polynomial_to_string() {
-        let coefficients = HashMap::from([("x".to_string(), 1.0), ("y".to_string(), 2.0)]);
-        let polynomial = Polynomial::with_constant(coefficients, 2.0);
+        let polynomial = Polynomial::new([("x", 1.0), ("y", 2.0)], 2.0);
         let expected = "1 * x + 2 * y + 2";
 
         assert_eq!(polynomial.to_string(), expected);
@@ -247,11 +244,8 @@ mod tests {
 
     #[test]
     fn predicate_robustness() -> Result<(), Box<dyn Error>> {
-        let left_coefficients = HashMap::from([("a".to_string(), 1.0), ("b".to_string(), 1.0)]);
-        let left = Polynomial::new(left_coefficients); // sum is exprected to be 7
-
-        let right_coefficients = HashMap::from([("x".to_string(), 1.0), ("y".to_string(), -1.0)]);
-        let right = Polynomial::with_constant(right_coefficients, 2.0); // sum is expected to be 10
+        let left = Polynomial::new([("a", 1.0), ("b", 1.0)], None); // sum is exprected to be 7
+        let right = Polynomial::new([("x", 1.0), ("y", -1.0)], 2.0); // sum is expected to be 10
         let predicate = Predicate::new(left, right);
 
         let variable_map = HashMap::from([
@@ -268,11 +262,8 @@ mod tests {
 
     #[test]
     fn predicate_to_string() {
-        let left_coefficients = HashMap::from([("a".to_string(), 1.0), ("b".to_string(), 1.0)]);
-        let left = Polynomial::new(left_coefficients); // sum is exprected to be 7
-
-        let right_coefficients = HashMap::from([("x".to_string(), 1.0), ("y".to_string(), -1.0)]);
-        let right = Polynomial::with_constant(right_coefficients, 2.0); // sum is expected to be 10
+        let left = Polynomial::new([("a", 1.0), ("b", 1.0)], None); // sum is exprected to be 7
+        let right = Polynomial::new([("x", 1.0), ("y", -1.0)], 2.0); // sum is expected to be 10
         let predicate = Predicate::new(left, right);
         let expected = "1 * a + 1 * b + 0 <= 1 * x + -1 * y + 2";
 
