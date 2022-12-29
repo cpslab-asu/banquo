@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -52,6 +53,64 @@ impl Display for Polynomial {
         }
 
         write!(f, "{}", self.constant)
+    }
+}
+
+impl From<f64> for Polynomial {
+    fn from(value: f64) -> Self {
+        Self {
+            coefficients: HashMap::new(),
+            constant: value,
+        }
+    }
+}
+
+impl From<(String, f64)> for Polynomial {
+    fn from(value: (String, f64)) -> Self {
+        Self {
+            coefficients: HashMap::from_iter([value]),
+            constant: 0.0,
+        }
+    }
+}
+
+impl From<(&str, f64)> for Polynomial {
+    fn from((name, coefficient): (&str, f64)) -> Self {
+        Polynomial::from((name.to_string(), coefficient))
+    }
+}
+
+impl From<HashMap<String, f64>> for Polynomial {
+    fn from(value: HashMap<String, f64>) -> Self {
+        Self {
+            coefficients: value,
+            constant: 0.0,
+        }
+    }
+}
+
+impl FromIterator<(String, f64)> for Polynomial {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = (String, f64)>,
+    {
+        Self {
+            coefficients: HashMap::from_iter(iter),
+            constant: 0.0,
+        }
+    }
+}
+
+impl<'a> FromIterator<(&'a str, f64)> for Polynomial {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = (&'a str, f64)>,
+    {
+        let string_key_iter = iter
+            .into_iter()
+            .map(|(name, coefficient)| (name.to_string(), coefficient));
+
+        Polynomial::from_iter(string_key_iter)
     }
 }
 
