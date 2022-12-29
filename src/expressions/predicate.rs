@@ -71,25 +71,19 @@ impl Display for Polynomial {
 
 impl From<f64> for Polynomial {
     fn from(value: f64) -> Self {
-        Self {
-            coefficients: HashMap::new(),
-            constant: value,
-        }
+        Self::constant(value)
     }
 }
 
 impl From<(String, f64)> for Polynomial {
     fn from(value: (String, f64)) -> Self {
-        Self {
-            coefficients: HashMap::from_iter([value]),
-            constant: 0.0,
-        }
+        Self::new([value], None)
     }
 }
 
 impl From<(&str, f64)> for Polynomial {
-    fn from((name, coefficient): (&str, f64)) -> Self {
-        Polynomial::from((name.to_string(), coefficient))
+    fn from(value: (&str, f64)) -> Self {
+        Self::new([value], None)
     }
 }
 
@@ -107,10 +101,7 @@ impl FromIterator<(String, f64)> for Polynomial {
     where
         T: IntoIterator<Item = (String, f64)>,
     {
-        Self {
-            coefficients: HashMap::from_iter(iter),
-            constant: 0.0,
-        }
+        Self::new(iter, None)
     }
 }
 
@@ -123,7 +114,7 @@ impl<'a> FromIterator<(&'a str, f64)> for Polynomial {
             .into_iter()
             .map(|(name, coefficient)| (name.to_string(), coefficient));
 
-        Polynomial::from_iter(string_key_iter)
+        Self::new(string_key_iter, None)
     }
 }
 
