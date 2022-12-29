@@ -96,7 +96,7 @@ pub fn polynomial(input: &str) -> IResult<&str, Polynomial> {
         }
     }
 
-    Ok((rest, Polynomial::with_constant(coefficients, constant)))
+    Ok((rest, Polynomial::new(coefficients, constant)))
 }
 
 fn predicate(input: &str) -> IResult<&str, Predicate> {
@@ -225,7 +225,6 @@ pub fn parse_predicate<'a>(input: &'a str) -> Result<Predicate, Box<dyn Error + 
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::error::Error;
 
     use super::{
@@ -281,21 +280,19 @@ mod tests {
     #[test]
     fn parse_polynomial() -> Result<(), Box<dyn Error>> {
         let (rest, value) = polynomial("12.0 + 3.1*x + 22.4*y")?;
-        let coefficients = HashMap::from_iter([("x".to_string(), 3.1f64), ("y".to_string(), 22.4f64)]);
-        let expected = Polynomial::with_constant(coefficients, 12.0);
+        let expected = Polynomial::new([("x", 3.1f64), ("y", 22.4f64)], 12.0);
 
         assert_eq!(rest, "");
         assert_eq!(value, expected);
 
         let (rest, value) = polynomial("3.1*x + 22.4*y")?;
-        let coefficients = HashMap::from_iter([("x".to_string(), 3.1f64), ("y".to_string(), 22.4f64)]);
-        let expected = Polynomial::new(coefficients);
+        let expected = Polynomial::new([("x", 3.1f64), ("y", 22.4f64)], None);
 
         assert_eq!(rest, "");
         assert_eq!(value, expected);
 
         let (rest, value) = polynomial("12.0")?;
-        let expected = Polynomial::with_constant(HashMap::new(), 12.0);
+        let expected = Polynomial::constant(12.0);
 
         assert_eq!(rest, "");
         assert_eq!(value, expected);
@@ -305,9 +302,8 @@ mod tests {
 
     #[test]
     fn parse_predicate() -> Result<(), Box<dyn Error>> {
-        let coefficients = HashMap::from_iter([("x".to_string(), 3.1f64), ("y".to_string(), 22.4f64)]);
-        let left = Polynomial::with_constant(coefficients, 12.0);
-        let right = Polynomial::new(HashMap::from_iter([("z".to_string(), 4.8f64)]));
+        let left = Polynomial::new([("x", 3.1f64), ("y", 22.4f64)], 12.0);
+        let right = Polynomial::new([("z", 4.8f64)], None);
         let expected = Predicate::new(left, right);
         let (rest, actual) = predicate("12.0 + 3.1*x + 22.4*y <= 4.8*z")?;
 
