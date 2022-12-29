@@ -31,15 +31,28 @@ pub struct Polynomial {
 }
 
 impl Polynomial {
-    pub fn new(coefficients: VariableMap) -> Self {
+    pub fn new<T>(coeff_iter: impl IntoIterator<Item = (T, f64)>, maybe_constant: impl Into<Option<f64>>) -> Self
+    where
+        T: Into<String>,
+    {
+        let coefficients = coeff_iter
+            .into_iter()
+            .map(|(name, coefficient)| (name.into(), coefficient))
+            .collect();
+
+        let constant = maybe_constant.into().unwrap_or(0.0);
+
         Self {
             coefficients,
-            constant: 0f64,
+            constant,
         }
     }
 
-    pub fn with_constant(coefficients: VariableMap, constant: f64) -> Self {
-        Self { coefficients, constant }
+    pub fn constant(value: f64) -> Self {
+        Self {
+            coefficients: HashMap::new(),
+            constant: value,
+        }
     }
 }
 
@@ -157,8 +170,22 @@ pub struct Predicate {
 }
 
 impl Predicate {
-    pub fn new(left: Polynomial, right: Polynomial) -> Self {
-        Predicate { left, right }
+    pub fn new<L, R>(left: L, right: R) -> Self
+    where
+        L: Into<Polynomial>,
+        R: Into<Polynomial>,
+    {
+        Predicate {
+            left: left.into(),
+            right: right.into()
+        }
+    }
+
+    pub fn simple(name: &str, coefficient: f64, bound: f64) -> Self {
+        Predicate {
+            left: Polynomial::from((name, coefficient)),
+            right: Polynomial::from(bound),
+        }
     }
 }
 
