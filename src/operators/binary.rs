@@ -1,9 +1,11 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::trace::Trace;
-use crate::formulas::{DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula};
 use super::unary::NegOf;
+use crate::formulas::{
+    DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
+};
+use crate::trace::Trace;
 
 #[derive(Debug)]
 pub enum BinaryOperatorError<L, R> {
@@ -51,7 +53,7 @@ where
 #[derive(Clone)]
 struct BinaryOperator<L, R> {
     left: L,
-    right: R
+    right: R,
 }
 
 impl<L, R> BinaryOperator<L, R> {
@@ -87,7 +89,7 @@ pub struct Or<L, R>(BinaryOperator<L, R>);
 
 impl<L, R> Or<L, R> {
     pub fn new(left: L, right: R) -> Self {
-        Or(BinaryOperator { left, right})
+        Or(BinaryOperator { left, right })
     }
 }
 
@@ -193,7 +195,10 @@ pub struct Implies<A, C>(BinaryOperator<A, C>);
 
 impl<A, C> Implies<A, C> {
     pub fn new(antecedent: A, consequent: C) -> Self {
-        Self(BinaryOperator { left: antecedent, right: consequent })
+        Self(BinaryOperator {
+            left: antecedent,
+            right: consequent,
+        })
     }
 }
 
@@ -248,10 +253,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::Trace;
+    use super::{And, BinaryOperatorError, Implies, Or};
     use crate::formulas::RobustnessFormula;
     use crate::operators::{Const, ConstError};
-    use super::{And, BinaryOperatorError, Or, Implies};
+    use crate::Trace;
 
     #[test]
     fn or_robustness() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {

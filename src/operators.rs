@@ -25,12 +25,12 @@ impl RobustnessFormula<()> for Const {
     }
 }
 
-mod binary;
 mod backwards;
+mod binary;
 mod forward;
 mod unary;
 
+pub use backwards::Until;
 pub use binary::{And, Implies, Or};
 pub use forward::{Always, Eventually, Next};
 pub use unary::Not;
-pub use backwards::Until;

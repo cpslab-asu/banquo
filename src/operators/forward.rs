@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
-use crate::formulas::{DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula};
+use crate::formulas::{
+    DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
+};
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
@@ -11,7 +13,7 @@ pub struct ForwardOperator<F> {
 
 fn fw_op<S, F, T>(inner_trace: Trace<S>, maybe_bounds: Option<(f64, f64)>, f: F) -> Trace<T>
 where
-    F: Fn(Trace<&S>) -> T
+    F: Fn(Trace<&S>) -> T,
 {
     let eval_time = |time: f64| -> (f64, T) {
         let t_bounds = match maybe_bounds {
@@ -31,7 +33,7 @@ impl<F> ForwardOperator<F> {
     fn robustness<S, G>(&self, trace: &Trace<S>, initial: f64, g: G) -> Result<Trace<f64>, F::Error>
     where
         F: RobustnessFormula<S>,
-        G: Fn(f64, f64) -> f64
+        G: Fn(f64, f64) -> f64,
     {
         let inner_trace = self.subformula.robustness(trace)?;
         let fold_subtrace = |subtrace: Trace<&f64>| {
@@ -51,7 +53,9 @@ impl<F> ForwardOperator<F> {
         F: DebugRobustnessFormula<S>,
         G: Fn(Trace<&Rc<DebugRobustness<F::Prev>>>) -> DebugRobustness<T>,
     {
-        let inner_trace = self.subformula.debug_robustness(trace)?
+        let inner_trace = self
+            .subformula
+            .debug_robustness(trace)?
             .into_iter()
             .map_states(Rc::new)
             .collect();
@@ -61,7 +65,12 @@ impl<F> ForwardOperator<F> {
         Ok(robustness_trace)
     }
 
-    fn hybrid_distance<S, L, G>(&self, trace: &Trace<(S, L)>, initial: HybridDistance, g: G) -> Result<Trace<HybridDistance>, F::Error>
+    fn hybrid_distance<S, L, G>(
+        &self,
+        trace: &Trace<(S, L)>,
+        initial: HybridDistance,
+        g: G,
+    ) -> Result<Trace<HybridDistance>, F::Error>
     where
         F: HybridDistanceFormula<S, L>,
         G: Fn(HybridDistance, HybridDistance) -> HybridDistance,
@@ -73,7 +82,7 @@ impl<F> ForwardOperator<F> {
                 .map(|(_, rob)| *rob)
                 .fold(initial, |acc, rob| g(acc, rob))
         };
-        
+
         let robustness_trace = fw_op(inner_trace, self.t_bounds, fold_subtrace);
 
         Ok(robustness_trace)
@@ -153,7 +162,8 @@ where
     type Error = F::Error;
 
     fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0.hybrid_distance(trace, HybridDistance::Robustness(f64::INFINITY), HybridDistance::min)
+        self.0
+            .hybrid_distance(trace, HybridDistance::Robustness(f64::INFINITY), HybridDistance::min)
     }
 }
 
@@ -191,7 +201,7 @@ where
     type Error = F::Error;
 
     fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
-        self.0.robustness(trace, f64::NEG_INFINITY, f64::max) 
+        self.0.robustness(trace, f64::NEG_INFINITY, f64::max)
     }
 }
 
@@ -231,7 +241,8 @@ where
     type Error = F::Error;
 
     fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0.hybrid_distance(trace, HybridDistance::Infinite, HybridDistance::max)
+        self.0
+            .hybrid_distance(trace, HybridDistance::Infinite, HybridDistance::max)
     }
 }
 
@@ -250,7 +261,7 @@ impl<F> Next<F> {
 
 fn fw_next_map<A, B, F>(trace: Trace<A>, f: F) -> Trace<B>
 where
-    F: Fn(A, Option<&A>) -> B
+    F: Fn(A, Option<&A>) -> B,
 {
     let mut iter = trace.into_iter().peekable();
     let mut mapped_trace = Trace::default();
@@ -267,7 +278,7 @@ where
 
 fn fw_next<A>(trace: Trace<A>, default: A) -> Trace<A>
 where
-    A: Clone
+    A: Clone,
 {
     let f = move |_, next_value: Option<&A>| match next_value {
         Some(value) => value.clone(),
@@ -332,10 +343,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::{Always, Eventually, Next};
     use crate::formulas::RobustnessFormula;
     use crate::operators::{Const, ConstError};
     use crate::trace::Trace;
-    use super::{Always, Eventually, Next};
 
     #[test]
     fn always_unbounded_robustness() -> Result<(), ConstError> {

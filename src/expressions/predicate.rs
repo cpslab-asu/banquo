@@ -42,10 +42,7 @@ impl Polynomial {
 
         let constant = maybe_constant.into().unwrap_or(0.0);
 
-        Self {
-            coefficients,
-            constant,
-        }
+        Self { coefficients, constant }
     }
 
     pub fn constant(value: f64) -> Self {
@@ -168,7 +165,7 @@ impl Predicate {
     {
         Predicate {
             left: left.into(),
-            right: right.into()
+            right: right.into(),
         }
     }
 
