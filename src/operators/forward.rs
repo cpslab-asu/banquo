@@ -235,12 +235,107 @@ where
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Next<F>(F);
+
+impl<F> Next<F> {
+    pub fn new(subformula: F) -> Self {
+        Self(subformula)
+    }
+
+    pub fn subformula(&self) -> &F {
+        &self.0
+    }
+}
+
+fn fw_next_map<A, B, F>(trace: Trace<A>, f: F) -> Trace<B>
+where
+    F: Fn(A, Option<&A>) -> B
+{
+    let mut iter = trace.into_iter().peekable();
+    let mut mapped_trace = Trace::default();
+
+    while let Some((time, value)) = iter.next() {
+        let maybe_next = iter.peek().map(|(_, next_value)| next_value);
+        let mapped_value = f(value, maybe_next);
+
+        mapped_trace.insert_state(time, mapped_value);
+    }
+
+    mapped_trace
+}
+
+fn fw_next<A>(trace: Trace<A>, default: A) -> Trace<A>
+where
+    A: Clone
+{
+    let f = move |_, next_value: Option<&A>| match next_value {
+        Some(value) => value.clone(),
+        None => default.clone(),
+    };
+
+    fw_next_map(trace, f)
+}
+
+impl<S, F> RobustnessFormula<S> for Next<F>
+where
+    F: RobustnessFormula<S>,
+{
+    type Error = F::Error;
+
+    fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
+        let inner = self.0.robustness(trace)?;
+        let trace = fw_next(inner, f64::NEG_INFINITY);
+
+        Ok(trace)
+    }
+}
+
+impl<S, F> DebugRobustnessFormula<S> for Next<F>
+where
+    F: DebugRobustnessFormula<S>,
+    F::Prev: Clone,
+{
+    type Error = F::Error;
+    type Prev = DebugRobustness<F::Prev>;
+
+    fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
+        let f = |previous: DebugRobustness<F::Prev>, next_debug: Option<&DebugRobustness<F::Prev>>| {
+            let robustness = match next_debug {
+                Some(d) => d.robustness,
+                None => f64::NEG_INFINITY,
+            };
+
+            DebugRobustness { robustness, previous }
+        };
+
+        let inner = self.0.debug_robustness(trace)?;
+        let trace = fw_next_map(inner, f);
+
+        Ok(trace)
+    }
+}
+
+impl<S, L, F> HybridDistanceFormula<S, L> for Next<F>
+where
+    F: HybridDistanceFormula<S, L>,
+{
+    type Error = F::Error;
+
+    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
+        let inner = self.0.hybrid_distance(trace)?;
+        let trace = fw_next(inner, HybridDistance::Robustness(f64::NEG_INFINITY));
+
+        Ok(trace)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::formulas::RobustnessFormula;
     use crate::operators::{Const, ConstError};
     use crate::trace::Trace;
-    use super::{Always, Eventually};
+    use super::{Always, Eventually, Next};
 
     #[test]
     fn always_unbounded_robustness() -> Result<(), ConstError> {
@@ -289,6 +384,19 @@ mod tests {
         let input = Trace::default();
         let robustness = formula.robustness(&input)?;
         let expected = Trace::from_iter([(0, 4.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 3.0)]);
+
+        assert_eq!(robustness, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn next_robustness() -> Result<(), ConstError> {
+        let inner = Trace::from_iter([(0, 1.0), (1, 2.0), (2, 3.0), (3, 4.0)]);
+        let formula = Next::new(Const(inner));
+
+        let input = Trace::default();
+        let robustness = formula.robustness(&input)?;
+        let expected = Trace::from_iter([(0, 2.0), (1, 3.0), (2, 4.0), (3, f64::NEG_INFINITY)]);
 
         assert_eq!(robustness, expected);
         Ok(())

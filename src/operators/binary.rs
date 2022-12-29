@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 use crate::trace::Trace;
 use crate::formulas::{DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula};
-use super::not::NegOf;
+use super::unary::NegOf;
 
 #[derive(Debug)]
 pub enum BinaryOperatorError<L, R> {
