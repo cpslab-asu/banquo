@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 
 use approx::assert_relative_eq;
-use banquo::expressions::{Polynomial, Predicate};
+use banquo::expressions::Predicate;
 use banquo::formulas::{eval_robustness, RobustnessFormula};
 use banquo::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
 use banquo::parser::parse_formula;
@@ -57,23 +57,11 @@ fn get_trace() -> Trace<HashMap<String, f64>> {
 }
 
 fn p1() -> Predicate {
-    let mut coefficients = HashMap::new();
-    coefficients.insert("x".to_string(), -1.0);
-
-    let left = Polynomial::new(coefficients);
-    let right = Polynomial::with_constant(HashMap::new(), 2.0);
-
-    Predicate::new(left, right)
+    Predicate::simple("x", -1.0, 2.0)
 }
 
 fn p2() -> Predicate {
-    let mut coefficients = HashMap::new();
-    coefficients.insert("x".to_string(), 1.0);
-
-    let left = Polynomial::new(coefficients);
-    let right = Polynomial::with_constant(HashMap::new(), 2.0);
-
-    Predicate::new(left, right)
+    Predicate::simple("x", 1.0, 2.0)
 }
 
 type TestResult<'a> = Result<(), Box<dyn Error + 'a>>;

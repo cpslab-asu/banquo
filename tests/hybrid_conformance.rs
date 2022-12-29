@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 
 use banquo::automaton::{Automaton, Guard};
-use banquo::expressions::{HybridPredicate, Polynomial, Predicate};
+use banquo::expressions::{HybridPredicate, Predicate};
 use banquo::formulas::{eval_hybrid_dist, HybridDistance, HybridDistanceFormula, PathGuardDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
@@ -126,13 +126,7 @@ fn get_trace() -> Trace<(VariableMap, usize)> {
 }
 
 fn predicate_1d(coefficient: f64, bound: f64) -> Predicate {
-    let mut coefficients = HashMap::new();
-    coefficients.insert("x".to_string(), coefficient);
-
-    let left = Polynomial::new(coefficients);
-    let right = Polynomial::with_constant(HashMap::default(), bound);
-
-    Predicate::new(left, right)
+    Predicate::simple("x", coefficient, bound)
 }
 
 fn guard_1d(coefficient: f64, bound: f64) -> Guard {
