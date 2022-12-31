@@ -31,6 +31,21 @@ where
     inner_trace.times().map(eval_time).collect()
 }
 
+fn fw_fold<S, F>(inner_trace: Trace<S>, maybe_bounds: Option<(f64, f64)>, initial: S, f: F) -> Trace<S>
+where
+    S: Clone,
+    F: Fn(S, S) -> S
+{
+    let fold_subtrace = |subtrace: Trace<&S>| {
+        subtrace
+            .into_iter()
+            .map(|(_, rob)| rob.clone())
+            .fold(initial.clone(), |acc, rob| f(acc, rob))
+    };
+
+    fw_op(inner_trace, maybe_bounds, fold_subtrace)
+}
+
 impl<F> ForwardOperator<F> {
     fn robustness<S, G>(&self, trace: &Trace<S>, initial: f64, g: G) -> Result<Trace<f64>, F::Error>
     where
@@ -38,14 +53,7 @@ impl<F> ForwardOperator<F> {
         G: Fn(f64, f64) -> f64,
     {
         let inner_trace = self.subformula.robustness(trace)?;
-        let fold_subtrace = |subtrace: Trace<&f64>| {
-            subtrace
-                .into_iter()
-                .map(|(_, rob)| *rob)
-                .fold(initial, |acc, rob| g(acc, rob))
-        };
-
-        let robustness_trace = fw_op(inner_trace, self.t_bounds, fold_subtrace);
+        let robustness_trace = fw_fold(inner_trace, self.t_bounds, initial, g);
 
         Ok(robustness_trace)
     }
@@ -78,14 +86,7 @@ impl<F> ForwardOperator<F> {
         G: Fn(HybridDistance, HybridDistance) -> HybridDistance,
     {
         let inner_trace = self.subformula.hybrid_distance(trace)?;
-        let fold_subtrace = |subtrace: Trace<&HybridDistance>| {
-            subtrace
-                .into_iter()
-                .map(|(_, rob)| *rob)
-                .fold(initial, |acc, rob| g(acc, rob))
-        };
-
-        let robustness_trace = fw_op(inner_trace, self.t_bounds, fold_subtrace);
+        let robustness_trace = fw_fold(inner_trace, self.t_bounds, initial, g);
 
         Ok(robustness_trace)
     }
