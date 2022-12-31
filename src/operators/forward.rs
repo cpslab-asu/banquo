@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::rc::Rc;
 
 use crate::formulas::{
@@ -115,6 +116,14 @@ impl<F> Always<F> {
     }
 }
 
+impl<F> Deref for Always<F> {
+    type Target = ForwardOperator<F>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<S, F> RobustnessFormula<S> for Always<F>
 where
     F: RobustnessFormula<S>,
@@ -191,6 +200,14 @@ impl<F> Eventually<F> {
         };
 
         Self(operator)
+    }
+}
+
+impl<F> Deref for Eventually<F> {
+    type Target = ForwardOperator<F>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
