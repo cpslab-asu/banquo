@@ -1,4 +1,4 @@
-use std::ops::Neg;
+use std::ops::{Neg, Deref};
 
 use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
@@ -6,14 +6,23 @@ use crate::formulas::{
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
-pub struct Not<F>(F);
+pub struct UnaryOperator<F> {
+    pub subformula: F
+}
+
+#[derive(Clone, Debug)]
+pub struct Not<F>(UnaryOperator<F>);
 
 impl<F> Not<F> {
     pub fn new(subformula: F) -> Self {
-        Self(subformula)
+        Self(UnaryOperator { subformula })
     }
+}
 
-    pub fn subformula(&self) -> &F {
+impl<F> Deref for Not<F> {
+    type Target = UnaryOperator<F>;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -32,7 +41,7 @@ where
     type Error = F::Error;
 
     fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
-        self.0.robustness(trace).map(not)
+        self.subformula.robustness(trace).map(not)
     }
 }
 
@@ -55,7 +64,7 @@ where
     type Prev = NegOf<F::Prev>;
 
     fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
-        let previous = self.0.debug_robustness(trace)?;
+        let previous = self.subformula.debug_robustness(trace)?;
         let debug_trace = previous.into_iter().map(make_debug).collect();
 
         Ok(debug_trace)
@@ -69,7 +78,7 @@ where
     type Error = F::Error;
 
     fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0.hybrid_distance(trace).map(not)
+        self.subformula.hybrid_distance(trace).map(not)
     }
 }
 

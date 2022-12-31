@@ -5,6 +5,7 @@ use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
 };
 use crate::trace::Trace;
+use super::unary::UnaryOperator;
 
 #[derive(Clone, Debug)]
 pub struct ForwardOperator<F> {
@@ -264,14 +265,18 @@ where
 }
 
 #[derive(Clone, Debug)]
-pub struct Next<F>(F);
+pub struct Next<F>(UnaryOperator<F>);
 
 impl<F> Next<F> {
     pub fn new(subformula: F) -> Self {
-        Self(subformula)
+        Self(UnaryOperator { subformula })
     }
+}
 
-    pub fn subformula(&self) -> &F {
+impl<F> Deref for Next<F> {
+    type Target = UnaryOperator<F>;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -312,7 +317,7 @@ where
     type Error = F::Error;
 
     fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
-        let inner = self.0.robustness(trace)?;
+        let inner = self.subformula.robustness(trace)?;
         let trace = fw_next(inner, f64::NEG_INFINITY);
 
         Ok(trace)
@@ -337,7 +342,7 @@ where
             DebugRobustness { robustness, previous }
         };
 
-        let inner = self.0.debug_robustness(trace)?;
+        let inner = self.subformula.debug_robustness(trace)?;
         let trace = fw_next_map(inner, f);
 
         Ok(trace)
@@ -351,7 +356,7 @@ where
     type Error = F::Error;
 
     fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        let inner = self.0.hybrid_distance(trace)?;
+        let inner = self.subformula.hybrid_distance(trace)?;
         let trace = fw_next(inner, HybridDistance::Robustness(f64::NEG_INFINITY));
 
         Ok(trace)
