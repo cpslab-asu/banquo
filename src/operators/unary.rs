@@ -1,4 +1,4 @@
-use std::ops::{Deref, Neg};
+use std::ops::Neg;
 
 use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
@@ -6,24 +6,13 @@ use crate::formulas::{
 use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
-pub struct UnaryOperator<F> {
-    pub subformula: F,
+pub struct Not<F> {
+    subformula: F,
 }
-
-#[derive(Clone, Debug)]
-pub struct Not<F>(UnaryOperator<F>);
 
 impl<F> Not<F> {
     pub fn new(subformula: F) -> Self {
-        Self(UnaryOperator { subformula })
-    }
-}
-
-impl<F> Deref for Not<F> {
-    type Target = UnaryOperator<F>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        Self { subformula }
     }
 }
 

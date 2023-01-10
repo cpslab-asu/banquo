@@ -1,7 +1,6 @@
 use std::ops::Deref;
 use std::rc::Rc;
 
-use super::unary::UnaryOperator;
 use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
 };
@@ -266,19 +265,13 @@ where
 }
 
 #[derive(Clone, Debug)]
-pub struct Next<F>(UnaryOperator<F>);
+pub struct Next<F> {
+    subformula: F
+}
 
 impl<F> Next<F> {
     pub fn new(subformula: F) -> Self {
-        Self(UnaryOperator { subformula })
-    }
-}
-
-impl<F> Deref for Next<F> {
-    type Target = UnaryOperator<F>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        Self { subformula }
     }
 }
 

@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Deref;
 
 use super::unary::NegOf;
 use crate::formulas::{
@@ -94,14 +93,6 @@ impl<L, R> Or<L, R> {
     }
 }
 
-impl<L, R> Deref for Or<L, R> {
-    type Target = BinaryOperator<L, R>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 impl<S, L, R> RobustnessFormula<S> for Or<L, R>
 where
     L: RobustnessFormula<S>,
@@ -152,14 +143,6 @@ pub struct And<L, R>(BinaryOperator<L, R>);
 impl<L, R> And<L, R> {
     pub fn new(left: L, right: R) -> Self {
         Self(BinaryOperator { left, right })
-    }
-}
-
-impl<L, R> Deref for And<L, R> {
-    type Target = BinaryOperator<L, R>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
@@ -216,14 +199,6 @@ impl<A, C> Implies<A, C> {
             left: antecedent,
             right: consequent,
         })
-    }
-}
-
-impl<A, C> Deref for Implies<A, C> {
-    type Target = BinaryOperator<A, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
