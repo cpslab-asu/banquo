@@ -33,6 +33,7 @@ stages:
 rustfmt:
     stage: lint
     script:
+        - rustup component add rustfmt
         - cargo fmt --version
         - cargo fmt --check
 
