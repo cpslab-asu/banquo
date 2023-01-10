@@ -1,11 +1,11 @@
 use std::ops::Deref;
 use std::rc::Rc;
 
+use super::unary::UnaryOperator;
 use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
 };
 use crate::trace::Trace;
-use super::unary::UnaryOperator;
 
 #[derive(Clone, Debug)]
 pub struct ForwardOperator<F> {
@@ -34,7 +34,7 @@ where
 fn fw_fold<S, F>(inner_trace: Trace<S>, maybe_bounds: Option<(f64, f64)>, initial: S, f: F) -> Trace<S>
 where
     S: Clone,
-    F: Fn(S, S) -> S
+    F: Fn(S, S) -> S,
 {
     let fold_subtrace = |subtrace: Trace<&S>| {
         subtrace

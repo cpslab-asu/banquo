@@ -1,4 +1,4 @@
-use std::ops::{Neg, Deref};
+use std::ops::{Deref, Neg};
 
 use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
@@ -7,7 +7,7 @@ use crate::trace::Trace;
 
 #[derive(Clone, Debug)]
 pub struct UnaryOperator<F> {
-    pub subformula: F
+    pub subformula: F,
 }
 
 #[derive(Clone, Debug)]
