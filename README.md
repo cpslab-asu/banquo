@@ -15,12 +15,12 @@ desirable to determine if a system properties holds for a certain amount of
 time. In addition to supporting the first-order logic operators, temporal logic
 introduces the following temporal operators with associated semantics:
 
-| Operator             | Symbols    | Meaning                                                           |
-| -------------------- | ---------- | ---------------------------------------------------------------- |
-| Next &#966;          | &#8413;, X | &#966; must hold at the next timestep                            | 
-| Always &#966;        | &#8414;, G | &#966; must hold at all times in the future                      |
-| Eventually &#966;    | &#8415;, F | &#966; must hold at least once in the future                     |
-| &#966; Until &#7466; | &#119828;  | &#966; must hold until and including the time that &#7466; holds |
+| Operator               | Symbols        | Meaning                                                            |
+| ---------------------- | -------------- | ------------------------------------------------------------------ |
+| Next $\varphi$         | $\bigcirc$, X  | $\varphi$ must hold at the next timestep                           | 
+| Always $\varphi$       | $\square$, G   | $\varphi$ must hold at all times in the future                     |
+| Eventually $\varphi$;  | $\diamond$, F  | $\varphi$ must hold at least once in the future                    |
+| $\varphi$ Until $\psi$ | $\mathcal{U}$  | $\varphi$ must hold until and including the time that $\psi$ holds |
 
 ## What is STL
 
@@ -41,14 +41,9 @@ right-side bound is the time when the left side is true.
 These two extensions allow us to express system requirements in a compact and
 explicit manner, like so: 
 
-<center>
-<img src="https://bit.ly/3XshqGR"
-     align="center"
-     border="0"
-     alt="\Box ((gear=2 \wedge speed \geq 30) \rightarrow \Diamond\{0,4\}\ gear=3)"
-     width="400"
-     height="19"/>
-</center>
+$$
+\Box ((gear=2 \wedge speed \geq 30) \rightarrow \diamond\{0,4\}\ gear=3)
+$$
 
 In English, this formula represents the safety requirement that whenever the car
 speed exceeds 30 miles an hour in second gear then in the next 4 seconds the
@@ -81,8 +76,7 @@ Banquo supports several semantics for monitoring, listed below.
 Robustness is a measure of how close a system came to violating a requirement,
 or in the case of a violation how much the system violated the requirement. This
 is represented as a floating point value, with negative values indicating a
-requirement violation. As an example, given the requirement
-<img src="https://bit.ly/3k3ryY1" align="center" border="0" alt="\Box x \leq 10" width="69" height="17" />
+requirement violation. As an example, given the requirement $\square x \leq 10$
 and the trace:
 
 | Time | x   |
@@ -102,7 +96,7 @@ Automata (HA), where the state of the system is a pair formed by the discrete
 and contious states. HAs also have __guards__ which restrict the transition
 between discrete states based on the continuous state variables of the system.
 An example of a system representable as an HA is a traffic light, which has the
-discrete states {__GREEN__, __RED__, __YELLOW__} as well as a real-valued
+discrete states $\{GREEN, RED, YELLOW\}$ as well as a real-valued
 internal timer measuring when to switch between discrete states. The guards of
 the traffic light would be the following:
 
