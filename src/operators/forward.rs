@@ -266,7 +266,7 @@ where
 
 #[derive(Clone, Debug)]
 pub struct Next<F> {
-    subformula: F
+    subformula: F,
 }
 
 impl<F> Next<F> {
