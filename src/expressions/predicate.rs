@@ -1,140 +1,10 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 use super::{Expression, VariableMap};
+use super::polynomial::{Polynomial, PolynomialError};
 use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
-
-pub struct PolynomialError {
-    variable_name: String,
-}
-
-impl Debug for PolynomialError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "PolynomialError(variable_name={})", self.variable_name)
-    }
-}
-
-impl Display for PolynomialError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Missing variable {}", self.variable_name)
-    }
-}
-
-impl Error for PolynomialError {}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Polynomial {
-    coefficients: VariableMap,
-    constant: f64,
-}
-
-impl Polynomial {
-    pub fn new<T>(coeff_iter: impl IntoIterator<Item = (T, f64)>, maybe_constant: impl Into<Option<f64>>) -> Self
-    where
-        T: Into<String>,
-    {
-        let coefficients = coeff_iter
-            .into_iter()
-            .map(|(name, coefficient)| (name.into(), coefficient))
-            .collect();
-
-        let constant = maybe_constant.into().unwrap_or(0.0);
-
-        Self { coefficients, constant }
-    }
-
-    pub fn constant(value: f64) -> Self {
-        Self {
-            coefficients: HashMap::new(),
-            constant: value,
-        }
-    }
-}
-
-impl Display for Polynomial {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut sorted_entries = self.coefficients.iter().collect::<Vec<(&String, &f64)>>();
-        sorted_entries.sort_by(|(a, _), (b, _)| a.cmp(b)); // Sort the coefficients that the output is deterministic
-
-        for (variable, coefficient) in sorted_entries {
-            write!(f, "{} * {} + ", f64::to_string(coefficient), variable)?;
-        }
-
-        write!(f, "{}", self.constant)
-    }
-}
-
-impl From<f64> for Polynomial {
-    fn from(value: f64) -> Self {
-        Self::constant(value)
-    }
-}
-
-impl From<(String, f64)> for Polynomial {
-    fn from(value: (String, f64)) -> Self {
-        Self::new([value], None)
-    }
-}
-
-impl From<(&str, f64)> for Polynomial {
-    fn from(value: (&str, f64)) -> Self {
-        Self::new([value], None)
-    }
-}
-
-impl From<HashMap<String, f64>> for Polynomial {
-    fn from(value: HashMap<String, f64>) -> Self {
-        Self {
-            coefficients: value,
-            constant: 0.0,
-        }
-    }
-}
-
-impl FromIterator<(String, f64)> for Polynomial {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = (String, f64)>,
-    {
-        Self::new(iter, None)
-    }
-}
-
-impl<'a> FromIterator<(&'a str, f64)> for Polynomial {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = (&'a str, f64)>,
-    {
-        let string_key_iter = iter
-            .into_iter()
-            .map(|(name, coefficient)| (name.to_string(), coefficient));
-
-        Self::new(string_key_iter, None)
-    }
-}
-
-impl Expression for Polynomial {
-    type Error = PolynomialError;
-
-    fn evaluate_state(&self, variable_map: &VariableMap) -> Result<f64, Self::Error> {
-        let variable_values = self
-            .coefficients
-            .iter()
-            .map(|(variable_name, coefficient)| match variable_map.get(variable_name) {
-                Some(value) => Ok(coefficient * value),
-                None => Err(PolynomialError {
-                    variable_name: variable_name.clone(),
-                }),
-            })
-            .collect::<Result<Vec<_>, _>>();
-
-        let variable_sum: f64 = variable_values?.into_iter().sum();
-
-        Ok(variable_sum + self.constant)
-    }
-}
 
 #[derive(Debug)]
 pub struct PredicateError {
@@ -171,7 +41,7 @@ impl Predicate {
 
     pub fn simple(name: &str, coefficient: f64, bound: f64) -> Self {
         Predicate {
-            left: Polynomial::from((name, coefficient)),
+            left: Polynomial::from([(name, coefficient)]),
             right: Polynomial::from(bound),
         }
     }

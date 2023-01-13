@@ -10,6 +10,8 @@ pub trait Expression {
 
 mod hybrid_predicate;
 mod predicate;
+mod polynomial;
 
 pub use hybrid_predicate::HybridPredicate;
-pub use predicate::{Polynomial, PolynomialError, Predicate};
+pub use polynomial::{Polynomial, PolynomialError};
+pub use predicate::{Predicate, PredicateError};
