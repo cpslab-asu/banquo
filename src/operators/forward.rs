@@ -1,3 +1,27 @@
+/// Definitions of forward temporal operators
+///
+/// Most forward operators are optionally bounded. If an operator is unbounded, then the times
+/// included in the sub-trace at a given time value are from the given time value to the end of the
+/// trace. If a bound is provided then the times included in the sub-trace begin at the current time
+/// offset by the lower bound value to the current time offset by the upper bound value. 
+///
+/// Below is a visual example of sub-trace for an unbounded operator starting at time T2:
+///
+/// T1  T2  T3  T4 ... Tn
+/// S1  S2  S3  S4 ... S4
+///     |               |
+///     -----------------
+///
+/// Compare this to the subtrace of a bounded operator starting at time T2 with a bound (1, 3):
+///
+/// T1  T2  T3  T4  T5  T6 ... Tn
+/// S1  S2  S3  S4  S5  S6 ... S4
+///         |            |
+///         --------------
+///
+/// All forward operators fold the sub-trace for each time into a single value, which becomes the
+/// new state for that time.
+
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -90,6 +114,35 @@ impl<F> ForwardOperator<F> {
         Ok(robustness_trace)
     }
 }
+
+/// Temporal operator that requires its subformula to always hold
+///
+/// The always operator works by scanning forward at each time and taking the minimum of all
+/// included values. In cases where negative values represent failure, this behavior ensures that
+/// the value for each time is positive only if all forward values are also positive. For floating
+/// point values, the an example evaluation would look like the following:
+///
+/// | time | subformula | Always |
+/// | ---- | ---------- | ------ |
+/// |  0.0 |        1.0 |   -5.0 |
+/// |  1.0 |        2.0 |   -5.0 |
+/// |  2.0 |       -5.0 |   -5.0 |
+/// |  3.0 |        4.0 |    4.0 |
+/// |  4.0 |        6.0 |    6.0 |
+///
+/// Always formulas can be created either with or without bounds. An example of each can be found
+/// below:
+///
+/// ```rust
+/// use banquo::expressions::Predicate;
+/// use banquo::operators::Always;
+///
+/// let subformula = Predicate::new(("x", 1.0), 2.0);
+/// let unbounded_formula = Always::new_unbounded(subformula);
+///
+/// let subformula = Predicate::new(("x", -1.0), -2.0);
+/// let bounded_formula = Always::new_bounded(subformula, (0.0, 4.0));
+/// ```
 #[derive(Clone, Debug)]
 pub struct Always<F>(ForwardOperator<F>);
 
@@ -177,6 +230,34 @@ where
     }
 }
 
+/// Temporal operator that requires its subformula to eventually hold
+///
+/// The eventually operator works by scanning forward at each time and taking the maximum of all
+/// included values. In cases where negative values represent failure, this behavior ensures that
+/// the value for each time is positive if any forward values are also positive. For floating point
+/// values, the an example evaluation would look like the following:
+///
+/// | time | subformula | Always |
+/// | ---- | ---------- | ------ |
+/// |  0.0 |        1.0 |   -5.0 |
+/// |  1.0 |        2.0 |   -5.0 |
+/// |  2.0 |       -5.0 |   -5.0 |
+/// |  3.0 |        4.0 |    4.0 |
+/// |  4.0 |        6.0 |    6.0 |
+///
+/// Eventually formulas can be created either with or without bounds. An example of each can be
+/// found below:
+///
+/// ```rust
+/// use banquo::expressions::Predicate;
+/// use banquo::operators::Always;
+///
+/// let subformula = Predicate::new(("x", 1.0), 2.0);
+/// let unbounded_formula = Always::new_unbounded(subformula);
+///
+/// let subformula = Predicate::new(("x", -1.0), -2.0);
+/// let bounded_formula = Always::new_bounded(subformula, (0.0, 4.0));
+/// ```
 #[derive(Clone, Debug)]
 pub struct Eventually<F>(ForwardOperator<F>);
 
@@ -264,6 +345,33 @@ where
     }
 }
 
+/// Temporal operator that requires its subformula to hold at next time
+///
+/// The next operator is a special case of temporal operator that only operates on the next value in
+/// the output of the subformula rather than a sub-trace of arbitrary length like [Always] and
+/// [Eventually]. This operator can be seen to some extent as a left-shift operation, where each
+/// state is moved to the time value directly before it. In the case of the last element in the
+/// trace, the state is replaced with a default value. For floating point values, an example
+/// evalution would look like the following:
+///
+/// | time | subformula | next |
+/// | ---- | ---------- | ---- |
+/// |  0.0 |        1.0 |  2.1 |
+/// |  1.0 |        2.1 |  3.5 |
+/// |  2.0 |        3.5 | -1.7 |
+/// |  3.0 |       -1.7 |  2.3 |
+/// |  4.0 |        2.3 | -inf |
+///
+/// Creating a formula using the Next operator can be accomplished like so:
+/// 
+/// ```rust
+/// use banquo::expressions::Predicate;
+/// use banquo::operators::Next;
+///
+/// let subformula = Predicate::new(("x", 1.0), 3.0);
+/// let formula = Next::new(subformula);
+/// ```
+///
 #[derive(Clone, Debug)]
 pub struct Next<F> {
     subformula: F,

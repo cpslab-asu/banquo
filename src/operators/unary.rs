@@ -1,3 +1,4 @@
+
 use std::ops::Neg;
 
 use crate::formulas::{
@@ -5,6 +6,28 @@ use crate::formulas::{
 };
 use crate::trace::Trace;
 
+/// First-order operator that inverts its subformula
+///
+/// The not operator is a unary operator, which means that it operates on a single subformula.
+/// The not operator evaluates a given trace using its subformula, then for each time in the
+/// resulting trace negates the state. For floating point numbers, this would look as follows:
+///
+/// | time | subformula | not  |
+/// | ---- | ---------- | ---- |
+/// | 0.0  |        1.0 | -1.0 |
+/// | 1.0  |        3.0 | -3.0 |
+/// | 1.0  |       -2.0 |  2.0 |
+///
+/// The following is an example of creating a formula using the not operator:
+///
+/// ```rust
+/// use banquo::expressions::Predicate;
+/// use banquo::operators::Not;
+/// use banquo::{Trace, evaluate_robustness};
+///
+/// let subformula = Predicate::new(("x", 1.0), 1.0);
+/// let formula = Not::new(subformula);
+/// ```
 #[derive(Clone, Debug)]
 pub struct Not<F> {
     subformula: F,
