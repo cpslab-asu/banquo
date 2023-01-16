@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-use super::{Expression, VariableMap};
 use super::polynomial::{Polynomial, PolynomialError, Term};
+use super::{Expression, VariableMap};
 use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
 
@@ -91,11 +91,7 @@ mod tests {
     #[test]
     fn predicate_robustness() -> Result<(), Box<dyn Error>> {
         let left = Polynomial::from([Term::variable("a", 1.0), Term::variable("b", 1.0)]); // sum is exprected to be 7
-        let right = Polynomial::from([
-            Term::variable("x", 1.0),
-            Term::variable("y", -1.0),
-            Term::constant(2.0)
-        ]); // sum is expected to be 10
+        let right = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", -1.0), Term::constant(2.0)]); // sum is expected to be 10
         let predicate = Predicate::new(left, right);
 
         let variable_map = HashMap::from([
@@ -113,11 +109,7 @@ mod tests {
     #[test]
     fn predicate_to_string() {
         let left = Polynomial::from([Term::variable("a", 1.0), Term::variable("b", 1.0)]); // sum is exprected to be 7
-        let right = Polynomial::from([
-            Term::variable("x", 1.0),
-            Term::variable("y", -1.0),
-            Term::constant(2.0)
-        ]); // sum is expected to be 10
+        let right = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", -1.0), Term::constant(2.0)]); // sum is expected to be 10
         let predicate = Predicate::new(left, right);
         let expected = "1 * a + 1 * b + 0 <= 1 * x + -1 * y + 2";
 

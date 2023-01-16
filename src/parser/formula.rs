@@ -293,7 +293,7 @@ mod tests {
         let left = Polynomial::from([
             Term::variable("x", 3.1),
             Term::variable("y", 22.4f64),
-            Term::constant(12.0)
+            Term::constant(12.0),
         ]);
         let right = Term::variable("z", 4.8f64);
         let expected = Predicate::new(left, right);

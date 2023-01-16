@@ -3,7 +3,7 @@
 /// Most forward operators are optionally bounded. If an operator is unbounded, then the times
 /// included in the sub-trace at a given time value are from the given time value to the end of the
 /// trace. If a bound is provided then the times included in the sub-trace begin at the current time
-/// offset by the lower bound value to the current time offset by the upper bound value. 
+/// offset by the lower bound value to the current time offset by the upper bound value.
 ///
 /// Below is a visual example of sub-trace for an unbounded operator starting at time T2:
 ///
@@ -21,7 +21,6 @@
 ///
 /// All forward operators fold the sub-trace for each time into a single value, which becomes the
 /// new state for that time.
-
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -363,7 +362,7 @@ where
 /// |  4.0 |        2.3 | -inf |
 ///
 /// Creating a formula using the Next operator can be accomplished like so:
-/// 
+///
 /// ```rust
 /// use banquo::expressions::Predicate;
 /// use banquo::operators::Next;

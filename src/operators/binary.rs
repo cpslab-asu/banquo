@@ -3,7 +3,6 @@
 /// Binary operators combine the outputs of two subformulas for each time-step. Instead of
 /// computing each formula at each time step, each subformula is evaluated completely and then
 /// combined together.
-
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -272,7 +271,7 @@ where
 /// The implication operator is a binary operator, which means that it operates over two
 /// subformulas. This operator evaluates a trace with both subformulas and takes the maximum of the
 /// negation of the left state and the right state for each time. The implication operator can be
-/// represented as Or(Not(L), R), resulting in the behavior described above. 
+/// represented as Or(Not(L), R), resulting in the behavior described above.
 ///
 /// Here is an example evaluation of the impliation operator:
 ///

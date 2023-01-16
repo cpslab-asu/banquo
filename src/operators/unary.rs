@@ -1,4 +1,3 @@
-
 use std::ops::Neg;
 
 use crate::formulas::{
