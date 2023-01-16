@@ -12,7 +12,7 @@ use nom::IResult;
 use super::common::{op0, pos_num, var_name, WrappedFormula};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
-use crate::expressions::{Polynomial, Predicate};
+use crate::expressions::{Polynomial, Predicate, Term};
 use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
 
@@ -51,21 +51,22 @@ pub fn pos_neg_num(input: &str) -> IResult<&str, f64> {
     Ok((rest, signed_num))
 }
 
-pub fn coeff(input: &str) -> IResult<&str, (f64, String)> {
+pub fn coeff(input: &str) -> IResult<&str, Term> {
     let mut p1 = pair(var_name, opt(preceded(op0("*"), pos_neg_num)));
 
     if let Ok((rest, (name, coefficient))) = p1(input) {
-        return Ok((rest, (coefficient.unwrap_or(1.0), name)));
+        return Ok((rest, Term::variable(name, coefficient.unwrap_or(1.0))));
     }
 
     let mut p2 = separated_pair(pos_neg_num, op0("*"), var_name);
-    p2(input)
+    let (rest, (coefficient, name)) = p2(input)?;
+
+    Ok((rest, Term::variable(name, coefficient)))
 }
 
-pub fn term(input: &str) -> IResult<&str, (f64, Option<String>)> {
-    let p1 = map(coeff, |(value, name): (f64, String)| (value, Some(name)));
-    let p2 = map(pos_neg_num, |value: f64| (value, None));
-    let mut parser = alt((p1, p2));
+pub fn term(input: &str) -> IResult<&str, Term> {
+    let constant = map(pos_neg_num, |value: f64| Term::constant(value));
+    let mut parser = alt((coeff, constant));
     let (rest, result) = parser(input)?;
 
     Ok((rest, result))
@@ -75,28 +76,11 @@ pub fn polynomial(input: &str) -> IResult<&str, Polynomial> {
     let terms = many0(preceded(op0("+"), term));
     let mut parser = pair(term, terms);
     let (rest, (first, others)) = parser(input)?;
-    let mut constant = 0f64;
-    let mut coefficients = HashMap::new();
 
-    match first {
-        (value, Some(name)) => {
-            coefficients.insert(name, value);
-        }
-        (value, None) => {
-            constant = value;
-        }
-    }
+    let mut polynomial: Polynomial = first.into();
+    polynomial.extend(others);
 
-    for (value, name) in others {
-        match name {
-            Some(n) => {
-                coefficients.insert(n, value);
-            }
-            None => constant += value,
-        }
-    }
-
-    Ok((rest, Polynomial::new(coefficients, constant)))
+    Ok((rest, polynomial))
 }
 
 fn predicate(input: &str) -> IResult<&str, Predicate> {
@@ -230,7 +214,7 @@ mod tests {
     use super::{
         always, and, coeff, eventually, formula, implies, next, not, or, polynomial, pos_neg_num, predicate, until,
     };
-    use crate::expressions::{Polynomial, Predicate};
+    use crate::expressions::{Polynomial, Predicate, Term};
 
     #[test]
     fn parse_pos_neg_number() -> Result<(), Box<dyn Error>> {
@@ -252,27 +236,27 @@ mod tests {
         let (rest, value) = coeff("12.0 * abc")?;
 
         assert_eq!(rest, "");
-        assert_eq!(value, (12.0f64, "abc".to_string()));
+        assert_eq!(value, Term::variable("abc", 12.0));
 
         let (rest, value) = coeff("1.1*X")?;
 
         assert_eq!(rest, "");
-        assert_eq!(value, (1.1f64, "X".to_string()));
+        assert_eq!(value, Term::variable("X", 1.1));
 
         let (rest, value) = coeff("y*3")?;
 
         assert_eq!(rest, "");
-        assert_eq!(value, (3.0, "y".to_string()));
+        assert_eq!(value, Term::variable("y", 3.0));
 
         let (rest, value) = coeff("z * -0.3")?;
 
         assert_eq!(rest, "");
-        assert_eq!(value, (-0.3, "z".to_string()));
+        assert_eq!(value, Term::variable("z", -0.3));
 
         let (rest, value) = coeff("L")?;
 
         assert_eq!(rest, "");
-        assert_eq!(value, (1.0, "L".to_string()));
+        assert_eq!(value, Term::variable("L", 1.0));
 
         Ok(())
     }
@@ -280,19 +264,23 @@ mod tests {
     #[test]
     fn parse_polynomial() -> Result<(), Box<dyn Error>> {
         let (rest, value) = polynomial("12.0 + 3.1*x + 22.4*y")?;
-        let expected = Polynomial::new([("x", 3.1f64), ("y", 22.4f64)], 12.0);
+        let expected = Polynomial::from([
+            Term::variable("x", 3.1),
+            Term::variable("y", 22.4),
+            Term::constant(12.0),
+        ]);
 
         assert_eq!(rest, "");
         assert_eq!(value, expected);
 
         let (rest, value) = polynomial("3.1*x + 22.4*y")?;
-        let expected = Polynomial::new([("x", 3.1f64), ("y", 22.4f64)], None);
+        let expected = Polynomial::from([Term::variable("x", 3.1), Term::variable("y", 22.4)]);
 
         assert_eq!(rest, "");
         assert_eq!(value, expected);
 
         let (rest, value) = polynomial("12.0")?;
-        let expected = Polynomial::constant(12.0);
+        let expected = Term::constant(12.0).into();
 
         assert_eq!(rest, "");
         assert_eq!(value, expected);
@@ -302,8 +290,12 @@ mod tests {
 
     #[test]
     fn parse_predicate() -> Result<(), Box<dyn Error>> {
-        let left = Polynomial::new([("x", 3.1f64), ("y", 22.4f64)], 12.0);
-        let right = Polynomial::new([("z", 4.8f64)], None);
+        let left = Polynomial::from([
+            Term::variable("x", 3.1),
+            Term::variable("y", 22.4f64),
+            Term::constant(12.0)
+        ]);
+        let right = Term::variable("z", 4.8f64);
         let expected = Predicate::new(left, right);
         let (rest, actual) = predicate("12.0 + 3.1*x + 22.4*y <= 4.8*z")?;
 

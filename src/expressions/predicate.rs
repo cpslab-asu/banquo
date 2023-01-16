@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 use super::{Expression, VariableMap};
-use super::polynomial::{Polynomial, PolynomialError};
+use super::polynomial::{Polynomial, PolynomialError, Term};
 use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
 
@@ -33,17 +33,14 @@ impl Predicate {
         L: Into<Polynomial>,
         R: Into<Polynomial>,
     {
-        Predicate {
+        Self {
             left: left.into(),
             right: right.into(),
         }
     }
 
     pub fn simple(name: &str, coefficient: f64, bound: f64) -> Self {
-        Predicate {
-            left: Polynomial::from([(name, coefficient)]),
-            right: Polynomial::from(bound),
-        }
+        Self::new(Term::variable(name, coefficient), Term::constant(bound))
     }
 }
 
@@ -89,30 +86,16 @@ mod tests {
     use std::error::Error;
 
     use super::Expression;
-    use super::{Polynomial, Predicate};
-
-    #[test]
-    fn polynomial_sum() -> Result<(), Box<dyn Error>> {
-        let polynomial = Polynomial::new([("x", 1.0), ("y", 2.0)], 2.0);
-        let variable_map = HashMap::from([("x".to_string(), 3.0), ("y".to_string(), 5.0)]);
-        let sum = polynomial.evaluate_state(&variable_map)?;
-
-        assert_eq!(sum, 15.0);
-        Ok(())
-    }
-
-    #[test]
-    fn polynomial_to_string() {
-        let polynomial = Polynomial::new([("x", 1.0), ("y", 2.0)], 2.0);
-        let expected = "1 * x + 2 * y + 2";
-
-        assert_eq!(polynomial.to_string(), expected);
-    }
+    use super::{Polynomial, Predicate, Term};
 
     #[test]
     fn predicate_robustness() -> Result<(), Box<dyn Error>> {
-        let left = Polynomial::new([("a", 1.0), ("b", 1.0)], None); // sum is exprected to be 7
-        let right = Polynomial::new([("x", 1.0), ("y", -1.0)], 2.0); // sum is expected to be 10
+        let left = Polynomial::from([Term::variable("a", 1.0), Term::variable("b", 1.0)]); // sum is exprected to be 7
+        let right = Polynomial::from([
+            Term::variable("x", 1.0),
+            Term::variable("y", -1.0),
+            Term::constant(2.0)
+        ]); // sum is expected to be 10
         let predicate = Predicate::new(left, right);
 
         let variable_map = HashMap::from([
@@ -129,8 +112,12 @@ mod tests {
 
     #[test]
     fn predicate_to_string() {
-        let left = Polynomial::new([("a", 1.0), ("b", 1.0)], None); // sum is exprected to be 7
-        let right = Polynomial::new([("x", 1.0), ("y", -1.0)], 2.0); // sum is expected to be 10
+        let left = Polynomial::from([Term::variable("a", 1.0), Term::variable("b", 1.0)]); // sum is exprected to be 7
+        let right = Polynomial::from([
+            Term::variable("x", 1.0),
+            Term::variable("y", -1.0),
+            Term::constant(2.0)
+        ]); // sum is expected to be 10
         let predicate = Predicate::new(left, right);
         let expected = "1 * a + 1 * b + 0 <= 1 * x + -1 * y + 2";
 
