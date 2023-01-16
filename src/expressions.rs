@@ -13,5 +13,5 @@ mod predicate;
 mod polynomial;
 
 pub use hybrid_predicate::HybridPredicate;
-pub use polynomial::{Polynomial, PolynomialError};
+pub use polynomial::{Polynomial, PolynomialError, Term};
 pub use predicate::{Predicate, PredicateError};

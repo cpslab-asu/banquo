@@ -1,9 +1,78 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 use super::{Expression, VariableMap};
+
+#[derive(Clone, Debug, PartialEq)]
+enum TermType {
+    Variable {
+        name: String,
+        coefficient: f64,
+    },
+    Constant {
+        value: f64
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Term(TermType);
+
+impl Term {
+    pub fn variable<Name, Coeff>(name: Name, coefficient: Coeff) -> Self
+    where
+        Name: Into<String>,
+        Coeff: Into<f64>,
+    {
+        let inner = TermType::Variable {
+            name: name.into(),
+            coefficient: coefficient.into(),
+        };
+
+        Self(inner)
+    }
+
+    pub fn constant<C>(value: C) -> Self
+    where
+        C: Into<f64>,
+    {
+        let inner = TermType::Constant {
+            value: value.into(),
+        };
+
+        Self(inner)
+    }
+}
+
+impl Add for Term {
+    type Output = Polynomial;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut terms = HashMap::new();
+        let mut constant = 0.0;
+
+        match self.0 {
+            TermType::Variable { name, coefficient } => {
+                terms.insert(name, coefficient);
+            }
+            TermType::Constant { value } => {
+                constant += value;
+            }
+        };
+
+        match rhs.0 {
+            TermType::Variable { name, coefficient } => {
+                terms.insert(name, coefficient);
+            }
+            TermType::Constant { value } => {
+                constant += value;
+            }
+        };
+
+        Polynomial { terms, constant }
+    }
+}
 
 #[derive(Debug)]
 pub struct PolynomialError {
@@ -25,37 +94,6 @@ pub struct Polynomial {
     constant: f64,
 }
 
-impl Polynomial {
-    pub fn new<T, I>(terms: I, constant: f64) -> Self
-    where
-        I: IntoIterator<Item = (T, f64)>,
-        T: AsRef<str>,
-    {
-        let terms_iter = terms
-            .into_iter()
-            .map(|(name, coefficient)| (name.as_ref().to_string(), coefficient));
-
-        Self {
-            terms: HashMap::from_iter(terms_iter),
-            constant: 0.0,
-        }
-    }
-
-    pub fn add_term<T>(&mut self, name: T, coefficient: f64) -> Option<f64>
-    where
-        T: Into<String>
-    {
-        self.terms.insert(name.into(), coefficient)
-    }
-
-    pub fn set_constant(&mut self, value: f64) -> f64 {
-        let prev_const = self.constant;
-        self.constant = value;
-        
-        prev_const
-    }
-}
-
 impl Display for Polynomial {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut sorted_entries = self.terms.iter().collect::<Vec<(&String, &f64)>>();
@@ -69,52 +107,86 @@ impl Display for Polynomial {
     }
 }
 
-impl From<f64> for Polynomial {
-    fn from(value: f64) -> Self {
-        Polynomial::new::<&str, _>([], value)
+impl Default for Polynomial {
+    fn default() -> Self {
+        Self {
+            terms: HashMap::default(),
+            constant: f64::default(),
+        }
     }
 }
 
-impl<T, const N: usize> From<[(T, f64); N]> for Polynomial
-where
-    T: AsRef<str>,
-{
-    fn from(terms: [(T, f64); N]) -> Self {
-        Polynomial::from_iter(terms)
+impl From<Term> for Polynomial {
+    fn from(value: Term) -> Polynomial {
+        let mut terms = HashMap::new();
+        let mut constant = 0.0;
+
+        match value.0 {
+            TermType::Variable { name, coefficient } => {
+                terms.insert(name, coefficient);
+            },
+            TermType::Constant { value } => {
+                constant += value;
+            }
+        };
+
+        Polynomial { terms, constant }
     }
 }
 
-impl<T> FromIterator<(T, f64)> for Polynomial
-where
-    T: AsRef<str>
-{
+impl<const N: usize> From<[Term; N]> for Polynomial {
+    fn from(value: [Term; N]) -> Self {
+        Self::from_iter(value.into_iter())
+    }
+}
+
+impl FromIterator<Term> for Polynomial {
     fn from_iter<I>(iter: I) -> Self
     where
-        I: IntoIterator<Item = (T, f64)>,
+        I: IntoIterator<Item = Term>,
     {
-        Polynomial::new(iter, 0.0)
+        iter.into_iter().fold(Self::default(), |p, t| p + t)
+    }
+}
+
+impl Add<Term> for Polynomial {
+    type Output = Self;
+
+    fn add(self, rhs: Term) -> Self::Output {
+        self + Into::<Polynomial>::into(rhs)
+    }
+}
+
+impl AddAssign for Polynomial {
+    fn add_assign(&mut self, rhs: Self) {
+        for (term_name, rhs_coeff) in rhs.terms {
+            let lhs_coeff = self.terms
+                .get(&term_name)
+                .cloned()
+                .unwrap_or(0.0);
+
+            self.terms.insert(term_name, lhs_coeff + rhs_coeff);
+        }
+
+        self.constant += rhs.constant;
     }
 }
 
 impl Add for Polynomial {
     type Output = Self;
 
-    fn add(self, rhs: Self) -> Self::Output {
-        let mut combined_terms = self.terms;
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
 
-        for (term_name, rhs_coeff) in rhs.terms {
-            let lhs_coeff = combined_terms
-                .get(&term_name)
-                .cloned()
-                .unwrap_or(0.0);
-
-            combined_terms.insert(term_name, lhs_coeff + rhs_coeff);
-        }
-
-        Polynomial {
-            terms: combined_terms,
-            constant: self.constant + rhs.constant,
-        }
+impl Extend<Term> for Polynomial {
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = Term>,    
+    {
+        *self += Polynomial::from_iter(iter);
     }
 }
 
@@ -145,12 +217,16 @@ mod tests {
     use std::collections::HashMap;
     use std::error::Error;
 
-    use super::Polynomial;
+    use super::{Polynomial, Term};
     use crate::expressions::Expression;
 
     #[test]
     fn polynomial_sum() -> Result<(), Box<dyn Error>> {
-        let polynomial = Polynomial::new([("x", 1.0), ("y", 2.0)], 2.0);
+        let polynomial = Polynomial::from([
+            Term::variable("x", 1.0),
+            Term::variable("y", 2.0),
+            Term::constant(2.0)
+        ]);
         let variable_map = HashMap::from([("x".to_string(), 3.0), ("y".to_string(), 5.0)]);
         let sum = polynomial.evaluate_state(&variable_map)?;
 
@@ -160,7 +236,11 @@ mod tests {
 
     #[test]
     fn polynomial_to_string() {
-        let polynomial = Polynomial::new([("x", 1.0), ("y", 2.0)], 2.0);
+        let polynomial = Polynomial::from([
+            Term::variable("x", 1.0),
+            Term::variable("y", 2.0),
+            Term::constant(2.0),
+        ]);
         let expected = "1 * x + 2 * y + 2";
 
         assert_eq!(polynomial.to_string(), expected);
