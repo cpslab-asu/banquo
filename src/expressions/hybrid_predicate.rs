@@ -2,7 +2,8 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
-use super::predicate::{PolynomialError, Predicate};
+use super::polynomial::PolynomialError;
+use super::predicate::Predicate;
 use super::{Expression, VariableMap};
 use crate::automaton::{ShortestPath, StatePath};
 use crate::formulas::{HybridDistance, HybridDistanceFormula, PathGuardDistance};
