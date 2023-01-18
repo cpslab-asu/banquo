@@ -12,6 +12,7 @@ use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
 };
 use crate::trace::Trace;
+use crate::Formula;
 
 /// Representation of an error in either the left or right subformula of a binary operator
 ///
@@ -130,6 +131,54 @@ pub struct Or<L, R>(BinaryOperator<L, R>);
 impl<L, R> Or<L, R> {
     pub fn new(left: L, right: R) -> Self {
         Or(BinaryOperator { left, right })
+    }
+}
+
+impl<Left, Right, State> Formula<f64> for Or<Left, Right>
+where
+    Left: Formula<f64, State = State>,
+    Right: Formula<f64, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Left::Error, Right::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f64::min)
+    }
+}
+
+type OrDebug<LPrev, RPrev> = DebugRobustness<MaxOf<LPrev, RPrev>>;
+
+impl<LPrev, RPrev, Left, Right, State> Formula<OrDebug<LPrev, RPrev>> for Or<Left, Right>
+where
+    Left: Formula<DebugRobustness<LPrev>, State = State>,
+    Right: Formula<DebugRobustness<RPrev>, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Left::Error, Right::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<OrDebug<LPrev, RPrev>>, Self::Error> {
+        let debug_min = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| {
+            DebugRobustness {
+                robustness: f64::min(ldebug.robustness, rdebug.robustness),
+                previous: MaxOf(ldebug, rdebug)
+            }
+        };
+
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), debug_min)
+    }
+}
+
+impl<Left, Right, State> Formula<HybridDistance> for Or<Left, Right>
+where
+    Left: Formula<HybridDistance, State = State>,
+    Right: Formula<HybridDistance, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Left::Error, Right::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), HybridDistance::min)
     }
 }
 
