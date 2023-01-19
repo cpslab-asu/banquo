@@ -135,13 +135,13 @@ impl<F> ForwardOperator<F> {
 /// below:
 ///
 /// ```rust
-/// use banquo::expressions::Predicate;
+/// use banquo::expressions::{Predicate, Term};
 /// use banquo::operators::Always;
 ///
-/// let subformula = Predicate::new(("x", 1.0), 2.0);
+/// let subformula = Predicate::new(Term::variable("x", 1.0), Term::constant(2.0));
 /// let unbounded_formula = Always::new_unbounded(subformula);
 ///
-/// let subformula = Predicate::new(("x", -1.0), -2.0);
+/// let subformula = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
 /// let bounded_formula = Always::new_bounded(subformula, (0.0, 4.0));
 /// ```
 #[derive(Clone, Debug)]
@@ -313,13 +313,13 @@ where
 /// found below:
 ///
 /// ```rust
-/// use banquo::expressions::Predicate;
+/// use banquo::expressions::{Predicate, Term};
 /// use banquo::operators::Always;
 ///
-/// let subformula = Predicate::new(("x", 1.0), 2.0);
+/// let subformula = Predicate::new(Term::variable("x", 1.0), Term::constant(2.0));
 /// let unbounded_formula = Always::new_unbounded(subformula);
 ///
-/// let subformula = Predicate::new(("x", -1.0), -2.0);
+/// let subformula = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
 /// let bounded_formula = Always::new_bounded(subformula, (0.0, 4.0));
 /// ```
 #[derive(Clone, Debug)]
@@ -492,10 +492,10 @@ where
 /// Creating a formula using the Next operator can be accomplished like so:
 /// 
 /// ```rust
-/// use banquo::expressions::Predicate;
+/// use banquo::expressions::{Predicate, Term};
 /// use banquo::operators::Next;
 ///
-/// let subformula = Predicate::new(("x", 1.0), 3.0);
+/// let subformula = Predicate::new(Term::variable("x", 1.0), Term::constant(3.0));
 /// let formula = Next::new(subformula);
 /// ```
 ///

@@ -22,11 +22,10 @@ use crate::Formula;
 /// The following is an example of creating a formula using the not operator:
 ///
 /// ```rust
-/// use banquo::expressions::Predicate;
+/// use banquo::expressions::{Predicate, Term};
 /// use banquo::operators::Not;
-/// use banquo::{Trace, evaluate_robustness};
 ///
-/// let subformula = Predicate::new(("x", 1.0), 1.0);
+/// let subformula = Predicate::new(Term::variable("x", 1.0), Term::constant(1.0));
 /// let formula = Not::new(subformula);
 /// ```
 #[derive(Clone, Debug)]

@@ -119,11 +119,11 @@ impl<L, R> BinaryOperator<L, R> {
 /// The following is an example of creating a formula using the Or operator:
 ///
 /// ```rust
-/// use banquo::expressions::Predicate;
+/// use banquo::expressions::{Predicate, Term};
 /// use banquo::operators::Or;
 ///
-/// let left = Predicate::new(("x", 1.0), 2.0)
-/// let right = Predicate::new(("x", -1.0), -2.0)
+/// let left = Predicate::new(Term::variable("x", 1.0), Term::constant(2.0));
+/// let right = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
 /// let formula = Or::new(left, right);
 /// ```
 pub struct Or<L, R>(BinaryOperator<L, R>);
@@ -250,11 +250,11 @@ where
 /// The following is an example of creating a formula using the And operator:
 ///
 /// ```rust
-/// use banquo::expressions::Predicate;
+/// use banquo::expressions::{Predicate, Term};
 /// use banquo::operators::And;
 ///
-/// let left = Predicate::new(("x", 1.0), 2.0)
-/// let right = Predicate::new(("x", -1.0), -2.0)
+/// let left = Predicate::new(Term::variable("x", 1.0), Term::constant(2.0));
+/// let right = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
 /// let formula = And::new(left, right);
 /// ```
 #[derive(Clone)]
@@ -382,11 +382,11 @@ where
 /// The following is an example of creating a formula using the Implies operator:
 ///
 /// ```rust
-/// use banquo::expressions::Predicate;
+/// use banquo::expressions::{Predicate, Term};
 /// use banquo::operators::Implies;
 ///
-/// let left = Predicate::new(("x", 1.0), 2.0)
-/// let right = Predicate::new(("x", -1.0), -2.0)
+/// let left = Predicate::new(Term::variable("x", 1.0), Term::constant(2.0));
+/// let right = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
 /// let formula = Implies::new(left, right);
 /// ```
 #[derive(Clone)]
