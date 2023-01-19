@@ -227,6 +227,21 @@ where
     }
 }
 
+impl<F> Formula<HybridDistance> for Always<F>
+where
+    F: Formula<HybridDistance>,
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        self.0
+            .subformula
+            .evaluate_states(trace)
+            .map(|trace| fw_fold(trace, self.0.t_bounds, HybridDistance::Robustness(f64::INFINITY), HybridDistance::min))
+    }
+}
+
 impl<S, F> RobustnessFormula<S> for Always<F>
 where
     F: RobustnessFormula<S>,
@@ -331,6 +346,69 @@ impl<F> Eventually<F> {
         };
 
         Self(operator)
+    }
+}
+
+impl<F> Formula<f64> for Eventually<F>
+where
+    F: Formula<f64>
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+        self.0
+            .subformula
+            .evaluate_states(trace)
+            .map(|trace| fw_fold(trace, self.0.t_bounds, f64::NEG_INFINITY, f64::max))
+    }
+}
+
+type EventuallyDebug<FPrev> = DebugRobustness<MaxOfSubtrace<FPrev>>;
+
+impl<F, FPrev> Formula<EventuallyDebug<FPrev>> for Eventually<F>
+where
+    F: Formula<DebugRobustness<FPrev>>
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<EventuallyDebug<FPrev>>, Self::Error> {
+        let debug_trace_max = |subtrace: Trace<&Rc<DebugRobustness<FPrev>>>| {
+            let subtrace = subtrace
+                .into_iter()
+                .map_states(|debug_rc| debug_rc.clone())
+                .collect::<Trace<_>>();
+
+            let trace_max = subtrace
+                .iter()
+                .fold(f64::NEG_INFINITY, |max, (_, debug)| f64::max(max, debug.robustness));
+
+            DebugRobustness {
+                robustness: trace_max,
+                previous: MaxOfSubtrace(subtrace),
+            }
+        };
+
+        self.0
+            .subformula
+            .evaluate_states(trace)
+            .map(|trace| fw_op(trace.into_shared(), self.0.t_bounds, debug_trace_max))
+    }
+}
+
+impl<F> Formula<HybridDistance> for Eventually<F>
+where
+    F: Formula<HybridDistance>
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        self.0
+            .subformula
+            .evaluate_states(trace)
+            .map(|trace| fw_fold(trace, self.0.t_bounds, HybridDistance::Infinite, HybridDistance::max))
     }
 }
 
@@ -459,6 +537,58 @@ where
     };
 
     fw_next_map(trace, f)
+}
+
+impl<F> Formula<f64> for Next<F>
+where
+    F: Formula<f64>,
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+        self.subformula
+            .evaluate_states(trace)
+            .map(|inner_trace| fw_next(inner_trace, f64::NEG_INFINITY))
+    }
+}
+
+impl<F, FPrev> Formula<DebugRobustness<DebugRobustness<FPrev>>> for Next<F>
+where
+    F: Formula<DebugRobustness<FPrev>>,
+    FPrev: Clone,
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<DebugRobustness<DebugRobustness<FPrev>>>, Self::Error> {
+        let shift_left = |previous: DebugRobustness<FPrev>, next: Option<&DebugRobustness<FPrev>>| {
+            let robustness = match next {
+                Some(debug) => debug.robustness,
+                None => f64::NEG_INFINITY,
+            };
+
+            DebugRobustness { robustness, previous }
+        };
+
+        self.subformula
+            .evaluate_states(trace)
+            .map(|inner_trace| fw_next_map(inner_trace, shift_left))
+    }
+}
+
+impl<F> Formula<HybridDistance> for Next<F>
+where
+    F: Formula<HybridDistance>,
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        self.subformula
+            .evaluate_states(trace)
+            .map(|inner_trace| fw_next(inner_trace, HybridDistance::Robustness(f64::NEG_INFINITY)))
+    }
 }
 
 impl<S, F> RobustnessFormula<S> for Next<F>

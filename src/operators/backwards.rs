@@ -1,6 +1,7 @@
 use super::binary::BinaryOperatorError;
 use crate::formulas::{HybridDistance, HybridDistanceFormula, RobustnessFormula};
-use crate::Trace;
+use crate::trace::Trace;
+use crate::Formula;
 
 pub struct Until<L, R> {
     left: L,
@@ -42,6 +43,54 @@ where
     }
 
     Trace::from_iter(elements)
+}
+
+impl<Left, Right, State> Formula<f64> for Until<Left, Right>
+where
+    Left: Formula<f64, State = State>,
+    Right: Formula<f64, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Left::Error, Right::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+        let left_trace = self.left.evaluate_states(trace).map_err(BinaryOperatorError::LeftError)?;
+        let right_trace = self.right.evaluate_states(trace).map_err(BinaryOperatorError::RightError)?;
+        let trace = until(
+            left_trace,
+            right_trace,
+            f64::NEG_INFINITY,
+            f64::INFINITY,
+            f64::min,
+            f64::max,
+        );
+
+        Ok(trace)
+    }
+}
+
+impl<Left, Right, State> Formula<HybridDistance> for Until<Left, Right>
+where
+    Left: Formula<HybridDistance, State = State>,
+    Right: Formula<HybridDistance, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Left::Error, Right::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        let left_trace = self.left.evaluate_states(trace).map_err(BinaryOperatorError::LeftError)?;
+        let right_trace = self.right.evaluate_states(trace).map_err(BinaryOperatorError::RightError)?;
+        let trace = until(
+            left_trace,
+            right_trace,
+            HybridDistance::Robustness(f64::INFINITY),
+            HybridDistance::Infinite,
+            HybridDistance::min,
+            HybridDistance::max,
+        );
+
+        Ok(trace)
+    }
 }
 
 impl<L, R, S> RobustnessFormula<S> for Until<L, R>
