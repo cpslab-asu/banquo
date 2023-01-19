@@ -6,7 +6,8 @@ use banquo::expressions::{HybridPredicate, Predicate};
 use banquo::formulas::{eval_hybrid_dist, HybridDistance, HybridDistanceFormula, PathGuardDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
-use banquo::Trace;
+use banquo::trace::Trace;
+use banquo::{Formula, eval_hybrid_distance};
 
 type VariableMap = HashMap<String, f64>;
 
@@ -176,9 +177,9 @@ where
     F: HybridDistanceFormula<VariableMap, usize>,
     F::Error: 'a,
 {
-    let hybrid_distance = eval_hybrid_dist(f1, &trace)?;
+    let distance = eval_hybrid_dist(f1, &trace)?;
 
-    assert_eq!(hybrid_distance, expected, "f1 error");
+    assert_eq!(distance, expected, "f1 error");
 
     let predicates = HashMap::from_iter([
         ("p1".to_string(), p1()),
@@ -186,9 +187,9 @@ where
         ("p3".to_string(), p3()),
     ]);
     let parsed_formula = parse_hybrid_formula(f2, predicates)?;
-    let hybrid_distance = eval_hybrid_dist(parsed_formula, &trace)?;
+    let distance = eval_hybrid_distance(parsed_formula, &trace)?;
 
-    assert_eq!(hybrid_distance, expected, "f2 error");
+    assert_eq!(distance, expected, "f2 error");
 
     Ok(())
 }

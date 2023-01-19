@@ -3,10 +3,10 @@ use std::error::Error;
 
 use approx::assert_relative_eq;
 use banquo::expressions::Predicate;
-use banquo::formulas::{eval_robustness, RobustnessFormula};
 use banquo::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
 use banquo::parser::parse_formula;
 use banquo::trace::Trace;
+use banquo::{Formula, eval_robustness};
 
 const EPSILON: f64 = 1.0e-5;
 
@@ -68,18 +68,18 @@ type TestResult<'a> = Result<(), Box<dyn Error + 'a>>;
 
 fn conformance_test<'a, F>(f1: &'_ F, f2: &'a str, expected: f64) -> TestResult<'a>
 where
-    F: RobustnessFormula<HashMap<String, f64>>,
+    F: Formula<f64, State = HashMap<String, f64>>,
     F::Error: 'a,
 {
     let trace = get_trace();
-    let robustness = eval_robustness(&f1, &trace)?;
+    let rho = eval_robustness(&f1, &trace)?;
 
-    assert_relative_eq!(robustness, expected, epsilon = EPSILON);
+    assert_relative_eq!(rho, expected, epsilon = EPSILON);
 
     let parsed = parse_formula(f2)?;
-    let robustness = eval_robustness(&parsed, &trace)?;
+    let rho = eval_robustness(&parsed, &trace)?;
 
-    assert_relative_eq!(robustness, expected, epsilon = EPSILON);
+    assert_relative_eq!(rho, expected, epsilon = EPSILON);
 
     Ok(())
 }
