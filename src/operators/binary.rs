@@ -143,7 +143,7 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f64::min)
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f64::max)
     }
 }
 
@@ -158,14 +158,14 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<OrDebug<LPrev, RPrev>>, Self::Error> {
-        let debug_min = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| {
+        let debug_max = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| {
             DebugRobustness {
-                robustness: f64::min(ldebug.robustness, rdebug.robustness),
+                robustness: f64::max(ldebug.robustness, rdebug.robustness),
                 previous: MaxOf(ldebug, rdebug)
             }
         };
 
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), debug_min)
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), debug_max)
     }
 }
 
@@ -178,7 +178,7 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), HybridDistance::min)
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), HybridDistance::max)
     }
 }
 
@@ -266,6 +266,54 @@ impl<L, R> And<L, R> {
     }
 }
 
+impl<Left, Right, State> Formula<f64> for And<Left, Right>
+where
+    Left: Formula<f64, State = State>,
+    Right: Formula<f64, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Left::Error, Right::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f64::min)
+    }
+}
+
+type AndDebug<LPrev, RPrev> = DebugRobustness<MinOf<LPrev, RPrev>>;
+
+impl<LPrev, RPrev, Left, Right, State> Formula<AndDebug<LPrev, RPrev>> for And<Left, Right>
+where
+    Left: Formula<DebugRobustness<LPrev>, State = State>,
+    Right: Formula<DebugRobustness<RPrev>, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Left::Error, Right::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<AndDebug<LPrev, RPrev>>, Self::Error> {
+        let debug_min = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| {
+            DebugRobustness {
+                robustness: f64::min(ldebug.robustness, rdebug.robustness),
+                previous: MinOf(ldebug, rdebug),
+            }
+        };
+
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), debug_min)
+    }
+}
+
+impl<Left, Right, State> Formula<HybridDistance> for And<Left, Right>
+where
+    Left: Formula<HybridDistance, State = State>,
+    Right: Formula<HybridDistance, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Left::Error, Right::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), HybridDistance::min)
+    }
+}
+
 impl<S, L, R> RobustnessFormula<S> for And<L, R>
 where
     L: RobustnessFormula<S>,
@@ -350,6 +398,61 @@ impl<A, C> Implies<A, C> {
             left: antecedent,
             right: consequent,
         })
+    }
+}
+
+impl<Ante, Cons, State> Formula<f64> for Implies<Ante, Cons>
+where
+    Ante: Formula<f64, State = State>,
+    Cons: Formula<f64, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Ante::Error, Cons::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+        let f = |arho: f64, crho: f64| f64::max(-arho, crho);
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f)
+    }
+}
+
+type ImpliesDebug<LPrev, RPrev> = DebugRobustness<MaxOf<NegOf<LPrev>, RPrev>>;
+
+impl<APrev, CPrev, Ante, Cons, State> Formula<ImpliesDebug<APrev, CPrev>> for Implies<Ante, Cons>
+where
+    Ante: Formula<DebugRobustness<APrev>, State = State>,
+    Cons: Formula<DebugRobustness<CPrev>, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Ante::Error, Cons::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<ImpliesDebug<APrev, CPrev>>, Self::Error> {
+        let debug_implies = |adebug: DebugRobustness<APrev>, cdebug: DebugRobustness<CPrev>| {
+            let adebug_neg = DebugRobustness {
+                robustness: -adebug.robustness,
+                previous: NegOf(adebug),
+            };
+
+            DebugRobustness {
+                robustness: f64::max(adebug_neg.robustness, cdebug.robustness),
+                previous: MaxOf(adebug_neg, cdebug)
+            }
+        };
+
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), debug_implies)
+    }
+}
+
+impl<Ante, Cons, State> Formula<HybridDistance> for Implies<Ante, Cons>
+where
+    Ante: Formula<HybridDistance, State = State>,
+    Cons: Formula<HybridDistance, State = State>,
+{
+    type State = State;
+    type Error = BinaryOperatorError<Ante::Error, Cons::Error>;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        let f = |adist: HybridDistance, cdist: HybridDistance| HybridDistance::max(-adist, cdist);
+        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f)
     }
 }
 

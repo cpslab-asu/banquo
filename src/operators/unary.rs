@@ -5,6 +5,7 @@ use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
 };
 use crate::trace::Trace;
+use crate::Formula;
 
 /// First-order operator that inverts its subformula
 ///
@@ -44,6 +45,58 @@ where
     S: Neg,
 {
     trace.into_iter().map_states(|value| -value).collect()
+}
+
+impl<F> Formula<f64> for Not<F>
+where
+    F: Formula<f64>
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+        self.subformula.evaluate_states(trace).map(not)
+    }
+}
+
+type NotDebug<FPrev> = DebugRobustness<NegOf<FPrev>>;
+
+impl<F, FPrev> Formula<NotDebug<FPrev>> for Not<F>
+where
+    F: Formula<DebugRobustness<FPrev>>
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<NotDebug<FPrev>>, Self::Error> {
+        let debug_neg = |debug: DebugRobustness<FPrev>| {
+            DebugRobustness {
+                robustness: -debug.robustness,
+                previous: NegOf(debug),
+            }
+        };
+
+        let debug_trace = self
+            .subformula
+            .evaluate_states(trace)?
+            .into_iter()
+            .map_states(debug_neg)
+            .collect();
+
+        Ok(debug_trace)
+    }
+}
+
+impl<F> Formula<HybridDistance> for Not<F>
+where
+    F: Formula<HybridDistance>
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        self.subformula.evaluate_states(trace).map(not)
+    }
 }
 
 impl<S, F> RobustnessFormula<S> for Not<F>

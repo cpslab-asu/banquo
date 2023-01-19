@@ -29,6 +29,7 @@ use crate::formulas::{
     DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
 };
 use crate::trace::Trace;
+use crate::Formula;
 
 #[derive(Clone, Debug)]
 pub struct ForwardOperator<F> {
@@ -175,6 +176,54 @@ impl<F> Deref for Always<F> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<F> Formula<f64> for Always<F>
+where
+    F: Formula<f64>
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+        self.0
+            .subformula
+            .evaluate_states(trace)
+            .map(|trace| fw_fold(trace, self.0.t_bounds, f64::INFINITY, f64::min))
+    }
+}
+
+type AlwaysDebug<FPrev> = DebugRobustness<MinOfSubtrace<FPrev>>;
+
+impl<F, FPrev> Formula<AlwaysDebug<FPrev>> for Always<F>
+where
+    F: Formula<DebugRobustness<FPrev>>
+{
+    type State = F::State;
+    type Error = F::Error;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<AlwaysDebug<FPrev>>, Self::Error> {
+        let debug_trace_min = |subtrace: Trace<&Rc<DebugRobustness<FPrev>>>| {
+            let subtrace = subtrace
+                .into_iter()
+                .map_states(|debug_rc| debug_rc.clone())
+                .collect::<Trace<_>>();
+
+            let trace_min = subtrace
+                .iter()
+                .fold(f64::INFINITY, |min, (_, debug)| f64::min(min, debug.robustness));
+
+            DebugRobustness {
+                robustness: trace_min,
+                previous: MinOfSubtrace(subtrace),
+            }
+        };
+
+        self.0
+            .subformula
+            .evaluate_states(trace)
+            .map(|trace| fw_op(trace.into_shared(), self.0.t_bounds, debug_trace_min))
     }
 }
 
