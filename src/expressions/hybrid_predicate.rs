@@ -8,6 +8,7 @@ use super::{Expression, VariableMap};
 use crate::automaton::{ShortestPath, StatePath};
 use crate::formulas::{HybridDistance, HybridDistanceFormula, PathGuardDistance};
 use crate::trace::Trace;
+use crate::Formula;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ErrorKind {
@@ -83,6 +84,42 @@ fn guard_distance(shortest_path: Option<ShortestPath>, state: &VariableMap) -> R
     shortest_path
         .map(into_path_distance)
         .unwrap_or(Ok(HybridDistance::Infinite))
+}
+
+impl<State, Loc> Formula<HybridDistance> for HybridPredicate<State, Loc>
+where
+    State: StatePath<Loc>,
+    Loc: Copy + Ord + Hash,
+{
+    type State = (VariableMap, Loc);
+    type Error = HybridPredicateError;
+
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        let evaluate_time_state = |(time, (state, location)): (f64, &Self::State)| {
+            let distance = if location == &self.location {
+                state_distance(&self.predicate, state).map_err(|inner| HybridPredicateError {
+                    inner,
+                    time,
+                    kind: ErrorKind::PredicateError,
+                })
+            } else {
+                guard_distance(self.automaton.shortest_path(*location, self.location), state).map_err(|inner| {
+                    HybridPredicateError {
+                        inner,
+                        time,
+                        kind: ErrorKind::GuardError,
+                    }
+                })
+            };
+
+            Ok((time, distance?))
+        };
+
+        trace
+            .iter()
+            .map(evaluate_time_state)
+            .collect::<Result<Trace<_>, _>>()
+    }
 }
 
 impl<S, L> HybridDistanceFormula<VariableMap, L> for HybridPredicate<S, L>
