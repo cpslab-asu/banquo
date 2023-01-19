@@ -247,6 +247,12 @@ impl<T> Default for Trace<T> {
     }
 }
 
+impl<T> AsRef<Trace<T>> for Trace<T> {
+    fn as_ref(&self) -> &Trace<T> {
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Trace;
