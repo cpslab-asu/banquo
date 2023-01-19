@@ -3,7 +3,6 @@ use std::fmt::{Debug, Display, Formatter};
 
 use super::{Expression, VariableMap};
 use super::polynomial::{Polynomial, PolynomialError, Term};
-use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
 use crate::Formula;
 
@@ -77,25 +76,6 @@ impl Formula<f64> for Predicate {
             .into_iter()
             .map(eval_timed_state)
             .collect::<Result<Trace<_>, _>>()
-    }
-}
-
-impl RobustnessFormula<VariableMap> for Predicate {
-    type Error = PredicateError;
-
-    fn robustness(&self, trace: &Trace<VariableMap>) -> Result<Trace<f64>, Self::Error> {
-        let eval_timed_state = |(time, state)| -> Result<(f64, f64), PredicateError> {
-            self.evaluate_state(state)
-                .map(|robustness| (time, robustness))
-                .map_err(|inner| PredicateError { inner, time })
-        };
-
-        let robustness = trace
-            .into_iter()
-            .map(eval_timed_state)
-            .collect::<Result<Trace<_>, _>>()?;
-
-        Ok(robustness)
     }
 }
 

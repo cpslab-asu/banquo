@@ -6,7 +6,7 @@ use super::polynomial::PolynomialError;
 use super::predicate::Predicate;
 use super::{Expression, VariableMap};
 use crate::automaton::{ShortestPath, StatePath};
-use crate::formulas::{HybridDistance, HybridDistanceFormula, PathGuardDistance};
+use crate::formulas::{HybridDistance, PathGuardDistance};
 use crate::trace::Trace;
 use crate::Formula;
 
@@ -119,37 +119,5 @@ where
             .iter()
             .map(evaluate_time_state)
             .collect::<Result<Trace<_>, _>>()
-    }
-}
-
-impl<S, L> HybridDistanceFormula<VariableMap, L> for HybridPredicate<S, L>
-where
-    S: StatePath<L>,
-    L: Copy + Ord + Hash,
-{
-    type Error = HybridPredicateError;
-
-    fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        let evaluate_time_state = |(time, (state, location)): (f64, &(VariableMap, L))| {
-            let distance = if location == &self.location {
-                state_distance(&self.predicate, state).map_err(|inner| HybridPredicateError {
-                    inner,
-                    time,
-                    kind: ErrorKind::PredicateError,
-                })
-            } else {
-                guard_distance(self.automaton.shortest_path(*location, self.location), state).map_err(|inner| {
-                    HybridPredicateError {
-                        inner,
-                        time,
-                        kind: ErrorKind::GuardError,
-                    }
-                })
-            };
-
-            Ok((time, distance?))
-        };
-
-        trace.iter().map(evaluate_time_state).collect::<Result<Trace<_>, _>>()
     }
 }
