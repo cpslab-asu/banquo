@@ -508,18 +508,18 @@ where
 #[cfg(test)]
 mod tests {
     use super::{And, BinaryOperatorError, Implies, Or};
-    use crate::formulas::RobustnessFormula;
-    use crate::operators::{Const, ConstError};
-    use crate::Trace;
+    use crate::operators::testing::{Const, ConstError};
+    use crate::trace::Trace;
+    use crate::Formula;
 
     #[test]
     fn or_robustness() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
         let left = Trace::from_iter([(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]);
         let right = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
-        let formula = Or::new(Const(left), Const(right));
+        let formula = Or::new(Const::from(left), Const::from(right));
 
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
         let expected = Trace::from_iter([(0, 1.0), (1, 1.0), (2, 4.0), (3, 6.0)]);
 
         assert_eq!(robustness, expected);
@@ -530,10 +530,10 @@ mod tests {
     fn and_robustness() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
         let left = Trace::from_iter([(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]);
         let right = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
-        let formula = And::new(Const(left), Const(right));
+        let formula = And::new(Const::from(left), Const::from(right));
 
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
         let expected = Trace::from_iter([(0, 0.0), (1, 0.0), (2, 2.0), (3, 3.0)]);
 
         assert_eq!(robustness, expected);
@@ -544,10 +544,10 @@ mod tests {
     fn implies_robustness() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
         let antecedent = Trace::from_iter([(0, 0.0), (1, 1.0), (2, -4.0), (3, 3.0)]);
         let consequent = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 2.0), (3, 6.0)]);
-        let formula = Implies::new(Const(antecedent), Const(consequent));
+        let formula = Implies::new(Const::from(antecedent), Const::from(consequent));
 
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
         let expected = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
 
         assert_eq!(robustness, expected);

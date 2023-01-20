@@ -147,22 +147,19 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
-
-    use super::Until;
-    use crate::formulas::RobustnessFormula;
-    use crate::operators::Const;
-    use crate::Trace;
+    use super::{BinaryOperatorError, Until};
+    use crate::operators::testing::{Const, ConstError};
+    use crate::trace::Trace;
+    use crate::Formula;
 
     #[test]
-    fn test_robustness() -> Result<(), Box<dyn Error>> {
+    fn test_robustness() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
         let left_trace = Trace::from_iter([(0.0, 3.0), (1.0, 1.5), (2.0, 1.4), (3.0, 1.1)]);
-
         let right_trace = Trace::from_iter([(0.0, -2.1), (1.0, 3.7), (2.0, 1.2), (3.0, 2.2)]);
 
-        let formula = Until::new(Const(left_trace), Const(right_trace));
+        let formula = Until::new(Const::from(left_trace), Const::from(right_trace));
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
 
         assert_eq!(robustness[3.0], 1.1);
         assert_eq!(robustness[2.0], 1.2);

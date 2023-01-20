@@ -647,17 +647,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::{Always, Eventually, Next};
-    use crate::formulas::RobustnessFormula;
-    use crate::operators::{Const, ConstError};
+    use crate::operators::testing::{Const, ConstError};
     use crate::trace::Trace;
+    use crate::Formula;
 
     #[test]
     fn always_unbounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Always::new_unbounded(Const(inner));
+        let formula = Always::new_unbounded(Const::from(inner));
 
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
         let expected = Trace::from_iter([(0, 1.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
@@ -667,10 +667,10 @@ mod tests {
     #[test]
     fn always_bounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Always::new_bounded(Const(inner), (0, 2));
+        let formula = Always::new_bounded(Const::from(inner), (0, 2));
 
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
         let expected = Trace::from_iter([(0, 2.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
@@ -680,10 +680,10 @@ mod tests {
     #[test]
     fn eventually_unbounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Eventually::new_unbounded(Const(inner));
+        let formula = Eventually::new_unbounded(Const::from(inner));
 
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
         let expected = Trace::from_iter([(0, 4.0), (1, 3.0), (2, 3.0), (3, 3.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
@@ -693,10 +693,10 @@ mod tests {
     #[test]
     fn eventually_bounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
-        let formula = Eventually::new_bounded(Const(inner), (0, 2));
+        let formula = Eventually::new_bounded(Const::from(inner), (0, 2));
 
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
         let expected = Trace::from_iter([(0, 4.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
@@ -706,10 +706,10 @@ mod tests {
     #[test]
     fn next_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 1.0), (1, 2.0), (2, 3.0), (3, 4.0)]);
-        let formula = Next::new(Const(inner));
+        let formula = Next::new(Const::from(inner));
 
         let input = Trace::default();
-        let robustness = formula.robustness(&input)?;
+        let robustness = formula.evaluate_states(&input)?;
         let expected = Trace::from_iter([(0, 2.0), (1, 3.0), (2, 4.0), (3, f64::NEG_INFINITY)]);
 
         assert_eq!(robustness, expected);
