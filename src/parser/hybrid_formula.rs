@@ -10,9 +10,9 @@ use nom::error::Error as NomError;
 use nom::sequence::{delimited, preceded, terminated};
 use nom::Parser;
 
-use super::common::var_name;
+use super::common::{FormulaWrapper, var_name};
 use super::errors::{IncompleteParseError, MissingPredicateError, ParsedFormulaError};
-use super::{FormulaWrapper, operators};
+use super::operators;
 use crate::formulas::HybridDistance;
 use crate::Formula;
 
