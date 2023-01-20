@@ -21,19 +21,6 @@ impl<F> FormulaWrapper<F> {
     {
         Self { inner: formula }
     }
-
-    pub fn unwrap(self) -> F {
-        self.inner
-    }
-
-    #[inline]
-    pub fn eval_inner<Cost>(&self, trace: &Trace<F::State>) -> Result<Trace<Cost>, ParsedFormulaError>
-    where
-        F: Formula<Cost>,
-        F::Error: 'static,
-    {
-        self.inner.evaluate_states(trace).map_err(ParsedFormulaError::from_err)
-    }
 }
 
 impl<Cost, F> Formula<Cost> for FormulaWrapper<F>
@@ -46,10 +33,9 @@ where
 
     #[inline]
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<Cost>, Self::Error> {
-        self.formula.evaluate_states(trace).map_err(ParsedFormulaError::from_err)
+        self.inner.evaluate_states(trace).map_err(ParsedFormulaError::from_err)
     }
 }
-
 
 pub fn var_name(input: &str) -> IResult<&str, String> {
     let mut parser = pair(alpha1, digit0);
