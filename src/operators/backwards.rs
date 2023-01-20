@@ -1,5 +1,5 @@
 use super::binary::BinaryOperatorError;
-use crate::formulas::{HybridDistance, HybridDistanceFormula, RobustnessFormula};
+use crate::formulas::HybridDistance;
 use crate::trace::Trace;
 use crate::Formula;
 
@@ -54,8 +54,14 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        let left_trace = self.left.evaluate_states(trace).map_err(BinaryOperatorError::LeftError)?;
-        let right_trace = self.right.evaluate_states(trace).map_err(BinaryOperatorError::RightError)?;
+        let left_trace = self
+            .left
+            .evaluate_states(trace)
+            .map_err(BinaryOperatorError::LeftError)?;
+        let right_trace = self
+            .right
+            .evaluate_states(trace)
+            .map_err(BinaryOperatorError::RightError)?;
         let trace = until(
             left_trace,
             right_trace,
@@ -78,59 +84,13 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        let left_trace = self.left.evaluate_states(trace).map_err(BinaryOperatorError::LeftError)?;
-        let right_trace = self.right.evaluate_states(trace).map_err(BinaryOperatorError::RightError)?;
-        let trace = until(
-            left_trace,
-            right_trace,
-            HybridDistance::Robustness(f64::INFINITY),
-            HybridDistance::Infinite,
-            HybridDistance::min,
-            HybridDistance::max,
-        );
-
-        Ok(trace)
-    }
-}
-
-impl<L, R, S> RobustnessFormula<S> for Until<L, R>
-where
-    L: RobustnessFormula<S>,
-    R: RobustnessFormula<S>,
-{
-    type Error = BinaryOperatorError<L::Error, R::Error>;
-
-    fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
-        let left_trace = self.left.robustness(trace).map_err(BinaryOperatorError::LeftError)?;
-        let right_trace = self.right.robustness(trace).map_err(BinaryOperatorError::RightError)?;
-        let trace = until(
-            left_trace,
-            right_trace,
-            f64::NEG_INFINITY,
-            f64::INFINITY,
-            f64::min,
-            f64::max,
-        );
-
-        Ok(trace)
-    }
-}
-
-impl<L, R, S, T> HybridDistanceFormula<S, T> for Until<L, R>
-where
-    L: HybridDistanceFormula<S, T>,
-    R: HybridDistanceFormula<S, T>,
-{
-    type Error = BinaryOperatorError<L::Error, R::Error>;
-
-    fn hybrid_distance(&self, trace: &Trace<(S, T)>) -> Result<Trace<HybridDistance>, Self::Error> {
         let left_trace = self
             .left
-            .hybrid_distance(trace)
+            .evaluate_states(trace)
             .map_err(BinaryOperatorError::LeftError)?;
         let right_trace = self
             .right
-            .hybrid_distance(trace)
+            .evaluate_states(trace)
             .map_err(BinaryOperatorError::RightError)?;
         let trace = until(
             left_trace,

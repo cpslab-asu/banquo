@@ -3,14 +3,11 @@
 /// Binary operators combine the outputs of two subformulas for each time-step. Instead of
 /// computing each formula at each time step, each subformula is evaluated completely and then
 /// combined together.
-
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 use super::unary::NegOf;
-use crate::formulas::{
-    DebugRobustness, DebugRobustnessFormula, HybridDistance, HybridDistanceFormula, RobustnessFormula,
-};
+use crate::formulas::{DebugRobustness, HybridDistance};
 use crate::trace::Trace;
 use crate::Formula;
 
@@ -72,35 +69,6 @@ pub struct BinaryOperator<L, R> {
     pub right: R,
 }
 
-impl<L, R> BinaryOperator<L, R> {
-    fn robustness<S, F>(&self, trace: &Trace<S>, f: F) -> BinOpResult<f64, L::Error, R::Error>
-    where
-        L: RobustnessFormula<S>,
-        R: RobustnessFormula<S>,
-        F: Fn(f64, f64) -> f64,
-    {
-        binop(self.left.robustness(trace), self.right.robustness(trace), f)
-    }
-
-    fn debug_robustness<S, F, T>(&self, trace: &Trace<S>, f: F) -> BinOpResult<DebugRobustness<T>, L::Error, R::Error>
-    where
-        L: DebugRobustnessFormula<S>,
-        R: DebugRobustnessFormula<S>,
-        F: Fn(DebugRobustness<L::Prev>, DebugRobustness<R::Prev>) -> DebugRobustness<T>,
-    {
-        binop(self.left.debug_robustness(trace), self.right.debug_robustness(trace), f)
-    }
-
-    fn hybrid_distance<S, T, F>(&self, trace: &Trace<(S, T)>, f: F) -> BinOpResult<HybridDistance, L::Error, R::Error>
-    where
-        L: HybridDistanceFormula<S, T>,
-        R: HybridDistanceFormula<S, T>,
-        F: Fn(HybridDistance, HybridDistance) -> HybridDistance,
-    {
-        binop(self.left.hybrid_distance(trace), self.right.hybrid_distance(trace), f)
-    }
-}
-
 /// First-order operator that requires either of its subformulas to hold
 ///
 /// This operator evaluates a trace using both subformulas and takes the maximum of the
@@ -143,9 +111,21 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f64::max)
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            f64::max,
+        )
     }
 }
+
+/// Semantic representation of the Or operator merging operation
+///
+/// This struct is nothing more than a wrapper around two [DebugRobustness] values that represents
+/// taking the maximum of the two cost values. This type is intended to be used in debug formula
+/// implementations to indicate to the user what operation has been performed when visually
+/// debugging.
+pub struct MaxOf<L, R>(pub DebugRobustness<L>, pub DebugRobustness<R>);
 
 type OrDebug<LPrev, RPrev> = DebugRobustness<MaxOf<LPrev, RPrev>>;
 
@@ -158,14 +138,16 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<OrDebug<LPrev, RPrev>>, Self::Error> {
-        let debug_max = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| {
-            DebugRobustness {
-                robustness: f64::max(ldebug.robustness, rdebug.robustness),
-                previous: MaxOf(ldebug, rdebug)
-            }
+        let debug_max = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| DebugRobustness {
+            robustness: f64::max(ldebug.robustness, rdebug.robustness),
+            previous: MaxOf(ldebug, rdebug),
         };
 
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), debug_max)
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            debug_max,
+        )
     }
 }
 
@@ -178,57 +160,11 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), HybridDistance::max)
-    }
-}
-
-impl<S, L, R> RobustnessFormula<S> for Or<L, R>
-where
-    L: RobustnessFormula<S>,
-    R: RobustnessFormula<S>,
-{
-    type Error = BinaryOperatorError<L::Error, R::Error>;
-
-    fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
-        self.0.robustness(trace, f64::max)
-    }
-}
-
-/// Semantic representation of the Or operator merging operation
-///
-/// This struct is nothing more than a wrapper around two [DebugRobustness] values that represents
-/// taking the maximum of the two cost values. This type is intended to be used in debug formula
-/// implementations to indicate to the user what operation has been performed when visually
-/// debugging.
-pub struct MaxOf<L, R>(pub DebugRobustness<L>, pub DebugRobustness<R>);
-
-impl<S, L, R> DebugRobustnessFormula<S> for Or<L, R>
-where
-    L: DebugRobustnessFormula<S>,
-    R: DebugRobustnessFormula<S>,
-{
-    type Error = BinaryOperatorError<L::Error, R::Error>;
-    type Prev = MaxOf<L::Prev, R::Prev>;
-
-    fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
-        let make_debug = |left: DebugRobustness<L::Prev>, right: DebugRobustness<R::Prev>| DebugRobustness {
-            robustness: f64::max(left.robustness, right.robustness),
-            previous: MaxOf(left, right),
-        };
-
-        self.0.debug_robustness(trace, make_debug)
-    }
-}
-
-impl<S, L, F, G> HybridDistanceFormula<S, L> for Or<F, G>
-where
-    F: HybridDistanceFormula<S, L>,
-    G: HybridDistanceFormula<S, L>,
-{
-    type Error = BinaryOperatorError<F::Error, G::Error>;
-
-    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0.hybrid_distance(trace, HybridDistance::max)
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            HybridDistance::max,
+        )
     }
 }
 
@@ -275,9 +211,21 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f64::min)
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            f64::min,
+        )
     }
 }
+
+/// Semantic representation of the And operator merging operation
+///
+/// This struct is nothing more than a wrapper around two [DebugRobustness] values that represents
+/// taking the minimum of the two cost values. This type is intended to be used in debug formula
+/// implementations to indicate to the user what operation has been performed when visually
+/// debugging.
+pub struct MinOf<L, R>(DebugRobustness<L>, DebugRobustness<R>);
 
 type AndDebug<LPrev, RPrev> = DebugRobustness<MinOf<LPrev, RPrev>>;
 
@@ -290,14 +238,16 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<AndDebug<LPrev, RPrev>>, Self::Error> {
-        let debug_min = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| {
-            DebugRobustness {
-                robustness: f64::min(ldebug.robustness, rdebug.robustness),
-                previous: MinOf(ldebug, rdebug),
-            }
+        let debug_min = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| DebugRobustness {
+            robustness: f64::min(ldebug.robustness, rdebug.robustness),
+            previous: MinOf(ldebug, rdebug),
         };
 
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), debug_min)
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            debug_min,
+        )
     }
 }
 
@@ -310,57 +260,11 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), HybridDistance::min)
-    }
-}
-
-impl<S, L, R> RobustnessFormula<S> for And<L, R>
-where
-    L: RobustnessFormula<S>,
-    R: RobustnessFormula<S>,
-{
-    type Error = BinaryOperatorError<L::Error, R::Error>;
-
-    fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
-        self.0.robustness(trace, f64::min)
-    }
-}
-
-/// Semantic representation of the And operator merging operation
-///
-/// This struct is nothing more than a wrapper around two [DebugRobustness] values that represents
-/// taking the minimum of the two cost values. This type is intended to be used in debug formula
-/// implementations to indicate to the user what operation has been performed when visually
-/// debugging.
-pub struct MinOf<L, R>(DebugRobustness<L>, DebugRobustness<R>);
-
-impl<S, L, R> DebugRobustnessFormula<S> for And<L, R>
-where
-    L: DebugRobustnessFormula<S>,
-    R: DebugRobustnessFormula<S>,
-{
-    type Error = BinaryOperatorError<L::Error, R::Error>;
-    type Prev = MinOf<L::Prev, R::Prev>;
-
-    fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
-        let make_debug = |left: DebugRobustness<L::Prev>, right: DebugRobustness<R::Prev>| DebugRobustness {
-            robustness: f64::min(left.robustness, right.robustness),
-            previous: MinOf(left, right),
-        };
-
-        self.0.debug_robustness(trace, make_debug)
-    }
-}
-
-impl<S, L, F, G> HybridDistanceFormula<S, L> for And<F, G>
-where
-    F: HybridDistanceFormula<S, L>,
-    G: HybridDistanceFormula<S, L>,
-{
-    type Error = BinaryOperatorError<F::Error, G::Error>;
-
-    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0.hybrid_distance(trace, HybridDistance::min)
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            HybridDistance::min,
+        )
     }
 }
 
@@ -369,7 +273,7 @@ where
 /// The implication operator is a binary operator, which means that it operates over two
 /// subformulas. This operator evaluates a trace with both subformulas and takes the maximum of the
 /// negation of the left state and the right state for each time. The implication operator can be
-/// represented as Or(Not(L), R), resulting in the behavior described above. 
+/// represented as Or(Not(L), R), resulting in the behavior described above.
 ///
 /// Here is an example evaluation of the impliation operator:
 ///
@@ -411,7 +315,11 @@ where
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
         let f = |arho: f64, crho: f64| f64::max(-arho, crho);
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f)
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            f,
+        )
     }
 }
 
@@ -434,11 +342,15 @@ where
 
             DebugRobustness {
                 robustness: f64::max(adebug_neg.robustness, cdebug.robustness),
-                previous: MaxOf(adebug_neg, cdebug)
+                previous: MaxOf(adebug_neg, cdebug),
             }
         };
 
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), debug_implies)
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            debug_implies,
+        )
     }
 }
 
@@ -452,56 +364,11 @@ where
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
         let f = |adist: HybridDistance, cdist: HybridDistance| HybridDistance::max(-adist, cdist);
-        binop(self.0.left.evaluate_states(trace), self.0.right.evaluate_states(trace), f)
-    }
-}
-
-impl<S, A, C> RobustnessFormula<S> for Implies<A, C>
-where
-    A: RobustnessFormula<S>,
-    C: RobustnessFormula<S>,
-{
-    type Error = BinaryOperatorError<A::Error, C::Error>;
-
-    fn robustness(&self, trace: &Trace<S>) -> Result<Trace<f64>, Self::Error> {
-        self.0.robustness(trace, |ra, rc| f64::max(-ra, rc))
-    }
-}
-
-impl<S, A, C> DebugRobustnessFormula<S> for Implies<A, C>
-where
-    A: DebugRobustnessFormula<S>,
-    C: DebugRobustnessFormula<S>,
-{
-    type Error = BinaryOperatorError<A::Error, C::Error>;
-    type Prev = MaxOf<NegOf<A::Prev>, C::Prev>;
-
-    fn debug_robustness(&self, trace: &Trace<S>) -> Result<Trace<DebugRobustness<Self::Prev>>, Self::Error> {
-        let make_debug = |left: DebugRobustness<A::Prev>, right: DebugRobustness<C::Prev>| {
-            let neg_left = DebugRobustness {
-                robustness: -left.robustness,
-                previous: NegOf(left),
-            };
-
-            DebugRobustness {
-                robustness: f64::max(neg_left.robustness, right.robustness),
-                previous: MaxOf(neg_left, right),
-            }
-        };
-
-        self.0.debug_robustness(trace, make_debug)
-    }
-}
-
-impl<S, L, A, C> HybridDistanceFormula<S, L> for Implies<A, C>
-where
-    A: HybridDistanceFormula<S, L>,
-    C: HybridDistanceFormula<S, L>,
-{
-    type Error = BinaryOperatorError<A::Error, C::Error>;
-
-    fn hybrid_distance(&self, trace: &Trace<(S, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0.hybrid_distance(trace, |da, dc| HybridDistance::max(-da, dc))
+        binop(
+            self.0.left.evaluate_states(trace),
+            self.0.right.evaluate_states(trace),
+            f,
+        )
     }
 }
 
