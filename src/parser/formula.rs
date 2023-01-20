@@ -9,14 +9,15 @@ use nom::multi::many0;
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use nom::IResult;
 
-use super::common::{FormulaWrapper, pos_num, var_name};
+use super::common::{FormulaWrapper, op0, pos_num, var_name};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate, Term};
+use crate::trace::Trace;
 use crate::Formula;
 
 pub struct ParsedFormula<'a, Cost> {
-    formula: Box<dyn Formula<Cost, State = HashMap<String, f64>, Error = ParsedFormulaError> + 'a>,
+    inner: Box<dyn Formula<Cost, State = HashMap<String, f64>, Error = ParsedFormulaError> + 'a>,
 }
 
 impl<'a, Cost> ParsedFormula<'a, Cost> {
@@ -26,7 +27,7 @@ impl<'a, Cost> ParsedFormula<'a, Cost> {
         F::Error: 'static,
     {
         Self {
-            formula: Box::new(FormulaWrapper::wrap(formula)),
+            inner: Box::new(FormulaWrapper::wrap(formula)),
         }
     }
 }
@@ -37,7 +38,7 @@ impl<'a, Cost> Formula<Cost> for ParsedFormula<'a, Cost> {
 
     #[inline]
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<Cost>, Self::Error> {
-        self.formula.evaluate_states(trace)
+        self.inner.evaluate_states(trace)
     }
 }
 
