@@ -3,7 +3,7 @@ use std::error::Error;
 
 use banquo::automaton::{Automaton, Guard};
 use banquo::expressions::{HybridPredicate, Predicate};
-use banquo::formulas::{eval_hybrid_dist, HybridDistance, HybridDistanceFormula, PathGuardDistance};
+use banquo::formulas::{HybridDistance, PathGuardDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
 use banquo::trace::Trace;
@@ -174,10 +174,10 @@ fn trace_test_case<'a, F>(
     expected: HybridDistance,
 ) -> Result<(), Box<dyn Error + 'a>>
 where
-    F: HybridDistanceFormula<VariableMap, usize>,
+    F: Formula<HybridDistance, State = (VariableMap, usize)>,
     F::Error: 'a,
 {
-    let distance = eval_hybrid_dist(f1, &trace)?;
+    let distance = eval_hybrid_distance(f1, &trace)?;
 
     assert_eq!(distance, expected, "f1 error");
 
@@ -196,7 +196,7 @@ where
 
 fn test_case<'a, F>(f1: F, f2: &'a str, expected: HybridDistance) -> Result<(), Box<dyn Error + 'a>>
 where
-    F: HybridDistanceFormula<VariableMap, usize>,
+    F: Formula<HybridDistance, State = (VariableMap, usize)>,
     F::Error: 'a,
 {
     trace_test_case(f1, f2, get_trace(), expected)
