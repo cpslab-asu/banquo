@@ -7,7 +7,7 @@ use banquo::formulas::{HybridDistance, PathGuardDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
 use banquo::trace::Trace;
-use banquo::{Formula, eval_hybrid_distance};
+use banquo::{eval_hybrid_distance, Formula};
 
 type VariableMap = HashMap<String, f64>;
 

@@ -6,7 +6,7 @@ use banquo::expressions::Predicate;
 use banquo::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
 use banquo::parser::parse_formula;
 use banquo::trace::Trace;
-use banquo::{Formula, eval_robustness};
+use banquo::{eval_robustness, Formula};
 
 const EPSILON: f64 = 1.0e-5;
 

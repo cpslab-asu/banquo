@@ -10,7 +10,7 @@ use nom::error::Error as NomError;
 use nom::sequence::{delimited, preceded, terminated};
 use nom::Parser;
 
-use super::common::{FormulaWrapper, var_name};
+use super::common::{var_name, FormulaWrapper};
 use super::errors::{IncompleteParseError, MissingPredicateError, ParsedFormulaError};
 use super::operators;
 use crate::formulas::HybridDistance;
@@ -20,7 +20,7 @@ type VariableMap = HashMap<String, f64>;
 
 pub struct ParsedFormula<'a, Loc>
 where
-    Loc: 'a
+    Loc: 'a,
 {
     formula: Box<dyn Formula<HybridDistance, State = (VariableMap, Loc), Error = ParsedFormulaError> + 'a>,
 }
@@ -40,7 +40,7 @@ impl<'a, Loc> ParsedFormula<'a, Loc> {
 
 impl<'a, Loc> Formula<HybridDistance> for ParsedFormula<'a, Loc>
 where
-    Loc: 'a
+    Loc: 'a,
 {
     type State = (VariableMap, Loc);
     type Error = ParsedFormulaError;
@@ -104,7 +104,9 @@ where
     }
 }
 
-fn loperand<'a, 'b, F, L>(pred_map: &Rc<HashMap<String, Rc<F>>>) -> impl Parser<&'a str, ParsedFormula<'b, L>, NomError<&'a str>>
+fn loperand<'a, 'b, F, L>(
+    pred_map: &Rc<HashMap<String, Rc<F>>>,
+) -> impl Parser<&'a str, ParsedFormula<'b, L>, NomError<&'a str>>
 where
     'b: 'a,
     F: Formula<HybridDistance, State = (VariableMap, L)> + 'b,

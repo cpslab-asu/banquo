@@ -115,9 +115,6 @@ where
             Ok((time, distance?))
         };
 
-        trace
-            .iter()
-            .map(evaluate_time_state)
-            .collect::<Result<Trace<_>, _>>()
+        trace.iter().map(evaluate_time_state).collect::<Result<Trace<_>, _>>()
     }
 }

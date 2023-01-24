@@ -102,7 +102,9 @@ where
     F: Formula<f64>,
     F::Error: 'a,
 {
-    let robustness_trace = formula.evaluate_states(trace.as_ref()).map_err(|err| EvaluationError::FormulaError(Box::new(err)))?;
+    let robustness_trace = formula
+        .evaluate_states(trace.as_ref())
+        .map_err(|err| EvaluationError::FormulaError(Box::new(err)))?;
     let (_, rho) = robustness_trace
         .into_iter()
         .next()
@@ -111,12 +113,17 @@ where
     Ok(rho)
 }
 
-pub fn eval_hybrid_distance<'a, F>(formula: F, trace: impl AsRef<Trace<F::State>>) -> Result<HybridDistance, EvaluationError<'a>>
+pub fn eval_hybrid_distance<'a, F>(
+    formula: F,
+    trace: impl AsRef<Trace<F::State>>,
+) -> Result<HybridDistance, EvaluationError<'a>>
 where
     F: Formula<HybridDistance>,
     F::Error: 'a,
 {
-    let distance_trace = formula.evaluate_states(trace.as_ref()).map_err(|err| EvaluationError::FormulaError(Box::new(err)))?;
+    let distance_trace = formula
+        .evaluate_states(trace.as_ref())
+        .map_err(|err| EvaluationError::FormulaError(Box::new(err)))?;
     let (_, distance) = distance_trace
         .into_iter()
         .next()

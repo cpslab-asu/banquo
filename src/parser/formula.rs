@@ -9,7 +9,7 @@ use nom::multi::many0;
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use nom::IResult;
 
-use super::common::{FormulaWrapper, op0, pos_num, var_name};
+use super::common::{op0, pos_num, var_name, FormulaWrapper};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate, Term};
@@ -41,7 +41,6 @@ impl<'a, Cost> Formula<Cost> for ParsedFormula<'a, Cost> {
         self.inner.evaluate_states(trace)
     }
 }
-
 
 pub fn pos_neg_num(input: &str) -> IResult<&str, f64> {
     let mut parser = pair(opt(tag("-")), pos_num);
@@ -296,7 +295,7 @@ mod tests {
         let left = Polynomial::from([
             Term::variable("x", 3.1),
             Term::variable("y", 22.4f64),
-            Term::constant(12.0)
+            Term::constant(12.0),
         ]);
         let right = Term::variable("z", 4.8f64);
         let expected = Predicate::new(left, right);

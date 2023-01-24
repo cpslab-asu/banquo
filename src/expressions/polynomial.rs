@@ -7,13 +7,8 @@ use super::{Expression, VariableMap};
 
 #[derive(Clone, Debug, PartialEq)]
 enum TermType {
-    Variable {
-        name: String,
-        coefficient: f64,
-    },
-    Constant {
-        value: f64
-    }
+    Variable { name: String, coefficient: f64 },
+    Constant { value: f64 },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,9 +32,7 @@ impl Term {
     where
         C: Into<f64>,
     {
-        let inner = TermType::Constant {
-            value: value.into(),
-        };
+        let inner = TermType::Constant { value: value.into() };
 
         Self(inner)
     }
@@ -82,7 +75,11 @@ pub struct PolynomialError {
 
 impl Display for PolynomialError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Missing variable {} in polynomial {}", self.variable_name, self.equation)
+        write!(
+            f,
+            "Missing variable {} in polynomial {}",
+            self.variable_name, self.equation
+        )
     }
 }
 
@@ -124,7 +121,7 @@ impl From<Term> for Polynomial {
         match value.0 {
             TermType::Variable { name, coefficient } => {
                 terms.insert(name, coefficient);
-            },
+            }
             TermType::Constant { value } => {
                 constant += value;
             }
@@ -160,10 +157,7 @@ impl Add<Term> for Polynomial {
 impl AddAssign for Polynomial {
     fn add_assign(&mut self, rhs: Self) {
         for (term_name, rhs_coeff) in rhs.terms {
-            let lhs_coeff = self.terms
-                .get(&term_name)
-                .cloned()
-                .unwrap_or(0.0);
+            let lhs_coeff = self.terms.get(&term_name).cloned().unwrap_or(0.0);
 
             self.terms.insert(term_name, lhs_coeff + rhs_coeff);
         }
@@ -184,7 +178,7 @@ impl Add for Polynomial {
 impl Extend<Term> for Polynomial {
     fn extend<I>(&mut self, iter: I)
     where
-        I: IntoIterator<Item = Term>,    
+        I: IntoIterator<Item = Term>,
     {
         *self += Polynomial::from_iter(iter);
     }
@@ -222,11 +216,7 @@ mod tests {
 
     #[test]
     fn polynomial_sum() -> Result<(), Box<dyn Error>> {
-        let polynomial = Polynomial::from([
-            Term::variable("x", 1.0),
-            Term::variable("y", 2.0),
-            Term::constant(2.0)
-        ]);
+        let polynomial = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", 2.0), Term::constant(2.0)]);
         let variable_map = HashMap::from([("x".to_string(), 3.0), ("y".to_string(), 5.0)]);
         let sum = polynomial.evaluate_state(&variable_map)?;
 
@@ -236,11 +226,7 @@ mod tests {
 
     #[test]
     fn polynomial_to_string() {
-        let polynomial = Polynomial::from([
-            Term::variable("x", 1.0),
-            Term::variable("y", 2.0),
-            Term::constant(2.0),
-        ]);
+        let polynomial = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", 2.0), Term::constant(2.0)]);
         let expected = "1 * x + 2 * y + 2";
 
         assert_eq!(polynomial.to_string(), expected);

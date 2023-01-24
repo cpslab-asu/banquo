@@ -1,4 +1,3 @@
-
 use std::ops::Neg;
 
 use crate::formulas::{DebugRobustness, HybridDistance};
@@ -46,7 +45,7 @@ where
 
 impl<F> Formula<f64> for Not<F>
 where
-    F: Formula<f64>
+    F: Formula<f64>,
 {
     type State = F::State;
     type Error = F::Error;
@@ -61,17 +60,15 @@ type NotDebug<FPrev> = DebugRobustness<NegOf<FPrev>>;
 
 impl<F, FPrev> Formula<NotDebug<FPrev>> for Not<F>
 where
-    F: Formula<DebugRobustness<FPrev>>
+    F: Formula<DebugRobustness<FPrev>>,
 {
     type State = F::State;
     type Error = F::Error;
 
     fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<NotDebug<FPrev>>, Self::Error> {
-        let debug_neg = |debug: DebugRobustness<FPrev>| {
-            DebugRobustness {
-                robustness: -debug.robustness,
-                previous: NegOf(debug),
-            }
+        let debug_neg = |debug: DebugRobustness<FPrev>| DebugRobustness {
+            robustness: -debug.robustness,
+            previous: NegOf(debug),
         };
 
         let debug_trace = self
@@ -87,7 +84,7 @@ where
 
 impl<F> Formula<HybridDistance> for Not<F>
 where
-    F: Formula<HybridDistance>
+    F: Formula<HybridDistance>,
 {
     type State = F::State;
     type Error = F::Error;
