@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::str::FromStr;
 
 use nom::bytes::complete::tag;
@@ -8,38 +7,33 @@ use nom::sequence::{delimited, pair};
 use nom::IResult;
 
 use super::errors::ParsedFormulaError;
-use crate::formulas::{HybridDistance, HybridDistanceFormula, RobustnessFormula};
 use crate::trace::Trace;
+use crate::Formula;
 
-pub struct WrappedFormula<F>(F);
+pub struct FormulaWrapper<F> {
+    inner: F,
+}
 
-impl<F> WrappedFormula<F> {
-    pub fn wrap(formula: F) -> Self {
-        WrappedFormula(formula)
+impl<F> FormulaWrapper<F> {
+    pub fn wrap<Cost>(formula: F) -> Self
+    where
+        F: Formula<Cost>,
+    {
+        Self { inner: formula }
     }
 }
 
-impl<F> RobustnessFormula<HashMap<String, f64>> for WrappedFormula<F>
+impl<Cost, F> Formula<Cost> for FormulaWrapper<F>
 where
-    F: RobustnessFormula<HashMap<String, f64>>,
+    F: Formula<Cost>,
     F::Error: 'static,
 {
+    type State = F::State;
     type Error = ParsedFormulaError;
 
-    fn robustness(&self, trace: &Trace<HashMap<String, f64>>) -> Result<Trace<f64>, Self::Error> {
-        self.0.robustness(trace).map_err(ParsedFormulaError::from_err)
-    }
-}
-
-impl<L, F> HybridDistanceFormula<HashMap<String, f64>, L> for WrappedFormula<F>
-where
-    F: HybridDistanceFormula<HashMap<String, f64>, L>,
-    F::Error: 'static,
-{
-    type Error = ParsedFormulaError;
-
-    fn hybrid_distance(&self, trace: &Trace<(HashMap<String, f64>, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0.hybrid_distance(trace).map_err(ParsedFormulaError::from_err)
+    #[inline]
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<Cost>, Self::Error> {
+        self.inner.evaluate_states(trace).map_err(ParsedFormulaError::from_err)
     }
 }
 

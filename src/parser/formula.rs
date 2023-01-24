@@ -9,34 +9,36 @@ use nom::multi::many0;
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use nom::IResult;
 
-use super::common::{op0, pos_num, var_name, WrappedFormula};
+use super::common::{op0, pos_num, var_name, FormulaWrapper};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate, Term};
-use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
+use crate::Formula;
 
-pub struct ParsedFormula {
-    inner: Box<dyn RobustnessFormula<HashMap<String, f64>, Error = ParsedFormulaError>>,
+pub struct ParsedFormula<'a, Cost> {
+    inner: Box<dyn Formula<Cost, State = HashMap<String, f64>, Error = ParsedFormulaError> + 'a>,
 }
 
-impl ParsedFormula {
-    fn new<F>(formula: F) -> Self
+impl<'a, Cost> ParsedFormula<'a, Cost> {
+    pub fn new<F>(formula: F) -> Self
     where
-        F: RobustnessFormula<HashMap<String, f64>> + 'static,
+        F: Formula<Cost, State = HashMap<String, f64>> + 'a,
+        F::Error: 'static,
     {
         Self {
-            inner: Box::new(WrappedFormula::wrap(formula)),
+            inner: Box::new(FormulaWrapper::wrap(formula)),
         }
     }
 }
 
-impl RobustnessFormula<HashMap<String, f64>> for ParsedFormula {
+impl<'a, Cost> Formula<Cost> for ParsedFormula<'a, Cost> {
+    type State = HashMap<String, f64>;
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn robustness(&self, trace: &Trace<HashMap<String, f64>>) -> Result<Trace<f64>, Self::Error> {
-        self.inner.robustness(trace)
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<Cost>, Self::Error> {
+        self.inner.evaluate_states(trace)
     }
 }
 
@@ -91,14 +93,14 @@ fn predicate(input: &str) -> IResult<&str, Predicate> {
     Ok((rest, predicate))
 }
 
-fn subformula(input: &str) -> IResult<&str, ParsedFormula> {
+fn subformula(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let inner = delimited(space0, formula, space0);
     let mut parser = delimited(tag("("), inner, tag(")"));
 
     parser(input)
 }
 
-fn left_operand(input: &str) -> IResult<&str, ParsedFormula> {
+fn left_operand(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let p1 = terminated(map(predicate, ParsedFormula::new), space1);
     let p2 = terminated(subformula, space0);
     let mut parser = alt((p1, p2));
@@ -106,7 +108,7 @@ fn left_operand(input: &str) -> IResult<&str, ParsedFormula> {
     parser(input)
 }
 
-fn right_operand(input: &str) -> IResult<&str, ParsedFormula> {
+fn right_operand(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let p1 = preceded(space1, map(predicate, ParsedFormula::new));
     let p2 = preceded(space0, subformula);
     let mut parser = alt((p1, p2));
@@ -114,63 +116,63 @@ fn right_operand(input: &str) -> IResult<&str, ParsedFormula> {
     parser(input)
 }
 
-fn not(input: &str) -> IResult<&str, ParsedFormula> {
+fn not(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = operators::not(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn and(input: &str) -> IResult<&str, ParsedFormula> {
+fn and(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = operators::and(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn or(input: &str) -> IResult<&str, ParsedFormula> {
+fn or(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = operators::or(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn implies(input: &str) -> IResult<&str, ParsedFormula> {
+fn implies(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = operators::implies(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn next(input: &str) -> IResult<&str, ParsedFormula> {
+fn next(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = operators::next(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn always(input: &str) -> IResult<&str, ParsedFormula> {
+fn always(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = operators::always(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
+fn eventually(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = operators::eventually(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn until(input: &str) -> IResult<&str, ParsedFormula> {
+fn until(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = operators::until(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn formula(input: &str) -> IResult<&str, ParsedFormula> {
+fn formula(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     let mut parser = alt((
         next,
         always,
@@ -187,7 +189,7 @@ fn formula(input: &str) -> IResult<&str, ParsedFormula> {
     parser(input)
 }
 
-pub fn parse_formula<'a>(input: &'a str) -> Result<ParsedFormula, Box<dyn Error + 'a>> {
+pub fn parse_formula<'a>(input: &'a str) -> Result<ParsedFormula<f64>, Box<dyn Error + 'a>> {
     let (rest, parsed) = formula(input)?;
 
     if !rest.is_empty() {

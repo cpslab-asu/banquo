@@ -3,8 +3,8 @@ use std::fmt::{Debug, Display, Formatter};
 
 use super::polynomial::{Polynomial, PolynomialError, Term};
 use super::{Expression, VariableMap};
-use crate::formulas::RobustnessFormula;
 use crate::trace::Trace;
+use crate::Formula;
 
 #[derive(Debug)]
 pub struct PredicateError {
@@ -61,22 +61,18 @@ impl Expression for Predicate {
     }
 }
 
-impl RobustnessFormula<VariableMap> for Predicate {
+impl Formula<f64> for Predicate {
+    type State = VariableMap;
     type Error = PredicateError;
 
-    fn robustness(&self, trace: &Trace<VariableMap>) -> Result<Trace<f64>, Self::Error> {
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
         let eval_timed_state = |(time, state)| -> Result<(f64, f64), PredicateError> {
             self.evaluate_state(state)
                 .map(|robustness| (time, robustness))
                 .map_err(|inner| PredicateError { inner, time })
         };
 
-        let robustness = trace
-            .into_iter()
-            .map(eval_timed_state)
-            .collect::<Result<Trace<_>, _>>()?;
-
-        Ok(robustness)
+        trace.into_iter().map(eval_timed_state).collect::<Result<Trace<_>, _>>()
     }
 }
 

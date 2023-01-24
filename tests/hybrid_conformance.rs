@@ -3,10 +3,11 @@ use std::error::Error;
 
 use banquo::automaton::{Automaton, Guard};
 use banquo::expressions::{HybridPredicate, Predicate};
-use banquo::formulas::{eval_hybrid_dist, HybridDistance, HybridDistanceFormula, PathGuardDistance};
+use banquo::formulas::{HybridDistance, PathGuardDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
-use banquo::Trace;
+use banquo::trace::Trace;
+use banquo::{eval_hybrid_distance, Formula};
 
 type VariableMap = HashMap<String, f64>;
 
@@ -173,12 +174,12 @@ fn trace_test_case<'a, F>(
     expected: HybridDistance,
 ) -> Result<(), Box<dyn Error + 'a>>
 where
-    F: HybridDistanceFormula<VariableMap, usize>,
+    F: Formula<HybridDistance, State = (VariableMap, usize)>,
     F::Error: 'a,
 {
-    let hybrid_distance = eval_hybrid_dist(f1, &trace)?;
+    let distance = eval_hybrid_distance(f1, &trace)?;
 
-    assert_eq!(hybrid_distance, expected, "f1 error");
+    assert_eq!(distance, expected, "f1 error");
 
     let predicates = HashMap::from_iter([
         ("p1".to_string(), p1()),
@@ -186,16 +187,16 @@ where
         ("p3".to_string(), p3()),
     ]);
     let parsed_formula = parse_hybrid_formula(f2, predicates)?;
-    let hybrid_distance = eval_hybrid_dist(parsed_formula, &trace)?;
+    let distance = eval_hybrid_distance(parsed_formula, &trace)?;
 
-    assert_eq!(hybrid_distance, expected, "f2 error");
+    assert_eq!(distance, expected, "f2 error");
 
     Ok(())
 }
 
 fn test_case<'a, F>(f1: F, f2: &'a str, expected: HybridDistance) -> Result<(), Box<dyn Error + 'a>>
 where
-    F: HybridDistanceFormula<VariableMap, usize>,
+    F: Formula<HybridDistance, State = (VariableMap, usize)>,
     F::Error: 'a,
 {
     trace_test_case(f1, f2, get_trace(), expected)

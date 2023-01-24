@@ -6,8 +6,9 @@ use super::polynomial::PolynomialError;
 use super::predicate::Predicate;
 use super::{Expression, VariableMap};
 use crate::automaton::{ShortestPath, StatePath};
-use crate::formulas::{HybridDistance, HybridDistanceFormula, PathGuardDistance};
+use crate::formulas::{HybridDistance, PathGuardDistance};
 use crate::trace::Trace;
+use crate::Formula;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ErrorKind {
@@ -85,15 +86,16 @@ fn guard_distance(shortest_path: Option<ShortestPath>, state: &VariableMap) -> R
         .unwrap_or(Ok(HybridDistance::Infinite))
 }
 
-impl<S, L> HybridDistanceFormula<VariableMap, L> for HybridPredicate<S, L>
+impl<State, Loc> Formula<HybridDistance> for HybridPredicate<State, Loc>
 where
-    S: StatePath<L>,
-    L: Copy + Ord + Hash,
+    State: StatePath<Loc>,
+    Loc: Copy + Ord + Hash,
 {
+    type State = (VariableMap, Loc);
     type Error = HybridPredicateError;
 
-    fn hybrid_distance(&self, trace: &Trace<(VariableMap, L)>) -> Result<Trace<HybridDistance>, Self::Error> {
-        let evaluate_time_state = |(time, (state, location)): (f64, &(VariableMap, L))| {
+    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
+        let evaluate_time_state = |(time, (state, location)): (f64, &Self::State)| {
             let distance = if location == &self.location {
                 state_distance(&self.predicate, state).map_err(|inner| HybridPredicateError {
                     inner,
