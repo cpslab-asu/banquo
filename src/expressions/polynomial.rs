@@ -181,6 +181,31 @@ impl Extend<Term> for Polynomial {
     }
 }
 
+pub trait VarMap {
+    fn get_var(&self, name: &str) -> Option<f64>;
+}
+
+impl VarMap for HashMap<String, f64> {
+    fn get_var(&self, name: &str) -> Option<f64> {
+        self.get(name).cloned()
+    }
+}
+
+impl<'a> VarMap for HashMap<&'a str, f64> {
+    fn get_var(&self, name: &str) -> Option<f64> {
+        self.get(name).cloned()
+    }
+}
+
+impl<'a, V> VarMap for &'a V
+where
+    V: VarMap,
+{
+    fn get_var(&self, name: &str) -> Option<f64> {
+        (**self).get_var(name)
+    }
+}
+
 impl Expression for Polynomial {
     type Error = PolynomialError;
 
