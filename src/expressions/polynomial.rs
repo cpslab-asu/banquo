@@ -201,7 +201,7 @@ enum SumErrorKind {
     NanValue,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SumError {
     variable: String,
     kind: SumErrorKind,
