@@ -12,7 +12,7 @@ enum ErrorSide {
     Right,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PredicateError {
     inner: SumError,
     side: ErrorSide,
@@ -46,6 +46,20 @@ impl Display for PredicateError {
 }
 
 impl Error for PredicateError {}
+
+#[derive(Debug, Clone)]
+pub struct TimedPredicateError {
+    inner: PredicateError,
+    time: f64,
+}
+
+impl Display for TimedPredicateError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "at time {} - {}", self.time, self.inner)
+    }
+}
+
+impl Error for TimedPredicateError {}
 
 /// Representation of a predicate composed of two polynomials with left <= right.
 #[derive(Clone, Debug, PartialEq)]
