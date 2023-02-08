@@ -1,20 +1,47 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-use super::polynomial::{Polynomial, PolynomialError, Term};
+use super::polynomial::{Polynomial, SumError, Term, VarMap};
 use super::{Expression, VariableMap};
 use crate::trace::Trace;
 use crate::Formula;
 
+#[derive(Debug, Clone, Copy)]
+enum ErrorSide {
+    Left,
+    Right,
+}
+
 #[derive(Debug)]
 pub struct PredicateError {
-    inner: PolynomialError,
-    time: f64,
+    inner: SumError,
+    side: ErrorSide,
+}
+
+impl PredicateError {
+    fn left(error: SumError) -> Self {
+        Self {
+            inner: error,
+            side: ErrorSide::Left,
+        }
+    }
+
+    fn right(error: SumError) -> Self {
+        Self {
+            inner: error,
+            side: ErrorSide::Right,
+        }
+    }
 }
 
 impl Display for PredicateError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "error {} at time {}", &self.inner, self.time)
+        let side_str = match self.side {
+            ErrorSide::Left => "left",
+            ErrorSide::Right => "right",
+        };
+
+        write!(f, "{} side error: {}", side_str, &self.inner)
     }
 }
 
