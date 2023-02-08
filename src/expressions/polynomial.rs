@@ -263,13 +263,12 @@ mod tests {
     use std::error::Error;
 
     use super::{Polynomial, Term};
-    use crate::expressions::Expression;
 
     #[test]
     fn polynomial_sum() -> Result<(), Box<dyn Error>> {
         let polynomial = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", 2.0), Term::constant(2.0)]);
         let variable_map = HashMap::from([("x".to_string(), 3.0), ("y".to_string(), 5.0)]);
-        let sum = polynomial.evaluate_state(&variable_map)?;
+        let sum = polynomial.sum(&variable_map)?;
 
         assert_eq!(sum, 15.0);
         Ok(())
