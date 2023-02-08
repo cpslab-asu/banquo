@@ -3,8 +3,6 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Add, AddAssign};
 
-use super::{Expression, VariableMap};
-
 #[derive(Clone, Debug, PartialEq)]
 enum TermType {
     Variable { name: String, coefficient: f64 },
@@ -256,28 +254,6 @@ impl Polynomial {
         }
 
         Ok(sum_result)
-    }
-}
-
-impl Expression for Polynomial {
-    type Error = PolynomialError;
-
-    fn evaluate_state(&self, variable_map: &VariableMap) -> Result<f64, Self::Error> {
-        let variable_values = self
-            .terms
-            .iter()
-            .map(|(variable_name, coefficient)| match variable_map.get(variable_name) {
-                Some(value) => Ok(coefficient * value),
-                None => Err(PolynomialError {
-                    variable_name: variable_name.clone(),
-                    equation: self.to_string(),
-                }),
-            })
-            .collect::<Result<Vec<_>, _>>();
-
-        let variable_sum: f64 = variable_values?.into_iter().sum();
-
-        Ok(variable_sum + self.constant)
     }
 }
 
