@@ -197,15 +197,6 @@ impl<'a> VarMap for HashMap<&'a str, f64> {
     }
 }
 
-impl<'a, V> VarMap for &'a V
-where
-    V: VarMap,
-{
-    fn get_var(&self, name: &str) -> Option<f64> {
-        (**self).get_var(name)
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 enum SumErrorKind {
     MissingValue,
@@ -242,6 +233,29 @@ impl SumError {
             variable: name.clone(),
             kind: SumErrorKind::NanValue,
         }
+    }
+}
+
+impl Polynomial {
+    pub fn sum<V>(&self, var_map: &V) -> Result<f64, SumError>
+    where
+        V: VarMap,
+    {
+        let mut sum_result = self.constant;
+
+        for (var_name, &coefficient) in &self.terms {
+            let var_value = var_map
+                .get_var(var_name.as_str())
+                .ok_or_else(|| SumError::missing(var_name))?;
+
+            if var_value.is_nan() {
+                return Err(SumError::nan(var_name));
+            } else {
+                sum_result += coefficient * var_value;
+            }
+        }
+
+        Ok(sum_result)
     }
 }
 
