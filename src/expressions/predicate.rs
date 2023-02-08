@@ -77,12 +77,13 @@ impl Display for Predicate {
     }
 }
 
-impl Expression for Predicate {
-    type Error = PolynomialError;
-
-    fn evaluate_state(&self, variable_map: &VariableMap) -> Result<f64, Self::Error> {
-        let right = self.right.evaluate_state(variable_map)?;
-        let left = self.left.evaluate_state(variable_map)?;
+impl Predicate {
+    pub fn state_robustness<V>(&self, state: &V) -> Result<f64, PredicateError>
+    where
+        V: VarMap,
+    {
+        let right = self.right.sum(state).map_err(PredicateError::left)?;
+        let left = self.left.sum(state).map_err(PredicateError::right)?;
 
         Ok(right - left)
     }
