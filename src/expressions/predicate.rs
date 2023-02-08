@@ -2,9 +2,8 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 use super::polynomial::{Polynomial, SumError, Term, VarMap};
-use super::{Expression, VariableMap};
+use crate::formulas::Formula;
 use crate::trace::Trace;
-use crate::Formula;
 
 #[derive(Debug, Clone, Copy)]
 enum ErrorSide {
@@ -103,15 +102,18 @@ impl Predicate {
     }
 }
 
-impl Formula<f64> for Predicate {
-    type State = VariableMap;
-    type Error = PredicateError;
+impl<V> Formula<V> for Predicate
+where
+    V: VarMap,
+{
+    type Metric = f64;
+    type Error = TimedPredicateError;
 
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        let eval_timed_state = |(time, state)| -> Result<(f64, f64), PredicateError> {
-            self.evaluate_state(state)
+    fn evaluate_states(&self, trace: &Trace<V>) -> Result<Trace<Self::Metric>, Self::Error> {
+        let eval_timed_state = |(time, state)| -> Result<(f64, f64), TimedPredicateError> {
+            self.state_robustness(state)
                 .map(|robustness| (time, robustness))
-                .map_err(|inner| PredicateError { inner, time })
+                .map_err(|inner| TimedPredicateError { inner, time })
         };
 
         trace.into_iter().map(eval_timed_state).collect::<Result<Trace<_>, _>>()
