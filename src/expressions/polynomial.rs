@@ -206,6 +206,45 @@ where
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum SumErrorKind {
+    MissingValue,
+    NanValue,
+}
+
+#[derive(Debug)]
+pub struct SumError {
+    variable: String,
+    kind: SumErrorKind,
+}
+
+impl Display for SumError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            SumErrorKind::MissingValue => write!(f, "Missing value for variable {}", &self.variable),
+            SumErrorKind::NanValue => write!(f, "Variable {} is a NaN value", &self.variable),
+        }
+    }
+}
+
+impl Error for SumError {}
+
+impl SumError {
+    fn missing(name: &String) -> Self {
+        Self {
+            variable: name.clone(),
+            kind: SumErrorKind::MissingValue,
+        }
+    }
+
+    fn nan(name: &String) -> Self {
+        Self {
+            variable: name.clone(),
+            kind: SumErrorKind::NanValue,
+        }
+    }
+}
+
 impl Expression for Polynomial {
     type Error = PolynomialError;
 
