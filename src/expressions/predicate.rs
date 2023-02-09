@@ -91,7 +91,7 @@ impl Display for Predicate {
 }
 
 impl Predicate {
-    pub fn state_robustness<V>(&self, state: &V) -> Result<f64, PredicateError>
+    pub fn evaluate_state<V>(&self, state: &V) -> Result<f64, PredicateError>
     where
         V: VarMap,
     {
@@ -109,9 +109,9 @@ where
     type Metric = f64;
     type Error = TimedPredicateError;
 
-    fn evaluate_states(&self, trace: &Trace<V>) -> Result<Trace<Self::Metric>, Self::Error> {
+    fn evaluate_trace(&self, trace: &Trace<V>) -> Result<Trace<Self::Metric>, Self::Error> {
         let eval_timed_state = |(time, state)| -> Result<(f64, f64), TimedPredicateError> {
-            self.state_robustness(state)
+            self.evaluate_state(state)
                 .map(|robustness| (time, robustness))
                 .map_err(|inner| TimedPredicateError { inner, time })
         };
