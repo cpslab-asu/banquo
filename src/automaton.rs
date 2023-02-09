@@ -1,10 +1,11 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
 use petgraph::algo::astar;
 use petgraph::graphmap::DiGraphMap;
 
-use crate::expressions::{Expression, PolynomialError, Predicate};
+use crate::expressions::{Predicate, PredicateError};
 
 #[derive(Clone, Debug)]
 pub struct Guard {
@@ -12,7 +13,10 @@ pub struct Guard {
 }
 
 impl Guard {
-    pub fn min_distance(&self, state: &HashMap<String, f64>) -> Result<f64, PolynomialError> {
+    pub fn min_distance<K>(&self, state: &HashMap<K, f64>) -> Result<f64, PredicateError>
+    where
+        K: Eq + Hash + Borrow<str>,
+    {
         let distances = self
             .constraints
             .iter()
