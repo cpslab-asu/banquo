@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
 rust-version = "1.60.0"
+readme = "README.md"
+description = "An offline monitor for Signal Temporal Logic formulas"
+repository = "https://gitlab.com/sbtg/banquo"
+license = "BSD-3-Clause"
 
 [features]
 default = ["parser"]
