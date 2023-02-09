@@ -1,6 +1,8 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::hash::Hash;
 use std::ops::{Add, AddAssign};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -179,22 +181,6 @@ impl Extend<Term> for Polynomial {
     }
 }
 
-pub trait VarMap {
-    fn get_var(&self, name: &str) -> Option<f64>;
-}
-
-impl VarMap for HashMap<String, f64> {
-    fn get_var(&self, name: &str) -> Option<f64> {
-        self.get(name).cloned()
-    }
-}
-
-impl<'a> VarMap for HashMap<&'a str, f64> {
-    fn get_var(&self, name: &str) -> Option<f64> {
-        self.get(name).cloned()
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 enum SumErrorKind {
     MissingValue,
@@ -235,15 +221,15 @@ impl SumError {
 }
 
 impl Polynomial {
-    pub fn sum<V>(&self, var_map: &V) -> Result<f64, SumError>
+    pub fn sum<K>(&self, var_map: &HashMap<K, f64>) -> Result<f64, SumError>
     where
-        V: VarMap,
+        K: Eq + Hash + Borrow<str>,
     {
         let mut sum_result = self.constant;
 
         for (var_name, &coefficient) in &self.terms {
             let var_value = var_map
-                .get_var(var_name.as_str())
+                .get(var_name.as_str())
                 .ok_or_else(|| SumError::missing(var_name))?;
 
             if var_value.is_nan() {
