@@ -123,26 +123,42 @@ where
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::error::Error;
 
-    use super::Expression;
-    use super::{Polynomial, Predicate, Term};
+    use super::{Predicate, PredicateError, TimedPredicateError};
+    use crate::expressions::{Polynomial, Term};
+    use crate::formulas::Formula;
+    use crate::trace::Trace;
 
     #[test]
-    fn predicate_robustness() -> Result<(), Box<dyn Error>> {
+    fn evaluate_state() -> Result<(), PredicateError> {
         let left = Polynomial::from([Term::variable("a", 1.0), Term::variable("b", 1.0)]); // sum is exprected to be 7
         let right = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", -1.0), Term::constant(2.0)]); // sum is expected to be 10
         let predicate = Predicate::new(left, right);
 
-        let variable_map = HashMap::from([
-            ("a".to_string(), 3.0),
-            ("b".to_string(), 4.0),
-            ("x".to_string(), 10.0),
-            ("y".to_string(), 2.0),
-        ]);
+        let variable_map = HashMap::from([("a", 3.0), ("b", 4.0), ("x", 10.0), ("y", 2.0)]);
         let robustness = predicate.evaluate_state(&variable_map)?;
 
         assert_eq!(robustness, 3.0);
+        Ok(())
+    }
+
+    #[test]
+    fn evaluate_trace() -> Result<(), TimedPredicateError> {
+        let left = Polynomial::from([Term::variable("a", 1.0), Term::variable("b", 1.0)]);
+        let right = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", -1.0), Term::constant(2.0)]);
+        let predicate = Predicate::new(left, right);
+
+        let trace: Trace<HashMap<&str, f64>> = Trace::from_iter([
+            (0.0, HashMap::from([("a", 3.0), ("b", 4.0), ("x", 10.0), ("y", 2.0)])),
+            (1.0, HashMap::from([("a", 2.0), ("b", 6.0), ("x", 1.0), ("y", -2.0)])),
+            (2.0, HashMap::from([("a", 7.0), ("b", 7.0), ("x", 7.0), ("y", 7.0)])),
+            (3.0, HashMap::from([("a", -1.0), ("b", 4.2), ("x", 1.1), ("y", 2.7)])),
+        ]);
+
+        let result = predicate.evaluate_trace(&trace)?;
+        let expected = Trace::from_iter([(0.0, 3.0), (1.0, -3.0), (2.0, -12.0), (3.0, -1.9)]);
+
+        assert_eq!(result, expected);
         Ok(())
     }
 
