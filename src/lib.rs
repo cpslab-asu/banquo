@@ -9,8 +9,10 @@ pub mod automaton;
 pub mod expressions;
 pub mod formulas;
 pub mod operators;
-pub mod parser;
 pub mod trace;
+
+#[cfg(feature = "parser")]
+pub mod parser;
 
 use formulas::HybridDistance;
 

@@ -3,12 +3,17 @@ name = "banquo"
 version = "0.1.0"
 edition = "2021"
 authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
+rust-version = "1.60.0"
+
+[features]
+default = ["parser"]
+parser = ["dep:nom"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-nom = "^7.1.1"
-petgraph = "^0.6.2"
+nom = { version = "^7.1.1", optional = true }
 ordered-float = "^3.4.0"
+petgraph = "^0.6.2"
 
 [dev-dependencies]
 approx = "^0.5.1"
