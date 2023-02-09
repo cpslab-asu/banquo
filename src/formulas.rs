@@ -20,7 +20,7 @@ pub trait Formula<State> {
     type Error: Error;
 
     /// Evaluate each state in a trace into an output value
-    fn evaluate_states(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error>;
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error>;
 }
 
 impl<T, F> Formula<T> for &F
@@ -31,8 +31,8 @@ where
     type Error = F::Error;
 
     #[inline]
-    fn evaluate_states(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
-        (**self).evaluate_states(trace)
+    fn evaluate_trace(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
+        (**self).evaluate_trace(trace)
     }
 }
 
@@ -44,8 +44,8 @@ where
     type Error = F::Error;
 
     #[inline]
-    fn evaluate_states(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
-        (**self).evaluate_states(trace)
+    fn evaluate_trace(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
+        (**self).evaluate_trace(trace)
     }
 }
 
@@ -57,8 +57,8 @@ where
     type Error = F::Error;
 
     #[inline]
-    fn evaluate_states(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
-        (**self).evaluate_states(trace)
+    fn evaluate_trace(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
+        (**self).evaluate_trace(trace)
     }
 }
 
@@ -70,7 +70,7 @@ where
     type Error = F::Error;
 
     #[inline]
-    fn evaluate_states(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
-        (**self).evaluate_states(trace)
+    fn evaluate_trace(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
+        (**self).evaluate_trace(trace)
     }
 }
