@@ -289,58 +289,18 @@ where
     fw_next_map(trace, f)
 }
 
-impl<F> Formula<f64> for Next<F>
+impl<State, F, Metric> Formula<State> for Next<F>
 where
-    F: Formula<f64>,
+    F: Formula<State, Metric = Metric>,
+    Metric: Bottom,
 {
-    type State = F::State;
+    type Metric = F::Metric;
     type Error = F::Error;
 
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         self.subformula
             .evaluate_states(trace)
-            .map(|inner_trace| fw_next(inner_trace, f64::NEG_INFINITY))
-    }
-}
-
-impl<F, FPrev> Formula<DebugRobustness<DebugRobustness<FPrev>>> for Next<F>
-where
-    F: Formula<DebugRobustness<FPrev>>,
-    FPrev: Clone,
-{
-    type State = F::State;
-    type Error = F::Error;
-
-    fn evaluate_states(
-        &self,
-        trace: &Trace<Self::State>,
-    ) -> Result<Trace<DebugRobustness<DebugRobustness<FPrev>>>, Self::Error> {
-        let shift_left = |previous: DebugRobustness<FPrev>, next: Option<&DebugRobustness<FPrev>>| {
-            let robustness = match next {
-                Some(debug) => debug.robustness,
-                None => f64::NEG_INFINITY,
-            };
-
-            DebugRobustness { robustness, previous }
-        };
-
-        self.subformula
-            .evaluate_states(trace)
-            .map(|inner_trace| fw_next_map(inner_trace, shift_left))
-    }
-}
-
-impl<F> Formula<HybridDistance> for Next<F>
-where
-    F: Formula<HybridDistance>,
-{
-    type State = F::State;
-    type Error = F::Error;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.subformula
-            .evaluate_states(trace)
-            .map(|inner_trace| fw_next(inner_trace, HybridDistance::Robustness(f64::NEG_INFINITY)))
+            .map(|inner_trace| fw_next(inner_trace, Metric::bottom()))
     }
 }
 
