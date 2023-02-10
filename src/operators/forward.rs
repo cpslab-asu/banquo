@@ -21,12 +21,11 @@
 ///
 /// All forward operators fold the sub-trace for each time into a single value, which becomes the
 /// new state for that time.
-use std::ops::Deref;
-use std::rc::Rc;
-
-use crate::formulas::{DebugRobustness, HybridDistance};
+use super::binary::{Join, Meet};
+use crate::formulas::Formula;
 use crate::trace::Trace;
-use crate::Formula;
+
+pub type TimeBounds = (f64, f64);
 
 /// Trait representing a type with a least value
 ///
@@ -114,105 +113,43 @@ where
 /// let bounded_formula = Always::new_bounded(subformula, (0.0, 4.0));
 /// ```
 #[derive(Clone, Debug)]
-pub struct Always<F>(ForwardOperator<F>);
+pub struct Always<F> {
+    subformula: F,
+    bounds: Option<TimeBounds>,
+}
 
 impl<F> Always<F> {
-    pub fn new_unbounded(subformula: F) -> Self {
-        let operator = ForwardOperator {
+    pub fn unbounded(subformula: F) -> Self {
+        Self {
             subformula,
-            t_bounds: None,
-        };
-
-        Self(operator)
+            bounds: None,
+        }
     }
 
-    pub fn new_bounded<B>(subformula: F, (lower, upper): (B, B)) -> Self
+    pub fn bounded<Lower, Upper>(subformula: F, (lower, upper): (Lower, Upper)) -> Self
     where
-        B: Into<f64>,
+        Lower: Into<f64>,
+        Upper: Into<f64>,
     {
-        let t_bounds = (lower.into(), upper.into());
-        let operator = ForwardOperator {
+        Self {
             subformula,
-            t_bounds: Some(t_bounds),
-        };
-
-        Self(operator)
+            bounds: Some((lower.into(), upper.into())),
+        }
     }
 }
 
-impl<F> Deref for Always<F> {
-    type Target = ForwardOperator<F>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<F> Formula<f64> for Always<F>
+impl<State, F, Metric> Formula<State> for Always<F>
 where
-    F: Formula<f64>,
+    F: Formula<State, Metric = Metric>,
+    Metric: Top + for<'a> Meet<&'a Metric>,
 {
-    type State = F::State;
+    type Metric = Metric;
     type Error = F::Error;
 
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        self.0
-            .subformula
-            .evaluate_states(trace)
-            .map(|trace| fw_fold(trace, self.0.t_bounds, f64::INFINITY, f64::min))
-    }
-}
-
-pub struct MinOfSubtrace<T>(Trace<Rc<DebugRobustness<T>>>);
-type AlwaysDebug<FPrev> = DebugRobustness<MinOfSubtrace<FPrev>>;
-
-impl<F, FPrev> Formula<AlwaysDebug<FPrev>> for Always<F>
-where
-    F: Formula<DebugRobustness<FPrev>>,
-{
-    type State = F::State;
-    type Error = F::Error;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<AlwaysDebug<FPrev>>, Self::Error> {
-        let debug_trace_min = |subtrace: Trace<&Rc<DebugRobustness<FPrev>>>| {
-            let subtrace = subtrace
-                .into_iter()
-                .map_states(|debug_rc| debug_rc.clone())
-                .collect::<Trace<_>>();
-
-            let trace_min = subtrace
-                .iter()
-                .fold(f64::INFINITY, |min, (_, debug)| f64::min(min, debug.robustness));
-
-            DebugRobustness {
-                robustness: trace_min,
-                previous: MinOfSubtrace(subtrace),
-            }
-        };
-
-        self.0
-            .subformula
-            .evaluate_states(trace)
-            .map(|trace| fw_op(trace.into_shared(), self.0.t_bounds, debug_trace_min))
-    }
-}
-
-impl<F> Formula<HybridDistance> for Always<F>
-where
-    F: Formula<HybridDistance>,
-{
-    type State = F::State;
-    type Error = F::Error;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0.subformula.evaluate_states(trace).map(|trace| {
-            fw_fold(
-                trace,
-                self.0.t_bounds,
-                HybridDistance::Robustness(f64::INFINITY),
-                HybridDistance::min,
-            )
-        })
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        self.subformula
+            .evaluate_trace(trace)
+            .map(|trace| fw_fold(trace, self.bounds, Metric::top(), Metric::meet))
     }
 }
 
