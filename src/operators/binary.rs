@@ -62,12 +62,6 @@ where
     Ok(combined_trace)
 }
 
-#[derive(Clone)]
-pub struct BinaryOperator<L, R> {
-    pub left: L,
-    pub right: R,
-}
-
 /// Trait representing the binary operator that computes the greatest lower bound of two values.
 ///
 /// In general, this equates to the miniumum of the two values, but this behavior is not guaranteed.
