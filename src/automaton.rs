@@ -1,8 +1,8 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::{borrow::Borrow, collections::VecDeque};
 
-use petgraph::algo::astar;
+use petgraph::algo::all_simple_paths;
 use petgraph::graphmap::DiGraphMap;
 
 use crate::expressions::{Predicate, PredicateError};
@@ -70,38 +70,45 @@ where
     }
 }
 
-pub struct ShortestPath<'a> {
-    pub length: usize,
-    pub next_guard: &'a Guard,
+pub struct Path<'a> {
+    pub states: usize,
+    pub first_guard: &'a Guard,
 }
 
-pub trait StatePath<L> {
-    fn shortest_path(&self, start: L, end: L) -> Option<ShortestPath>;
+pub struct Paths<'a, L> {
+    paths: VecDeque<Vec<L>>,
+    graph: &'a DiGraphMap<L, Guard>,
 }
 
-impl<L> StatePath<L> for Automaton<L>
+impl<'a, L> Iterator for Paths<'a, L>
 where
     L: Copy + Ord + Hash,
 {
-    fn shortest_path(&self, start: L, end: L) -> Option<ShortestPath> {
-        if start == end {
-            return None;
-        }
+    type Item = Path<'a>;
 
-        let (length, path_nodes) = astar(&self.state_graph, start, |node| node == end, |_| 1, |_| 1)?;
-        let next_guard = self.state_graph.edge_weight(path_nodes[0], path_nodes[1])?;
-        let path = ShortestPath { length, next_guard };
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut path = self.paths.pop_front()?;
+        let length = path.len();
+        let first_node = path.get(0)?;
+        let second_node = path.get(1)?;
+        let guard = self.graph.edge_weight(*first_node, *second_node)?;
+        let path = Path {
+            states: length,
+            first_guard: guard,
+        };
 
         Some(path)
     }
 }
 
-impl<L> StatePath<L> for &Automaton<L>
+impl<L> Automaton<L>
 where
     L: Copy + Ord + Hash,
 {
-    #[inline]
-    fn shortest_path(&self, start: L, end: L) -> Option<ShortestPath> {
-        (**self).shortest_path(start, end)
+    pub fn paths(&self, start: L, end: L) -> Paths<'_, L> {
+        Paths {
+            paths: all_simple_paths(&self.state_graph, start, end, 0, None).collect(),
+            graph: &self.state_graph,
+        }
     }
 }
