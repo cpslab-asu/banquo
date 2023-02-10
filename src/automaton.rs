@@ -87,7 +87,7 @@ where
     type Item = Path<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut path = self.paths.pop_front()?;
+        let path = self.paths.pop_front()?;
         let length = path.len();
         let first_node = path.get(0)?;
         let second_node = path.get(1)?;
