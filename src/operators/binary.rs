@@ -5,6 +5,7 @@
 /// combined together.
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::Neg;
 
 use crate::formulas::Formula;
 use crate::trace::Trace;
@@ -218,81 +219,32 @@ where
 /// let formula = Implies::new(left, right);
 /// ```
 #[derive(Clone)]
-pub struct Implies<A, C>(BinaryOperator<A, C>);
+pub struct Implies<Ante, Cons> {
+    ante: Ante,
+    cons: Cons,
+}
 
-impl<A, C> Implies<A, C> {
-    pub fn new(antecedent: A, consequent: C) -> Self {
-        Self(BinaryOperator {
-            left: antecedent,
-            right: consequent,
-        })
+impl<Ante, Cons> Implies<Ante, Cons> {
+    pub fn new(ante: Ante, cons: Cons) -> Self {
+        Self { ante, cons }
     }
 }
 
-impl<Ante, Cons, State> Formula<f64> for Implies<Ante, Cons>
+impl<Ante, Cons, State, Metric> Formula<State> for Implies<Ante, Cons>
 where
-    Ante: Formula<f64, State = State>,
-    Cons: Formula<f64, State = State>,
+    Ante: Formula<State, Metric = Metric>,
+    Cons: Formula<State, Metric = Metric>,
+    Metric: Neg<Output = Metric> + Join,
 {
-    type State = State;
+    type Metric = Metric;
     type Error = BinaryOperatorError<Ante::Error, Cons::Error>;
 
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        let f = |arho: f64, crho: f64| f64::max(-arho, crho);
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            f,
-        )
-    }
-}
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        let ante = self.ante.evaluate_trace(trace);
+        let cons = self.cons.evaluate_trace(trace);
+        let f = |a_val: Metric, c_val: Metric| Metric::join(-a_val, c_val);
 
-type ImpliesDebug<LPrev, RPrev> = DebugRobustness<MaxOf<NegOf<LPrev>, RPrev>>;
-
-impl<APrev, CPrev, Ante, Cons, State> Formula<ImpliesDebug<APrev, CPrev>> for Implies<Ante, Cons>
-where
-    Ante: Formula<DebugRobustness<APrev>, State = State>,
-    Cons: Formula<DebugRobustness<CPrev>, State = State>,
-{
-    type State = State;
-    type Error = BinaryOperatorError<Ante::Error, Cons::Error>;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<ImpliesDebug<APrev, CPrev>>, Self::Error> {
-        let debug_implies = |adebug: DebugRobustness<APrev>, cdebug: DebugRobustness<CPrev>| {
-            let adebug_neg = DebugRobustness {
-                robustness: -adebug.robustness,
-                previous: NegOf(adebug),
-            };
-
-            DebugRobustness {
-                robustness: f64::max(adebug_neg.robustness, cdebug.robustness),
-                previous: MaxOf(adebug_neg, cdebug),
-            }
-        };
-
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            debug_implies,
-        )
-    }
-}
-
-impl<Ante, Cons, State> Formula<HybridDistance> for Implies<Ante, Cons>
-where
-    Ante: Formula<HybridDistance, State = State>,
-    Cons: Formula<HybridDistance, State = State>,
-{
-    type State = State;
-    type Error = BinaryOperatorError<Ante::Error, Cons::Error>;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        let f = |adist: HybridDistance, cdist: HybridDistance| HybridDistance::max(-adist, cdist);
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            f,
-        )
+        binop(ante, cons, f)
     }
 }
 
