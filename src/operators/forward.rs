@@ -28,6 +28,24 @@ use crate::formulas::{DebugRobustness, HybridDistance};
 use crate::trace::Trace;
 use crate::Formula;
 
+/// Trait representing a type with a least value
+///
+/// When combined with the [Join] trait, this element should serve as the identity for the operator.
+/// In other words, for any value x: join(x, bottom) = x. This value is sometimes referred to as
+/// the zero element.
+pub trait Bottom {
+    fn bottom() -> Self;
+}
+
+/// Trait representing a type with a greatest value
+///
+/// When combined with the [Meet] trait, this element should serve as the identity for the
+/// operator. In other words, for any value x: meet(x, top) = x. This value is sometimes referred
+/// to as the one element.
+pub trait Top {
+    fn top() -> Self;
+}
+
 #[derive(Clone, Debug)]
 pub struct ForwardOperator<F> {
     pub subformula: F,
