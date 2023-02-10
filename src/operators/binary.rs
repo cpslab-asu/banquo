@@ -67,6 +67,15 @@ pub struct BinaryOperator<L, R> {
     pub right: R,
 }
 
+/// Trait representing the binary operator that computes the greatest lower bound of two values.
+///
+/// In general, this equates to the miniumum of the two values, but this behavior is not guaranteed.
+/// When provided along with a partial ordering, the type forms a Meet-Semilattice.
+pub trait Meet {
+    /// Compute the greatest lower bound of self and other
+    fn meet(self, other: Self) -> Self;
+}
+
 /// Trait representing the binary operator that computes the least upper bound of two values.
 ///
 /// In general, this equates to the maximum of the two values, but this behavior is not guaranteed.
@@ -155,77 +164,31 @@ where
 /// let formula = And::new(left, right);
 /// ```
 #[derive(Clone)]
-pub struct And<L, R>(BinaryOperator<L, R>);
+pub struct And<Left, Right> {
+    left: Left,
+    right: Right,
+}
 
-impl<L, R> And<L, R> {
-    pub fn new(left: L, right: R) -> Self {
-        Self(BinaryOperator { left, right })
+impl<Left, Right> And<Left, Right> {
+    pub fn new(left: Left, right: Right) -> Self {
+        Self { left, right }
     }
 }
 
-impl<Left, Right, State> Formula<f64> for And<Left, Right>
+impl<Left, Right, State, Metric> Formula<State> for And<Left, Right>
 where
-    Left: Formula<f64, State = State>,
-    Right: Formula<f64, State = State>,
+    Left: Formula<State, Metric = Metric>,
+    Right: Formula<State, Metric = Metric>,
+    Metric: Meet,
 {
-    type State = State;
+    type Metric = Metric;
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            f64::min,
-        )
-    }
-}
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        let left = self.left.evaluate_trace(trace);
+        let right = self.right.evaluate_trace(trace);
 
-/// Semantic representation of the And operator merging operation
-///
-/// This struct is nothing more than a wrapper around two [DebugRobustness] values that represents
-/// taking the minimum of the two cost values. This type is intended to be used in debug formula
-/// implementations to indicate to the user what operation has been performed when visually
-/// debugging.
-pub struct MinOf<L, R>(DebugRobustness<L>, DebugRobustness<R>);
-
-type AndDebug<LPrev, RPrev> = DebugRobustness<MinOf<LPrev, RPrev>>;
-
-impl<LPrev, RPrev, Left, Right, State> Formula<AndDebug<LPrev, RPrev>> for And<Left, Right>
-where
-    Left: Formula<DebugRobustness<LPrev>, State = State>,
-    Right: Formula<DebugRobustness<RPrev>, State = State>,
-{
-    type State = State;
-    type Error = BinaryOperatorError<Left::Error, Right::Error>;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<AndDebug<LPrev, RPrev>>, Self::Error> {
-        let debug_min = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| DebugRobustness {
-            robustness: f64::min(ldebug.robustness, rdebug.robustness),
-            previous: MinOf(ldebug, rdebug),
-        };
-
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            debug_min,
-        )
-    }
-}
-
-impl<Left, Right, State> Formula<HybridDistance> for And<Left, Right>
-where
-    Left: Formula<HybridDistance, State = State>,
-    Right: Formula<HybridDistance, State = State>,
-{
-    type State = State;
-    type Error = BinaryOperatorError<Left::Error, Right::Error>;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            HybridDistance::min,
-        )
+        binop(left, right, Metric::meet)
     }
 }
 
