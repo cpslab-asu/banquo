@@ -6,10 +6,8 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-use super::unary::NegOf;
-use crate::formulas::{DebugRobustness, HybridDistance};
+use crate::formulas::Formula;
 use crate::trace::Trace;
-use crate::Formula;
 
 /// Representation of an error in either the left or right subformula of a binary operator
 ///
@@ -69,6 +67,15 @@ pub struct BinaryOperator<L, R> {
     pub right: R,
 }
 
+/// Trait representing the binary operator that computes the least upper bound of two values.
+///
+/// In general, this equates to the maximum of the two values, but this behavior is not guaranteed.
+/// When provided along with a partial ordering, the type forms a Join-Semilattice.
+pub trait Join {
+    /// Compute the least upper bound of self and other
+    fn join(self, other: Self) -> Self;
+}
+
 /// First-order operator that requires either of its subformulas to hold
 ///
 /// This operator evaluates a trace using both subformulas and takes the maximum of the
@@ -94,77 +101,31 @@ pub struct BinaryOperator<L, R> {
 /// let right = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
 /// let formula = Or::new(left, right);
 /// ```
-pub struct Or<L, R>(BinaryOperator<L, R>);
+pub struct Or<Left, Right> {
+    left: Left,
+    right: Right,
+}
 
-impl<L, R> Or<L, R> {
-    pub fn new(left: L, right: R) -> Self {
-        Or(BinaryOperator { left, right })
+impl<Left, Right> Or<Left, Right> {
+    pub fn new(left: Left, right: Right) -> Self {
+        Or { left, right }
     }
 }
 
-impl<Left, Right, State> Formula<f64> for Or<Left, Right>
+impl<Left, Right, State, Metric> Formula<State> for Or<Left, Right>
 where
-    Left: Formula<f64, State = State>,
-    Right: Formula<f64, State = State>,
+    Left: Formula<State, Metric = Metric>,
+    Right: Formula<State, Metric = Metric>,
+    Metric: Join,
 {
-    type State = State;
+    type Metric = Metric;
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            f64::max,
-        )
-    }
-}
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        let left = self.left.evaluate_trace(trace);
+        let right = self.right.evaluate_trace(trace);
 
-/// Semantic representation of the Or operator merging operation
-///
-/// This struct is nothing more than a wrapper around two [DebugRobustness] values that represents
-/// taking the maximum of the two cost values. This type is intended to be used in debug formula
-/// implementations to indicate to the user what operation has been performed when visually
-/// debugging.
-pub struct MaxOf<L, R>(pub DebugRobustness<L>, pub DebugRobustness<R>);
-
-type OrDebug<LPrev, RPrev> = DebugRobustness<MaxOf<LPrev, RPrev>>;
-
-impl<LPrev, RPrev, Left, Right, State> Formula<OrDebug<LPrev, RPrev>> for Or<Left, Right>
-where
-    Left: Formula<DebugRobustness<LPrev>, State = State>,
-    Right: Formula<DebugRobustness<RPrev>, State = State>,
-{
-    type State = State;
-    type Error = BinaryOperatorError<Left::Error, Right::Error>;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<OrDebug<LPrev, RPrev>>, Self::Error> {
-        let debug_max = |ldebug: DebugRobustness<LPrev>, rdebug: DebugRobustness<RPrev>| DebugRobustness {
-            robustness: f64::max(ldebug.robustness, rdebug.robustness),
-            previous: MaxOf(ldebug, rdebug),
-        };
-
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            debug_max,
-        )
-    }
-}
-
-impl<Left, Right, State> Formula<HybridDistance> for Or<Left, Right>
-where
-    Left: Formula<HybridDistance, State = State>,
-    Right: Formula<HybridDistance, State = State>,
-{
-    type State = State;
-    type Error = BinaryOperatorError<Left::Error, Right::Error>;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        binop(
-            self.0.left.evaluate_states(trace),
-            self.0.right.evaluate_states(trace),
-            HybridDistance::max,
-        )
+        binop(left, right, Metric::join)
     }
 }
 
