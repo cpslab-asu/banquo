@@ -71,6 +71,27 @@ pub trait Meet<Other = Self> {
     fn meet(self, other: Other) -> Self;
 }
 
+/// Meet trait implementation for f64 by value
+///
+/// This implementation tries to propogate NaN values as much as possible so that users can be
+/// alerted to any issues during computation. If either of the values being compared are NaN values
+/// then the result of the Meet operator will also be NaN.
+impl Meet for f64 {
+    fn meet(self, other: Self) -> Self {
+        if self.is_nan() || other.is_nan() {
+            f64::NAN
+        } else {
+            f64::min(self, other)
+        }
+    }
+}
+
+impl Meet<&Self> for f64 {
+    fn meet(self, other: &Self) -> Self {
+        self.meet(*other)
+    }
+}
+
 /// Trait representing the binary operator that computes the least upper bound of two values.
 ///
 /// In general, this equates to the maximum of the two values, but this behavior is not guaranteed.
@@ -78,6 +99,27 @@ pub trait Meet<Other = Self> {
 pub trait Join<Other = Self> {
     /// Compute the least upper bound of self and other
     fn join(self, other: Other) -> Self;
+}
+
+/// Join trait implementation for f64 by value
+///
+/// This implementation tries to propogate NaN values as much as possible so that users can be
+/// alerted to any issues during computation. If either of the values being compared are NaN values
+/// then the result of the Meet operator will also be NaN.
+impl Join for f64 {
+    fn join(self, other: Self) -> Self {
+        if self.is_nan() || other.is_nan() {
+            f64::NAN
+        } else {
+            f64::max(self, other)
+        }
+    }
+}
+
+impl Join<&Self> for f64 {
+    fn join(self, other: &Self) -> Self {
+        self.meet(*other)
+    }
 }
 
 /// First-order operator that requires either of its subformulas to hold
