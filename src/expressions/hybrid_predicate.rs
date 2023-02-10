@@ -73,7 +73,7 @@ where
     Ok(HybridDistance::Robustness(distance))
 }
 
-fn min_guard_dist<'a, P, K>(paths: P, init: Path<'a>, state: &HashMap<K, f64>) -> PredicateResult<HybridDistance>
+fn min_guard_dist<'a, P, K>(mut paths: P, init: Path<'a>, state: &HashMap<K, f64>) -> PredicateResult<HybridDistance>
 where
     P: Iterator<Item = Path<'a>>,
     K: Eq + Hash + Borrow<str>,
@@ -101,7 +101,7 @@ where
     Ok(HybridDistance::PathDistance(min_dist))
 }
 
-fn guard_distance<'a, P, K>(paths: P, state: &HashMap<K, f64>) -> PredicateResult<HybridDistance>
+fn guard_distance<'a, P, K>(mut paths: P, state: &HashMap<K, f64>) -> PredicateResult<HybridDistance>
 where
     P: Iterator<Item = Path<'a>>,
     K: Eq + Hash + Borrow<str>,
