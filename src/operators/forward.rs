@@ -182,101 +182,43 @@ where
 /// let bounded_formula = Always::new_bounded(subformula, (0.0, 4.0));
 /// ```
 #[derive(Clone, Debug)]
-pub struct Eventually<F>(ForwardOperator<F>);
+pub struct Eventually<F> {
+    subformula: F,
+    bounds: Option<TimeBounds>,
+}
 
 impl<F> Eventually<F> {
-    pub fn new_unbounded(subformula: F) -> Self {
-        let operator = ForwardOperator {
+    pub fn unbounded(subformula: F) -> Self {
+        Self {
             subformula,
-            t_bounds: None,
-        };
-
-        Self(operator)
+            bounds: None,
+        }
     }
 
-    pub fn new_bounded<B>(subformula: F, (lower, upper): (B, B)) -> Self
+    pub fn bounded<Lower, Upper>(subformula: F, (lower, upper): (Lower, Upper)) -> Self
     where
-        B: Into<f64>,
+        Lower: Into<f64>,
+        Upper: Into<f64>,
     {
-        let t_bounds = (lower.into(), upper.into());
-        let operator = ForwardOperator {
+        Self {
             subformula,
-            t_bounds: Some(t_bounds),
-        };
-
-        Self(operator)
+            bounds: Some((lower.into(), upper.into())),
+        }
     }
 }
 
-impl<F> Formula<f64> for Eventually<F>
+impl<State, F, Metric> Formula<State> for Eventually<F>
 where
-    F: Formula<f64>,
+    F: Formula<State, Metric = Metric>,
+    Metric: Bottom + for<'a> Join<&'a Metric>,
 {
-    type State = F::State;
+    type Metric = Metric;
     type Error = F::Error;
 
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<f64>, Self::Error> {
-        self.0
-            .subformula
-            .evaluate_states(trace)
-            .map(|trace| fw_fold(trace, self.0.t_bounds, f64::NEG_INFINITY, f64::max))
-    }
-}
-
-pub struct MaxOfSubtrace<T>(Trace<Rc<DebugRobustness<T>>>);
-type EventuallyDebug<FPrev> = DebugRobustness<MaxOfSubtrace<FPrev>>;
-
-impl<F, FPrev> Formula<EventuallyDebug<FPrev>> for Eventually<F>
-where
-    F: Formula<DebugRobustness<FPrev>>,
-{
-    type State = F::State;
-    type Error = F::Error;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<EventuallyDebug<FPrev>>, Self::Error> {
-        let debug_trace_max = |subtrace: Trace<&Rc<DebugRobustness<FPrev>>>| {
-            let subtrace = subtrace
-                .into_iter()
-                .map_states(|debug_rc| debug_rc.clone())
-                .collect::<Trace<_>>();
-
-            let trace_max = subtrace
-                .iter()
-                .fold(f64::NEG_INFINITY, |max, (_, debug)| f64::max(max, debug.robustness));
-
-            DebugRobustness {
-                robustness: trace_max,
-                previous: MaxOfSubtrace(subtrace),
-            }
-        };
-
-        self.0
-            .subformula
-            .evaluate_states(trace)
-            .map(|trace| fw_op(trace.into_shared(), self.0.t_bounds, debug_trace_max))
-    }
-}
-
-impl<F> Formula<HybridDistance> for Eventually<F>
-where
-    F: Formula<HybridDistance>,
-{
-    type State = F::State;
-    type Error = F::Error;
-
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.0
-            .subformula
-            .evaluate_states(trace)
-            .map(|trace| fw_fold(trace, self.0.t_bounds, HybridDistance::Infinite, HybridDistance::max))
-    }
-}
-
-impl<F> Deref for Eventually<F> {
-    type Target = ForwardOperator<F>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        self.subformula
+            .evaluate_trace(trace)
+            .map(|trace| fw_fold(trace, self.bounds, Metric::bottom(), Metric::join))
     }
 }
 
