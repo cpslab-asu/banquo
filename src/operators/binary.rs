@@ -66,18 +66,18 @@ where
 ///
 /// In general, this equates to the miniumum of the two values, but this behavior is not guaranteed.
 /// When provided along with a partial ordering, the type forms a Meet-Semilattice.
-pub trait Meet {
+pub trait Meet<Other = Self> {
     /// Compute the greatest lower bound of self and other
-    fn meet(self, other: Self) -> Self;
+    fn meet(self, other: Other) -> Self;
 }
 
 /// Trait representing the binary operator that computes the least upper bound of two values.
 ///
 /// In general, this equates to the maximum of the two values, but this behavior is not guaranteed.
 /// When provided along with a partial ordering, the type forms a Join-Semilattice.
-pub trait Join {
+pub trait Join<Other = Self> {
     /// Compute the least upper bound of self and other
-    fn join(self, other: Self) -> Self;
+    fn join(self, other: Other) -> Self;
 }
 
 /// First-order operator that requires either of its subformulas to hold
