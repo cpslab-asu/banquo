@@ -45,12 +45,6 @@ pub trait Top {
     fn top() -> Self;
 }
 
-#[derive(Clone, Debug)]
-pub struct ForwardOperator<F> {
-    pub subformula: F,
-    pub t_bounds: Option<(f64, f64)>,
-}
-
 fn fw_op<S, F, T>(inner_trace: Trace<S>, maybe_bounds: Option<(f64, f64)>, f: F) -> Trace<T>
 where
     F: Fn(Trace<&S>) -> T,
