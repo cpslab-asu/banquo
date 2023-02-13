@@ -45,37 +45,51 @@ pub trait Top {
     fn top() -> Self;
 }
 
-fn fw_op<S, F, T>(inner_trace: Trace<S>, maybe_bounds: Option<(f64, f64)>, f: F) -> Trace<T>
+fn fw_op_unbounded<T, U, F>(trace: Trace<T>, initial: U, combine: F) -> Trace<U>
 where
-    F: Fn(Trace<&S>) -> T,
+    F: Fn(T, &U) -> U,
 {
-    let eval_time = |time: f64| -> (f64, T) {
-        let t_bounds = match maybe_bounds {
-            Some((lower, upper)) => (time + lower)..=(time + upper),
-            None => time..=f64::INFINITY,
-        };
-        let forward_trace = inner_trace.range(t_bounds);
-        let cost = f(forward_trace);
+    let mut iter = trace.into_iter().rev();
+    let first_element = iter.next();
+    let mut u_trace = Trace::default();
 
-        (time, cost)
-    };
+    if first_element.is_none() {
+        return u_trace;
+    }
 
-    inner_trace.times().map(eval_time).collect()
+    let (t1, m1) = first_element.unwrap();
+    let mut prev_time = t1;
+    let mut prev_u = combine(m1, &initial);
+
+    for (time, metric) in iter {
+        let next_u = combine(metric, &prev_u);
+        u_trace.insert_state(prev_time, prev_u);
+        prev_u = next_u;
+        prev_time = time;
+    }
+
+    u_trace.insert_state(prev_time, prev_u);
+    u_trace
 }
 
-fn fw_fold<S, F>(inner_trace: Trace<S>, maybe_bounds: Option<(f64, f64)>, initial: S, f: F) -> Trace<S>
+fn fw_op_bounded<T, F1, F2, U>(trace: Trace<T>, bounds: TimeBounds, initialize: F1, combine: F2) -> Trace<U>
 where
-    S: Clone,
-    F: Fn(S, S) -> S,
+    F1: Fn() -> U,
+    F2: Fn(U, &T) -> U,
 {
-    let fold_subtrace = |subtrace: Trace<&S>| {
-        subtrace
+    let eval_subtrace = |time: f64| -> (f64, U) {
+        let time_range = (time + bounds.0)..=(time + bounds.1);
+        let subtrace = trace.range(time_range);
+        let initial = initialize();
+        let result = subtrace
             .into_iter()
-            .map(|(_, rob)| rob.clone())
-            .fold(initial.clone(), |acc, rob| f(acc, rob))
+            .rev()
+            .fold(initial, |acc, (_, metric)| combine(acc, metric));
+
+        (time, result)
     };
 
-    fw_op(inner_trace, maybe_bounds, fold_subtrace)
+    trace.times().map(eval_subtrace).collect()
 }
 
 /// Temporal operator that requires its subformula to always hold
@@ -109,41 +123,63 @@ where
 #[derive(Clone, Debug)]
 pub struct Always<F> {
     subformula: F,
-    bounds: Option<TimeBounds>,
 }
 
 impl<F> Always<F> {
-    pub fn unbounded(subformula: F) -> Self {
-        Self {
-            subformula,
-            bounds: None,
-        }
+    pub fn new(subformula: F) -> Self {
+        Self { subformula }
     }
+}
 
-    pub fn bounded<Lower, Upper>(subformula: F, (lower, upper): (Lower, Upper)) -> Self
+impl<State, F, M> Formula<State> for Always<F>
+where
+    F: Formula<State, Metric = M>,
+    M: Top + for<'a> Meet<&'a M>,
+{
+    type Metric = M;
+    type Error = F::Error;
+
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        let subformula_trace = self.subformula.evaluate_trace(trace)?;
+        let meet = |left: M, right: &M| left.meet(right);
+        let evaluated_trace = fw_op_unbounded(subformula_trace, M::top(), meet);
+
+        Ok(evaluated_trace)
+    }
+}
+
+pub struct BoundedAlways<F> {
+    bounds: TimeBounds,
+    subformula: F,
+}
+
+impl<F> BoundedAlways<F> {
+    pub fn new<Lower, Upper>(lower: Lower, upper: Upper, subformula: F) -> Self
     where
         Lower: Into<f64>,
         Upper: Into<f64>,
     {
         Self {
+            bounds: (lower.into(), upper.into()),
             subformula,
-            bounds: Some((lower.into(), upper.into())),
         }
     }
 }
 
-impl<State, F, Metric> Formula<State> for Always<F>
+impl<State, F, M> Formula<State> for BoundedAlways<F>
 where
-    F: Formula<State, Metric = Metric>,
-    Metric: Top + for<'a> Meet<&'a Metric>,
+    F: Formula<State, Metric = M>,
+    M: Top + for<'a> Meet<&'a M>,
 {
-    type Metric = Metric;
+    type Metric = M;
     type Error = F::Error;
 
     fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        self.subformula
-            .evaluate_trace(trace)
-            .map(|trace| fw_fold(trace, self.bounds, Metric::top(), Metric::meet))
+        let subformula_trace = self.subformula.evaluate_trace(trace)?;
+        let meet = |left: M, right: &M| left.meet(right);
+        let evaluated_trace = fw_op_bounded(subformula_trace, self.bounds, M::top, meet);
+
+        Ok(evaluated_trace)
     }
 }
 
@@ -178,41 +214,63 @@ where
 #[derive(Clone, Debug)]
 pub struct Eventually<F> {
     subformula: F,
-    bounds: Option<TimeBounds>,
 }
 
 impl<F> Eventually<F> {
-    pub fn unbounded(subformula: F) -> Self {
-        Self {
-            subformula,
-            bounds: None,
-        }
+    pub fn new(subformula: F) -> Self {
+        Self { subformula }
     }
+}
 
-    pub fn bounded<Lower, Upper>(subformula: F, (lower, upper): (Lower, Upper)) -> Self
+impl<State, F, M> Formula<State> for Eventually<F>
+where
+    F: Formula<State, Metric = M>,
+    M: Bottom + for<'a> Join<&'a M>,
+{
+    type Metric = M;
+    type Error = F::Error;
+
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        let subformula_trace = self.subformula.evaluate_trace(trace)?;
+        let join = |left: M, right: &M| left.join(right);
+        let evaluated_trace = fw_op_unbounded(subformula_trace, M::bottom(), join);
+
+        Ok(evaluated_trace)
+    }
+}
+
+pub struct BoundedEventually<F> {
+    subformula: F,
+    bounds: TimeBounds,
+}
+
+impl<F> BoundedEventually<F> {
+    pub fn new<Lower, Upper>(subformula: F, lower: Lower, upper: Upper) -> Self
     where
         Lower: Into<f64>,
         Upper: Into<f64>,
     {
         Self {
             subformula,
-            bounds: Some((lower.into(), upper.into())),
+            bounds: (lower.into(), upper.into()),
         }
     }
 }
 
-impl<State, F, Metric> Formula<State> for Eventually<F>
+impl<State, F, M> Formula<State> for BoundedEventually<F>
 where
-    F: Formula<State, Metric = Metric>,
-    Metric: Bottom + for<'a> Join<&'a Metric>,
+    F: Formula<State, Metric = M>,
+    M: Bottom + for<'a> Join<&'a M>,
 {
-    type Metric = Metric;
+    type Metric = M;
     type Error = F::Error;
 
     fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        self.subformula
-            .evaluate_trace(trace)
-            .map(|trace| fw_fold(trace, self.bounds, Metric::bottom(), Metric::join))
+        let subformula_trace = self.subformula.evaluate_trace(trace)?;
+        let join = |left: M, right: &M| left.join(right);
+        let evaluated_trace = fw_op_bounded(subformula_trace, self.bounds, M::bottom, join);
+
+        Ok(evaluated_trace)
     }
 }
 
@@ -254,33 +312,24 @@ impl<F> Next<F> {
     }
 }
 
-fn fw_next_map<A, B, F>(trace: Trace<A>, f: F) -> Trace<B>
+fn next_op<T, F, U>(trace: Trace<T>, f: F) -> Trace<U>
 where
-    F: Fn(A, Option<&A>) -> B,
+    F: Fn(&T, T) -> U,
+    U: Bottom,
 {
-    let mut iter = trace.into_iter().peekable();
-    let mut mapped_trace = Trace::default();
+    let mut iter = trace.into_iter().rev();
+    let mut trace = Trace::default();
 
-    while let Some((time, value)) = iter.next() {
-        let maybe_next = iter.peek().map(|(_, next_value)| next_value);
-        let mapped_value = f(value, maybe_next);
+    if let Some((time, mut metric)) = iter.next() {
+        trace.insert_state(time, U::bottom());
 
-        mapped_trace.insert_state(time, mapped_value);
+        while let Some((prev_time, prev_metric)) = iter.next() {
+            trace.insert_state(prev_time, f(&prev_metric, metric));
+            metric = prev_metric;
+        }
     }
 
-    mapped_trace
-}
-
-fn fw_next<A>(trace: Trace<A>, default: A) -> Trace<A>
-where
-    A: Clone,
-{
-    let f = move |_, next_value: Option<&A>| match next_value {
-        Some(value) => value.clone(),
-        None => default.clone(),
-    };
-
-    fw_next_map(trace, f)
+    trace
 }
 
 impl<State, F, Metric> Formula<State> for Next<F>
@@ -293,14 +342,14 @@ where
 
     fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         self.subformula
-            .evaluate_states(trace)
-            .map(|inner_trace| fw_next(inner_trace, Metric::bottom()))
+            .evaluate_trace(trace)
+            .map(|inner_trace| next_op(inner_trace, |_, metric| metric))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Always, Eventually, Next};
+    use super::{Always, BoundedAlways, BoundedEventually, Eventually, Next};
     use crate::operators::testing::{Const, ConstError};
     use crate::trace::Trace;
     use crate::Formula;
@@ -308,7 +357,7 @@ mod tests {
     #[test]
     fn always_unbounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Always::new_unbounded(Const::from(inner));
+        let formula = Always::new(Const::from(inner));
 
         let input = Trace::default();
         let robustness = formula.evaluate_states(&input)?;
@@ -321,7 +370,7 @@ mod tests {
     #[test]
     fn always_bounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Always::new_bounded(Const::from(inner), (0, 2));
+        let formula = BoundedAlways::new(Const::from(inner), 0, 2);
 
         let input = Trace::default();
         let robustness = formula.evaluate_states(&input)?;
@@ -334,7 +383,7 @@ mod tests {
     #[test]
     fn eventually_unbounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Eventually::new_unbounded(Const::from(inner));
+        let formula = Eventually::new(Const::from(inner));
 
         let input = Trace::default();
         let robustness = formula.evaluate_states(&input)?;
@@ -347,7 +396,7 @@ mod tests {
     #[test]
     fn eventually_bounded_robustness() -> Result<(), ConstError> {
         let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
-        let formula = Eventually::new_bounded(Const::from(inner), (0, 2));
+        let formula = BoundedEventually::new(Const::from(inner), 0, 2);
 
         let input = Trace::default();
         let robustness = formula.evaluate_states(&input)?;
