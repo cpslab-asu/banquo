@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::str::FromStr;
 
 use nom::bytes::complete::tag;
@@ -7,33 +8,33 @@ use nom::sequence::{delimited, pair};
 use nom::IResult;
 
 use super::errors::ParsedFormulaError;
+use crate::formulas::Formula;
 use crate::trace::Trace;
-use crate::Formula;
 
 pub struct FormulaWrapper<F> {
     inner: F,
 }
 
 impl<F> FormulaWrapper<F> {
-    pub fn wrap<Cost>(formula: F) -> Self
+    pub fn wrap<State>(formula: F) -> Self
     where
-        F: Formula<Cost>,
+        F: Formula<State>,
     {
         Self { inner: formula }
     }
 }
 
-impl<Cost, F> Formula<Cost> for FormulaWrapper<F>
+impl<State, F, E> Formula<State> for FormulaWrapper<F>
 where
-    F: Formula<Cost>,
-    F::Error: 'static,
+    F: Formula<State, Error = E>,
+    E: Error + 'static,
 {
-    type State = F::State;
+    type Metric = F::Metric;
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<Cost>, Self::Error> {
-        self.inner.evaluate_states(trace).map_err(ParsedFormulaError::from_err)
+    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        self.inner.evaluate_trace(trace).map_err(ParsedFormulaError::from_err)
     }
 }
 
