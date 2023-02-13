@@ -21,29 +21,11 @@
 ///
 /// All forward operators fold the sub-trace for each time into a single value, which becomes the
 /// new state for that time.
-use super::binary::{Join, Meet};
 use crate::formulas::Formula;
+use crate::metric::{Bottom, Join, Meet, Top};
 use crate::trace::Trace;
 
 pub type TimeBounds = (f64, f64);
-
-/// Trait representing a type with a least value
-///
-/// When combined with the [Join] trait, this element should serve as the identity for the operator.
-/// In other words, for any value x: join(x, bottom) = x. This value is sometimes referred to as
-/// the zero element.
-pub trait Bottom {
-    fn bottom() -> Self;
-}
-
-/// Trait representing a type with a greatest value
-///
-/// When combined with the [Meet] trait, this element should serve as the identity for the
-/// operator. In other words, for any value x: meet(x, top) = x. This value is sometimes referred
-/// to as the one element.
-pub trait Top {
-    fn top() -> Self;
-}
 
 fn fw_op_unbounded<T, U, F>(trace: Trace<T>, initial: U, combine: F) -> Trace<U>
 where
