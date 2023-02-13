@@ -1,5 +1,7 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::error::Error;
+use std::hash::Hash;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -13,18 +15,19 @@ use super::common::{op0, pos_num, var_name, FormulaWrapper};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate, Term};
+use crate::formulas::Formula;
 use crate::trace::Trace;
-use crate::Formula;
 
-pub struct ParsedFormula<'a, Cost> {
-    inner: Box<dyn Formula<Cost, State = HashMap<String, f64>, Error = ParsedFormulaError> + 'a>,
+pub struct ParsedFormula<K> {
+    inner: Box<dyn Formula<HashMap<K, f64>, Metric = f64, Error = ParsedFormulaError>>,
 }
 
-impl<'a, Cost> ParsedFormula<'a, Cost> {
-    pub fn new<F>(formula: F) -> Self
+impl<K> ParsedFormula<K> {
+    pub fn new<F, E>(formula: F) -> Self
     where
-        F: Formula<Cost, State = HashMap<String, f64>> + 'a,
-        F::Error: 'static,
+        F: Formula<HashMap<K, f64>, Metric = f64, Error = E>,
+        K: Eq + Hash + Borrow<str>,
+        E: Error + 'static,
     {
         Self {
             inner: Box::new(FormulaWrapper::wrap(formula)),
@@ -32,13 +35,16 @@ impl<'a, Cost> ParsedFormula<'a, Cost> {
     }
 }
 
-impl<'a, Cost> Formula<Cost> for ParsedFormula<'a, Cost> {
-    type State = HashMap<String, f64>;
+impl<K> Formula<HashMap<K, f64>> for ParsedFormula<K>
+where
+    K: Eq + Hash + Borrow<str>,
+{
+    type Metric = f64;
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn evaluate_states(&self, trace: &Trace<Self::State>) -> Result<Trace<Cost>, Self::Error> {
-        self.inner.evaluate_states(trace)
+    fn evaluate_trace(&self, trace: &Trace<HashMap<K, f64>>) -> Result<Trace<Self::Metric>, Self::Error> {
+        self.inner.evaluate_trace(trace)
     }
 }
 
@@ -93,14 +99,20 @@ fn predicate(input: &str) -> IResult<&str, Predicate> {
     Ok((rest, predicate))
 }
 
-fn subformula(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn subformula<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let inner = delimited(space0, formula, space0);
     let mut parser = delimited(tag("("), inner, tag(")"));
 
     parser(input)
 }
 
-fn left_operand(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn left_operand<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let p1 = terminated(map(predicate, ParsedFormula::new), space1);
     let p2 = terminated(subformula, space0);
     let mut parser = alt((p1, p2));
@@ -108,7 +120,10 @@ fn left_operand(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     parser(input)
 }
 
-fn right_operand(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn right_operand<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let p1 = preceded(space1, map(predicate, ParsedFormula::new));
     let p2 = preceded(space0, subformula);
     let mut parser = alt((p1, p2));
@@ -116,63 +131,90 @@ fn right_operand(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     parser(input)
 }
 
-fn not(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn not<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = operators::not(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn and(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn and<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = operators::and(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn or(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn or<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = operators::or(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn implies(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn implies<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = operators::implies(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn next(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn next<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = operators::next(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn always(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn always<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = operators::always(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn eventually(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn eventually<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = operators::eventually(right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn until(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn until<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = operators::until(left_operand, right_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
-fn formula(input: &str) -> IResult<&str, ParsedFormula<f64>> {
+fn formula<K>(input: &str) -> IResult<&str, ParsedFormula<K>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let mut parser = alt((
         next,
         always,
@@ -189,7 +231,10 @@ fn formula(input: &str) -> IResult<&str, ParsedFormula<f64>> {
     parser(input)
 }
 
-pub fn parse_formula<'a>(input: &'a str) -> Result<ParsedFormula<f64>, Box<dyn Error + 'a>> {
+pub fn parse_formula<'a, K>(input: &'a str) -> Result<ParsedFormula<K>, Box<dyn Error + 'a>>
+where
+    K: Eq + Hash + Borrow<str>,
+{
     let (rest, parsed) = formula(input)?;
 
     if !rest.is_empty() {
