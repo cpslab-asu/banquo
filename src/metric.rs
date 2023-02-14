@@ -12,7 +12,8 @@ pub struct StateDistance {
     pub continuous: f64,
 }
 
-pub type HybridDistance = Option<StateDistance>;
+#[repr(transparent)]
+pub struct HybridDistance(Option<StateDistance>);
 
 /// Trait representing the binary operator that computes the greatest lower bound of two values.
 ///
@@ -74,7 +75,7 @@ impl Meet for StateDistance {
 /// for HybridDistance, both values must be Some in order to compute a distance that is not None.
 impl Meet for HybridDistance {
     fn meet(self, other: Self) -> Self {
-        self.zip(other).map(|(d1, d2)| d1.meet(d2))
+        HybridDistance(self.0.zip(other.0).map(|(d1, d2)| d1.meet(d2)))
     }
 }
 
@@ -138,12 +139,14 @@ impl Join for StateDistance {
 /// for HybridDistance, a None value is only returned if both of the values are None.
 impl Join for HybridDistance {
     fn join(self, other: Self) -> Self {
-        match (self, other) {
-            (Some(d1), Some(d2)) => todo!(),
+        let inner = match (self.0, other.0) {
+            (Some(d1), Some(d2)) => Some(d1.join(d2)),
             (None, Some(right)) => Some(right),
             (Some(left), None) => Some(left),
             (None, None) => None,
-        }
+        };
+
+        HybridDistance(inner)
     }
 }
 
@@ -164,7 +167,7 @@ impl Bottom for f64 {
 
 impl Bottom for HybridDistance {
     fn bottom() -> Self {
-        None
+        HybridDistance(None)
     }
 }
 
@@ -190,6 +193,6 @@ impl Top for HybridDistance {
             continuous: f64::INFINITY,
         };
 
-        Some(distance)
+        HybridDistance(Some(distance))
     }
 }
