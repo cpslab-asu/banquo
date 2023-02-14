@@ -1,10 +1,8 @@
-use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
-use super::polynomial::VariableMap;
+use super::polynomial::VarMap;
 use super::predicate::{Predicate, PredicateError};
 use crate::automaton::{Automaton, Path};
 use crate::formulas::{Formula, HybridDistance, PathGuardDistance};
@@ -64,7 +62,7 @@ type PredicateResult<T> = Result<T, PredicateError>;
 
 fn state_distance<V>(predicate: &Option<Predicate>, state: &V) -> PredicateResult<HybridDistance>
 where
-    V: VariableMap,
+    V: VarMap,
 {
     let distance = match predicate {
         Some(predicate) => predicate.evaluate_state(state)?,
@@ -77,7 +75,7 @@ where
 fn min_guard_dist<'a, P, V>(mut paths: P, init: Path<'a>, state: &V) -> PredicateResult<HybridDistance>
 where
     P: Iterator<Item = Path<'a>>,
-    V: VariableMap,
+    V: VarMap,
 {
     let mut min_dist = PathGuardDistance {
         path_distance: init.states,
@@ -105,7 +103,7 @@ where
 fn guard_distance<'a, P, V>(mut paths: P, state: &V) -> PredicateResult<HybridDistance>
 where
     P: Iterator<Item = Path<'a>>,
-    V: VariableMap,
+    V: VarMap,
 {
     paths
         .next()
@@ -113,24 +111,29 @@ where
         .unwrap_or(Ok(HybridDistance::Infinite))
 }
 
-impl<'a, V, L> Formula<(V, L)> for HybridPredicate<'a, L>
+pub struct HybridState<S, L> {
+    state: S,
+    location: L,
+}
+
+impl<'a, S, L> Formula<HybridState<S, L>> for HybridPredicate<'a, L>
 where
-    V: VariableMap,
+    S: VarMap,
     L: Copy + Hash + Ord,
 {
     type Metric = HybridDistance;
     type Error = HybridPredicateError;
 
-    fn evaluate_trace(&self, trace: &Trace<(V, L)>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let evaluate_time_state = |(time, (state, location)): (f64, &(V, L))| {
-            let distance = if location == &self.location {
+    fn evaluate_trace(&self, trace: &Trace<HybridState<S, L>>) -> Result<Trace<Self::Metric>, Self::Error> {
+        let evaluate_time_state = |(time, state): (f64, &HybridState<S, L>)| {
+            let distance = if &state.location == &self.location {
                 state_distance(&self.predicate, state).map_err(|inner| HybridPredicateError {
                     inner,
                     time,
                     kind: ErrorKind::PredicateError,
                 })
             } else {
-                guard_distance(self.automaton.paths(*location, self.location), state).map_err(|inner| {
+                guard_distance(self.automaton.paths(*state.location, self.location), state).map_err(|inner| {
                     HybridPredicateError {
                         inner,
                         time,

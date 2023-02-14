@@ -1,10 +1,7 @@
-use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::hash::Hash;
 
-use super::polynomial::{Polynomial, SumError, Term, VariableMap};
+use super::polynomial::{Polynomial, SumError, Term, VarMap};
 use crate::formulas::Formula;
 use crate::trace::Trace;
 
@@ -96,7 +93,7 @@ impl Display for Predicate {
 impl Predicate {
     pub fn evaluate_state<V>(&self, state: &V) -> Result<f64, PredicateError>
     where
-        V: VariableMap,
+        V: VarMap,
     {
         let right = self.right.sum(state).map_err(PredicateError::left)?;
         let left = self.left.sum(state).map_err(PredicateError::right)?;
@@ -107,7 +104,7 @@ impl Predicate {
 
 impl<V> Formula<V> for Predicate
 where
-    V: VariableMap,
+    V: VarMap,
 {
     type Metric = f64;
     type Error = TimedPredicateError;
