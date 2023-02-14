@@ -220,16 +220,34 @@ impl SumError {
     }
 }
 
+pub trait VariableMap {
+    fn get_variable(&self, name: &str) -> Option<f64>;
+}
+
+impl VariableMap for HashMap<String, f64> {
+    #[inline]
+    fn get_variable(&self, name: &str) -> Option<f64> {
+        self.get(name).copied()
+    }
+}
+
+impl VariableMap for HashMap<&str, f64> {
+    #[inline]
+    fn get_variable(&self, name: &str) -> Option<f64> {
+        self.get(name).copied()
+    }
+}
+
 impl Polynomial {
-    pub fn sum<K>(&self, var_map: &HashMap<K, f64>) -> Result<f64, SumError>
+    pub fn sum<V>(&self, var_map: &V) -> Result<f64, SumError>
     where
-        K: Eq + Hash + Borrow<str>,
+        V: VariableMap,
     {
         let mut sum_result = self.constant;
 
         for (var_name, &coefficient) in &self.terms {
             let var_value = var_map
-                .get(var_name.as_str())
+                .get_variable(var_name.as_str())
                 .ok_or_else(|| SumError::missing(var_name))?;
 
             if var_value.is_nan() {
