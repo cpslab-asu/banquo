@@ -1,3 +1,18 @@
+/// Distance from one state to another state
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct StateDistance {
+    pub path_length: usize,
+    pub guard_distance: f64,
+}
+
+/// Metric for analyzing hybrid automata
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum HybridDistance {
+    Unreachable,
+    Robustness(f64),
+    StateDistance(StateDistance),
+}
+
 /// Trait representing the binary operator that computes the greatest lower bound of two values.
 ///
 /// In general, this equates to the miniumum of the two values, but this behavior is not guaranteed.
@@ -25,6 +40,12 @@ impl Meet for f64 {
 impl Meet<&Self> for f64 {
     fn meet(self, other: &Self) -> Self {
         self.meet(*other)
+    }
+}
+
+impl Meet for HybridDistance {
+    fn meet(self, other: Self) -> Self {
+        todo!()
     }
 }
 
