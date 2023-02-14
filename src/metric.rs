@@ -1,17 +1,18 @@
-/// Distance from one state to another state
+/// Robustness generalization to support hybrid automata.
+///
+/// Hybrid distance is composed of two distance components. The discrete distance represents how
+/// far away the system is from a target state in terms of edges. The continuous distance has
+/// different meanings depending on the value of the discrete distance. For a discrete distance of
+/// zero, meaning the system is in the target state, the continuous value represents the robustness
+/// as defined for non-hybrid formulas. For non-zero discrete distances, the continuous distance
+/// represents how far the system is from one of the transition [Guard]s.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct StateDistance {
-    pub path_length: usize,
-    pub guard_distance: f64,
+    pub discrete: usize,
+    pub continuous: f64,
 }
 
-/// Metric for analyzing hybrid automata
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub enum HybridDistance {
-    Unreachable,
-    Robustness(f64),
-    StateDistance(StateDistance),
-}
+pub type HybridDistance = Option<StateDistance>;
 
 /// Trait representing the binary operator that computes the greatest lower bound of two values.
 ///
@@ -43,9 +44,37 @@ impl Meet<&Self> for f64 {
     }
 }
 
+/// [Meet] trait implementation for StateDistance by value
+///
+/// This implementation considers larger values of the discrete distance to be lesser. This
+/// behavior originates from the initial description of Hybrid Distance where the discrete distance
+/// is negative to support minimization. Since we use usize to represent the discrete distance,
+/// which cannot be negative, we must take the max instead of the min to replicate the original
+/// behavior. To compare the continuous components, we delegate to the [Meet] implementation for
+/// f64 to compute the minimum.
+impl Meet for StateDistance {
+    fn meet(self, other: Self) -> Self {
+        if self.discrete > other.discrete {
+            self
+        } else if self.discrete < other.discrete {
+            other
+        } else {
+            StateDistance {
+                discrete: self.discrete,
+                continuous: self.continuous.meet(other.continuous),
+            }
+        }
+    }
+}
+
+/// [Meet] trait implementation for HybridDistance by values
+///
+/// In the original description of the HybridDistance metric an unreachable state is represented
+/// by the tuple (-inf, -inf) which we emulate using None. Since None represents the [Bottom] value
+/// for HybridDistance, both values must be Some in order to compute a distance that is not None.
 impl Meet for HybridDistance {
     fn meet(self, other: Self) -> Self {
-        todo!()
+        self.zip(other).map(|(d1, d2)| d1.meet(d2))
     }
 }
 
@@ -79,6 +108,45 @@ impl Join<&Self> for f64 {
     }
 }
 
+/// [Join] trait implementation for StateDistance by value
+///
+/// This implementation considers smaller values of the discrete distance to be greater. This
+/// behavior originates from the initial description of Hybrid Distance where the discrete distance
+/// is negative to support minimization. Since we use usize to represent the discrete distance,
+/// which cannot be negative, we must take the max instead of the min to replicate the original
+/// behavior. To compare the continuous components, we delegate to the [Join] implementation for
+/// f64 to compute the maximum.
+impl Join for StateDistance {
+    fn join(self, other: Self) -> Self {
+        if self.discrete < other.discrete {
+            self
+        } else if self.discrete > other.discrete {
+            other
+        } else {
+            StateDistance {
+                discrete: self.discrete,
+                continuous: self.continuous.join(other.continuous),
+            }
+        }
+    }
+}
+
+/// [Join] trait implementation for HybridDistance by values
+///
+/// In the original description of the HybridDistance metric an unreachable state is represented
+/// by the tuple (-inf, -inf) which we emulate using None. Since None represents the [Bottom] value
+/// for HybridDistance, a None value is only returned if both of the values are None.
+impl Join for HybridDistance {
+    fn join(self, other: Self) -> Self {
+        match (self, other) {
+            (Some(d1), Some(d2)) => todo!(),
+            (None, Some(right)) => Some(right),
+            (Some(left), None) => Some(left),
+            (None, None) => None,
+        }
+    }
+}
+
 /// Trait representing a type with a least value
 ///
 /// When combined with the [Join] trait, this element should serve as the identity for the operator.
@@ -94,6 +162,12 @@ impl Bottom for f64 {
     }
 }
 
+impl Bottom for HybridDistance {
+    fn bottom() -> Self {
+        None
+    }
+}
+
 /// Trait representing a type with a greatest value
 ///
 /// When combined with the [Meet] trait, this element should serve as the identity for the
@@ -106,5 +180,16 @@ pub trait Top {
 impl Top for f64 {
     fn top() -> Self {
         f64::INFINITY
+    }
+}
+
+impl Top for HybridDistance {
+    fn top() -> Self {
+        let distance = StateDistance {
+            discrete: 0,
+            continuous: f64::INFINITY,
+        };
+
+        Some(distance)
     }
 }
