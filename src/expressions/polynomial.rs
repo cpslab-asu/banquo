@@ -220,28 +220,34 @@ impl SumError {
     }
 }
 
-pub trait VariableMap {
-    fn get_variable(&self, name: &str) -> Option<f64>;
-}
+mod sealed {
+    use std::borrow::Borrow;
+    use std::collections::HashMap;
+    use std::hash::Hash;
 
-impl VariableMap for HashMap<String, f64> {
-    #[inline]
-    fn get_variable(&self, name: &str) -> Option<f64> {
-        self.get(name).copied()
+    pub trait VarMapSealed {
+        fn get_variable(&self, name: &str) -> Option<f64>;
+    }
+
+    impl<K> VarMapSealed for HashMap<K, f64>
+    where
+        K: Eq + Hash + Borrow<str>,
+    {
+        fn get_variable(&self, name: &str) -> Option<f64> {
+            self.get(name).copied()
+        }
     }
 }
 
-impl VariableMap for HashMap<&str, f64> {
-    #[inline]
-    fn get_variable(&self, name: &str) -> Option<f64> {
-        self.get(name).copied()
-    }
-}
+/// A trait to describe types that contain variable values indexed by name
+pub trait VarMap: sealed::VarMapSealed {}
+
+impl<K> VarMap for HashMap<K, f64> where K: Eq + Hash + Borrow<str> {}
 
 impl Polynomial {
     pub fn sum<V>(&self, var_map: &V) -> Result<f64, SumError>
     where
-        V: VariableMap,
+        V: VarMap,
     {
         let mut sum_result = self.constant;
 
