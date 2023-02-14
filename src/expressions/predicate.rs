@@ -4,7 +4,7 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
-use super::polynomial::{Polynomial, SumError, Term};
+use super::polynomial::{Polynomial, SumError, Term, VariableMap};
 use crate::formulas::Formula;
 use crate::trace::Trace;
 
@@ -94,9 +94,9 @@ impl Display for Predicate {
 }
 
 impl Predicate {
-    pub fn evaluate_state<K>(&self, state: &HashMap<K, f64>) -> Result<f64, PredicateError>
+    pub fn evaluate_state<V>(&self, state: &V) -> Result<f64, PredicateError>
     where
-        K: Eq + Hash + Borrow<str>,
+        V: VariableMap,
     {
         let right = self.right.sum(state).map_err(PredicateError::left)?;
         let left = self.left.sum(state).map_err(PredicateError::right)?;
@@ -105,14 +105,14 @@ impl Predicate {
     }
 }
 
-impl<K> Formula<HashMap<K, f64>> for Predicate
+impl<V> Formula<V> for Predicate
 where
-    K: Eq + Hash + Borrow<str>,
+    V: VariableMap,
 {
     type Metric = f64;
     type Error = TimedPredicateError;
 
-    fn evaluate_trace(&self, trace: &Trace<HashMap<K, f64>>) -> Result<Trace<Self::Metric>, Self::Error> {
+    fn evaluate_trace(&self, trace: &Trace<V>) -> Result<Trace<Self::Metric>, Self::Error> {
         let eval_timed_state = |(time, state)| -> Result<(f64, f64), TimedPredicateError> {
             self.evaluate_state(state)
                 .map(|robustness| (time, robustness))
