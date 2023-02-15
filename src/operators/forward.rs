@@ -105,11 +105,34 @@ where
 #[derive(Clone, Debug)]
 pub struct Always<F> {
     subformula: F,
+    bounds: Option<TimeBounds>,
 }
 
 impl<F> Always<F> {
-    pub fn new(subformula: F) -> Self {
-        Self { subformula }
+    /// Create an unbounded always formula
+    ///
+    /// An unbounded formula analyzes to the end of the trace for each time step in the trace
+    /// produced by the subformula.
+    pub fn unbounded(formula: F) -> Self {
+        Self {
+            subformula: formula,
+            bounds: None,
+        }
+    }
+
+    /// Create a bounded always formula
+    ///
+    /// A bounded formula analyzes from the time + lower bound to time + upper bound for each time
+    /// step in the trace produced by the subformula.
+    pub fn bounded<Lower, Upper>(lower: Lower, upper: Upper, formula: F) -> Self
+    where
+        Lower: Into<f64>,
+        Upper: Into<f64>,
+    {
+        Self {
+            subformula: formula,
+            bounds: Some((lower.into(), upper.into())),
+        }
     }
 }
 
@@ -124,42 +147,10 @@ where
     fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         let subformula_trace = self.subformula.evaluate_trace(trace)?;
         let meet = |left: M, right: &M| left.meet(right);
-        let evaluated_trace = fw_op_unbounded(subformula_trace, M::top(), meet);
-
-        Ok(evaluated_trace)
-    }
-}
-
-pub struct BoundedAlways<F> {
-    bounds: TimeBounds,
-    subformula: F,
-}
-
-impl<F> BoundedAlways<F> {
-    pub fn new<Lower, Upper>(lower: Lower, upper: Upper, subformula: F) -> Self
-    where
-        Lower: Into<f64>,
-        Upper: Into<f64>,
-    {
-        Self {
-            bounds: (lower.into(), upper.into()),
-            subformula,
-        }
-    }
-}
-
-impl<State, F, M> Formula<State> for BoundedAlways<F>
-where
-    F: Formula<State, Metric = M>,
-    M: Top + for<'a> Meet<&'a M>,
-{
-    type Metric = M;
-    type Error = F::Error;
-
-    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let subformula_trace = self.subformula.evaluate_trace(trace)?;
-        let meet = |left: M, right: &M| left.meet(right);
-        let evaluated_trace = fw_op_bounded(subformula_trace, self.bounds, M::top, meet);
+        let evaluated_trace = match self.bounds {
+            None => fw_op_unbounded(subformula_trace, M::top(), meet),
+            Some(bounds) => fw_op_bounded(subformula_trace, bounds, M::top, meet),
+        };
 
         Ok(evaluated_trace)
     }
@@ -196,11 +187,34 @@ where
 #[derive(Clone, Debug)]
 pub struct Eventually<F> {
     subformula: F,
+    bounds: Option<TimeBounds>,
 }
 
 impl<F> Eventually<F> {
-    pub fn new(subformula: F) -> Self {
-        Self { subformula }
+    /// Create an unbounded eventually formula
+    ///
+    /// An unbounded formula analyzes to the end of the trace for each time step in the trace
+    /// produced by the subformula.
+    pub fn unbounded(formula: F) -> Self {
+        Self {
+            subformula: formula,
+            bounds: None,
+        }
+    }
+
+    /// Create a bounded eventually formula
+    ///
+    /// A bounded formula analyzes from the time + lower bound to time + upper bound for each time
+    /// step in the trace produced by the subformula.
+    pub fn bounded<Lower, Upper>(lower: Lower, upper: Upper, formula: F) -> Self
+    where
+        Lower: Into<f64>,
+        Upper: Into<f64>,
+    {
+        Self {
+            subformula: formula,
+            bounds: Some((lower.into(), upper.into())),
+        }
     }
 }
 
@@ -215,42 +229,10 @@ where
     fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         let subformula_trace = self.subformula.evaluate_trace(trace)?;
         let join = |left: M, right: &M| left.join(right);
-        let evaluated_trace = fw_op_unbounded(subformula_trace, M::bottom(), join);
-
-        Ok(evaluated_trace)
-    }
-}
-
-pub struct BoundedEventually<F> {
-    subformula: F,
-    bounds: TimeBounds,
-}
-
-impl<F> BoundedEventually<F> {
-    pub fn new<Lower, Upper>(subformula: F, lower: Lower, upper: Upper) -> Self
-    where
-        Lower: Into<f64>,
-        Upper: Into<f64>,
-    {
-        Self {
-            subformula,
-            bounds: (lower.into(), upper.into()),
-        }
-    }
-}
-
-impl<State, F, M> Formula<State> for BoundedEventually<F>
-where
-    F: Formula<State, Metric = M>,
-    M: Bottom + for<'a> Join<&'a M>,
-{
-    type Metric = M;
-    type Error = F::Error;
-
-    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let subformula_trace = self.subformula.evaluate_trace(trace)?;
-        let join = |left: M, right: &M| left.join(right);
-        let evaluated_trace = fw_op_bounded(subformula_trace, self.bounds, M::bottom, join);
+        let evaluated_trace = match self.bounds {
+            None => fw_op_unbounded(subformula_trace, M::bottom(), join),
+            Some(bounds) => fw_op_bounded(subformula_trace, bounds, M::bottom, join),
+        };
 
         Ok(evaluated_trace)
     }
