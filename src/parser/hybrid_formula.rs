@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
 use std::hash::Hash;
@@ -14,19 +15,20 @@ use nom::Parser;
 use super::common::{var_name, FormulaWrapper};
 use super::errors::{IncompleteParseError, MissingPredicateError, ParsedFormulaError};
 use super::operators;
-use crate::expressions::{HybridPredicate, HybridState, VarMap};
+use crate::expressions::{HybridPredicate, HybridState};
 use crate::formulas::Formula;
 use crate::metric::HybridDistance;
 use crate::trace::Trace;
 
-pub struct ParsedFormula<S, L> {
-    formula: Box<dyn Formula<HybridState<S, L>, Metric = HybridDistance, Error = ParsedFormulaError>>,
+pub struct ParsedFormula<'a, L> {
+    formula: Box<dyn Formula<HybridState<L>, Metric = HybridDistance, Error = ParsedFormulaError> + 'a>,
 }
 
-impl<S, L> ParsedFormula<S, L> {
+impl<'a, L> ParsedFormula<'a, L> {
     fn new<F, E>(formula: F) -> Self
     where
-        F: Formula<HybridState<S, L>, Metric = HybridDistance, Error = E>,
+        L: 'a,
+        F: Formula<HybridState<L>, Metric = HybridDistance, Error = E> + 'a,
         E: Error + 'static,
     {
         Self {
@@ -35,19 +37,39 @@ impl<S, L> ParsedFormula<S, L> {
     }
 }
 
-impl<S, L> Formula<HybridState<S, L>> for ParsedFormula<S, L> {
+impl<'a, L> Formula<HybridState<L>> for ParsedFormula<'a, L> {
     type Metric = HybridDistance;
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn evaluate_trace(&self, trace: &Trace<HybridState<S, L>>) -> Result<Trace<HybridDistance>, Self::Error> {
+    fn evaluate_trace(&self, trace: &Trace<HybridState<L>>) -> Result<Trace<HybridDistance>, Self::Error> {
         self.formula.evaluate_trace(trace)
     }
 }
 
-type HybridPredicateMap<'a, L> = HashMap<&'a str, Rc<HybridPredicate<'a, L>>>;
+pub struct PredicateMap<'a, L>(HashMap<Cow<'static, str>, Rc<HybridPredicate<'a, L>>>);
 
-struct PredicateParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+impl<'a, T, L> From<HashMap<T, HybridPredicate<'a, L>>> for PredicateMap<'a, L>
+where
+    T: Into<Cow<'static, str>>,
+{
+    fn from(value: HashMap<T, HybridPredicate<'a, L>>) -> PredicateMap<'a, L> {
+        let predicates = value
+            .into_iter()
+            .map(|(name, predicate)| (name.into(), Rc::new(predicate)))
+            .collect();
+
+        Self(predicates)
+    }
+}
+
+impl<'a, L> PredicateMap<'a, L> {
+    fn get(&self, name: &str) -> Option<Rc<HybridPredicate<'a, L>>> {
+        self.0.get(name).cloned()
+    }
+}
+
+struct PredicateParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
 impl<'a, L> Parser<&'a str, Rc<HybridPredicate<'a, L>>, NomError<&'a str>> for PredicateParser<'a, L> {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, Rc<HybridPredicate<'a, L>>> {
@@ -63,14 +85,13 @@ impl<'a, L> Parser<&'a str, Rc<HybridPredicate<'a, L>>, NomError<&'a str>> for P
     }
 }
 
-struct SubformulaParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct SubformulaParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for SubformulaParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for SubformulaParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let inner = delimited(space0, HybridFormulaParser(self.0.clone()), space0);
         let mut parser = delimited(tag("("), inner, tag(")"));
 
@@ -78,16 +99,15 @@ where
     }
 }
 
-struct LoperandParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct LoperandParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for LoperandParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for LoperandParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
-        let p1 = terminated(PredicateParser(self.0.clone()), space1);
-        let p2 = terminated(SubformulaParser(self.0.clone()), space0);
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+        let mut p1 = terminated(PredicateParser(self.0.clone()), space1);
+        let mut p2 = terminated(SubformulaParser(self.0.clone()), space0);
 
         match p1.parse(input) {
             Ok((rest, predicate)) => Ok((rest, ParsedFormula::new(predicate))),
@@ -96,16 +116,15 @@ where
     }
 }
 
-struct RoperandParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct RoperandParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for RoperandParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for RoperandParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>, NomError<&'a str>> {
-        let p1 = preceded(space1, PredicateParser(self.0.clone()));
-        let p2 = preceded(space0, SubformulaParser(self.0.clone()));
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+        let mut p1 = preceded(space1, PredicateParser(self.0.clone()));
+        let mut p2 = preceded(space0, SubformulaParser(self.0.clone()));
 
         match p1.parse(input) {
             Ok((rest, predicate)) => Ok((rest, ParsedFormula::new(predicate))),
@@ -114,14 +133,13 @@ where
     }
 }
 
-struct NotParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct NotParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for NotParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for NotParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let mut parser = operators::not(RoperandParser(self.0.clone()));
         let (rest, formula) = parser.parse(input)?;
 
@@ -129,14 +147,13 @@ where
     }
 }
 
-struct AndParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct AndParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for AndParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for AndParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let lop_parser = LoperandParser(self.0.clone());
         let rop_parser = RoperandParser(self.0.clone());
 
@@ -147,14 +164,13 @@ where
     }
 }
 
-struct OrParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct OrParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for OrParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for OrParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let lop_parser = LoperandParser(self.0.clone());
         let rop_parser = RoperandParser(self.0.clone());
 
@@ -165,14 +181,13 @@ where
     }
 }
 
-struct ImpliesParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct ImpliesParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for ImpliesParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for ImpliesParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let lop_parser = LoperandParser(self.0.clone());
         let rop_parser = RoperandParser(self.0.clone());
 
@@ -183,14 +198,13 @@ where
     }
 }
 
-struct NextParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct NextParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for NextParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for NextParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let mut parser = operators::next(RoperandParser(self.0.clone()));
         let (rest, formula) = parser.parse(input)?;
 
@@ -198,14 +212,13 @@ where
     }
 }
 
-struct AlwaysParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct AlwaysParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for AlwaysParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for AlwaysParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let mut parser = operators::always(RoperandParser(self.0.clone()));
         let (rest, formula) = parser.parse(input)?;
 
@@ -213,14 +226,13 @@ where
     }
 }
 
-struct EventuallyParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct EventuallyParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for EventuallyParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for EventuallyParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let mut parser = operators::eventually(RoperandParser(self.0.clone()));
         let (rest, formula) = parser.parse(input)?;
 
@@ -228,14 +240,13 @@ where
     }
 }
 
-struct HybridFormulaParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
+struct HybridFormulaParser<'a, L>(Rc<PredicateMap<'a, L>>);
 
-impl<'a, S, L> Parser<&'a str, ParsedFormula<S, L>, NomError<&'a str>> for HybridFormulaParser<'a, L>
+impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for HybridFormulaParser<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    L: Copy + Ord + Hash + 'a,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<S, L>, NomError<&'a str>> {
+    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
         let mut parser = alt((
             NotParser(self.0.clone()),
             NextParser(self.0.clone()),
@@ -252,20 +263,15 @@ where
     }
 }
 
-type ParserResult<'a, S, L> = Result<ParsedFormula<S, L>, Box<dyn Error + 'a>>;
-type Predicates<'a, L> = HashMap<&'a str, HybridPredicate<'a, L>>;
+type ParseResult<'a, L> = Result<ParsedFormula<'a, L>, Box<dyn Error + 'a>>;
 
-pub fn parse_hybrid_formula<'a, S, L>(input: &'a str, predicates: Predicates<'a, L>) -> ParserResult<'a, S, L>
+pub fn parse_hybrid_formula<'a, P, L>(input: &'a str, predicates: P) -> ParseResult<'a, L>
 where
-    S: VarMap,
-    L: Copy + Ord + Hash,
+    P: Into<PredicateMap<'a, L>>,
+    L: Copy + Ord + Hash + 'a,
 {
-    let predicates = predicates
-        .into_iter()
-        .map(|(name, predicate)| (name, Rc::new(predicate)))
-        .collect();
-
-    let mut parser = HybridFormulaParser(Rc::new(predicates));
+    let map = predicates.into();
+    let mut parser = HybridFormulaParser(Rc::new(map));
     let (rest, formula) = parser.parse(input)?;
 
     if !rest.is_empty() {
@@ -285,29 +291,22 @@ mod tests {
 
     use super::{
         AlwaysParser, AndParser, EventuallyParser, ImpliesParser, NextParser, NotParser, OrParser, ParsedFormula,
-        PredicateParser,
+        PredicateMap, PredicateParser,
     };
     use crate::automaton::Automaton;
     use crate::expressions::HybridPredicate;
 
     type VarMap = HashMap<&'static str, f64>;
 
-    fn get_predicates() -> Rc<HashMap<&'static str, Rc<HybridPredicate<'static, i32>>>> {
+    fn get_predicates() -> Rc<PredicateMap<'static, i32>> {
         let automaton = Box::new(Automaton::default());
         let automaton_ref = Box::leak(automaton);
         let predicate = HybridPredicate::new(None, 1, automaton_ref);
 
         let mut predicates = HashMap::with_capacity(1);
-        predicates.insert("p1", Rc::new(predicate));
+        predicates.insert("p1", predicate);
 
-        Rc::new(predicates)
-    }
-
-    fn run_parser<'a, P>(parser: &mut P, formula: &'a str) -> nom::IResult<&'a str, ParsedFormula<VarMap, i32>>
-    where
-        P: Parser<&'a str, ParsedFormula<HashMap<&'a str, f64>, i32>, nom::error::Error<&'a str>>,
-    {
-        parser.parse(formula)
+        Rc::new(predicates.into())
     }
 
     #[test]
@@ -330,119 +329,78 @@ mod tests {
         assert!(result.is_err())
     }
 
+    fn parser_test_case<'a, 'b, P, const N: usize>(mut parser: P, formulas: [&'a str; N]) -> Result<(), Box<dyn Error>>
+    where
+        P: Parser<&'a str, ParsedFormula<'b, i32>, nom::error::Error<&'a str>>,
+    {
+        for formula in formulas {
+            let (rest, _) = parser.parse(formula)?;
+            assert!(rest.is_empty());
+        }
+
+        Ok(())
+    }
+
     #[test]
     fn parse_not() -> Result<(), Box<dyn Error>> {
         let predicates = get_predicates();
-        let mut parser = NotParser(predicates);
+        let parser = NotParser(predicates);
+        let formulas = ["! p1", "not p1", "not (p1)"];
 
-        let (rest, _) = run_parser(&mut parser, "! p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "not p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "not (p1)")?;
-        assert_eq!(rest, "");
-
-        Ok(())
+        parser_test_case(parser, formulas)
     }
 
     #[test]
     fn parse_and() -> Result<(), Box<dyn Error>> {
         let predicates = get_predicates();
-        let mut parser = AndParser(predicates);
+        let parser = AndParser(predicates);
+        let formulas = [r"(p1)/\(p1)", "p1 and p1", r"p1 and (p1 /\ p1)"];
 
-        let (rest, _) = run_parser(&mut parser, r"(p1)/\(p1)")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "p1 and p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, r"p1 and (p1 /\ p1)")?;
-        assert_eq!(rest, "");
-
-        Ok(())
+        parser_test_case(parser, formulas)
     }
 
     #[test]
     fn parse_or() -> Result<(), Box<dyn Error>> {
         let predicates = get_predicates();
-        let mut parser = OrParser(predicates);
+        let parser = OrParser(predicates);
+        let formulas = [r"(p1) \/ (p1)", "p1 or p1", r"(p1 or p1) \/ p1"];
 
-        let (rest, _) = run_parser(&mut parser, r"(p1) \/ (p1)")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "p1 or p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, r"(p1 or p1) \/ p1")?;
-        assert_eq!(rest, "");
-
-        Ok(())
+        parser_test_case(parser, formulas)
     }
 
     #[test]
     fn parse_implies() -> Result<(), Box<dyn Error>> {
         let predicates = get_predicates();
         let mut parser = ImpliesParser(predicates);
+        let formulas = ["(p1) -> (p1)", "p1 implies p1"];
 
-        let (rest, _) = run_parser(&mut parser, "(p1) -> (p1)")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "p1 implies p1")?;
-        assert_eq!(rest, "");
-
-        Ok(())
+        parser_test_case(parser, formulas)
     }
 
     #[test]
     fn parse_next() -> Result<(), Box<dyn Error>> {
         let predicates = get_predicates();
-        let mut parser = NextParser(predicates);
+        let parser = NextParser(predicates);
+        let formulas = ["X p1", "() (p1)", "next (p1)"];
 
-        let (rest, _) = run_parser(&mut parser, "X p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "() (p1)")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "next (p1)")?;
-        assert_eq!(rest, "");
-
-        Ok(())
+        parser_test_case(parser, formulas)
     }
 
     #[test]
     fn parse_always() -> Result<(), Box<dyn Error>> {
         let predicates = get_predicates();
-        let mut parser = AlwaysParser(predicates);
+        let parser = AlwaysParser(predicates);
+        let formulas = ["always p1", "[]{0,10} p1", "G{1,2} (p1)"];
 
-        let (rest, _) = run_parser(&mut parser, "always p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "[]{0,10} p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "G{1,2} (p1)")?;
-        assert_eq!(rest, "");
-
-        Ok(())
+        parser_test_case(parser, formulas)
     }
 
     #[test]
     fn parse_eventually() -> Result<(), Box<dyn Error>> {
         let predicates = get_predicates();
-        let mut parser = EventuallyParser(predicates);
+        let parser = EventuallyParser(predicates);
+        let formulas = ["eventually p1", "<>{0,10} p1", "F{1,2} (p1)"];
 
-        let (rest, _) = run_parser(&mut parser, "eventually p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "<>{0,10} p1")?;
-        assert_eq!(rest, "");
-
-        let (rest, _) = run_parser(&mut parser, "F{1,2} (p1)")?;
-        assert_eq!(rest, "");
-
-        Ok(())
+        parser_test_case(parser, formulas)
     }
 }
