@@ -29,14 +29,14 @@ mod testing {
 
     impl Error for ConstError {}
 
-    impl<T> Formula<T> for Const<T>
+    impl<S, T> Formula<S> for Const<T>
     where
         T: Clone,
     {
-        type State = ();
+        type Metric = T;
         type Error = ConstError;
 
-        fn evaluate_states(&self, _: &Trace<Self::State>) -> Result<Trace<T>, Self::Error> {
+        fn evaluate_trace(&self, _: &Trace<S>) -> Result<Trace<T>, Self::Error> {
             Ok(self.0.clone())
         }
     }
