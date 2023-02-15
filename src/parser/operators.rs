@@ -1,4 +1,3 @@
-use either::Either;
 use nom::branch::{alt, Alt};
 use nom::bytes::complete::tag;
 use nom::combinator::opt;
@@ -6,7 +5,7 @@ use nom::sequence::{preceded, tuple};
 use nom::{IResult, Parser};
 
 use super::common::pos_num;
-use crate::operators::{Always, And, BoundedAlways, BoundedEventually, Eventually, Implies, Next, Not, Or, Until};
+use crate::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
 
 fn unaryop<'a, O, S, T, F, U>(ops: O, mut subparser: S, func: F) -> impl FnMut(&'a str) -> IResult<&'a str, U>
 where
@@ -128,30 +127,28 @@ where
     }
 }
 
-type EitherRes<'a, L, R> = IResult<&'a str, Either<L, R>>;
-
-pub fn always<'a, S, T>(subparser: S) -> impl FnMut(&'a str) -> EitherRes<'a, Always<T>, BoundedAlways<T>>
+pub fn always<'a, S, T>(subparser: S) -> impl FnMut(&'a str) -> IResult<&'a str, Always<T>>
 where
     S: Parser<&'a str, T, nom::error::Error<&'a str>>,
 {
-    let ctor = |subformula, opt_t_bounds| -> Either<Always<T>, BoundedAlways<T>> {
+    let ctor = |subformula, opt_t_bounds| -> Always<T> {
         match opt_t_bounds {
-            Some((lower, upper)) => Either::Right(BoundedAlways::new(lower, upper, subformula)),
-            None => Either::Left(Always::new(subformula)),
+            Some((lower, upper)) => Always::bounded(lower, upper, subformula),
+            None => Always::unbounded(subformula),
         }
     };
 
     boundedop((tag("always"), tag("[]"), tag("G")), subparser, ctor)
 }
 
-pub fn eventually<'a, S, T>(subparser: S) -> impl FnMut(&'a str) -> EitherRes<'a, Eventually<T>, BoundedEventually<T>>
+pub fn eventually<'a, S, T>(subparser: S) -> impl FnMut(&'a str) -> IResult<&'a str, Eventually<T>>
 where
     S: Parser<&'a str, T, nom::error::Error<&'a str>>,
 {
-    let ctor = |subformula, opt_t_bounds| -> Either<Eventually<T>, BoundedEventually<T>> {
+    let ctor = |subformula, opt_t_bounds| -> Eventually<T> {
         match opt_t_bounds {
-            Some((lower, upper)) => Either::Right(BoundedEventually::new(subformula, lower, upper)),
-            None => Either::Left(Eventually::new(subformula)),
+            Some((lower, upper)) => Eventually::bounded(lower, upper, subformula),
+            None => Eventually::unbounded(subformula),
         }
     };
 
