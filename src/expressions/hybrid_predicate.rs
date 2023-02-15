@@ -28,11 +28,7 @@ impl Display for HybridPredicateError {
             ErrorKind::PredicateError => "predicate",
         };
 
-        write!(
-            f,
-            "error {} encountered at time {} while evaluating {}",
-            &self.inner, &self.time, error_source
-        )
+        write!(f, "error {} at time {} from {}", &self.inner, &self.time, error_source)
     }
 }
 
@@ -112,7 +108,7 @@ where
 }
 
 pub struct HybridState<S, L> {
-    state: S,
+    variables: S,
     location: L,
 }
 
@@ -127,13 +123,13 @@ where
     fn evaluate_trace(&self, trace: &Trace<HybridState<S, L>>) -> Result<Trace<Self::Metric>, Self::Error> {
         let evaluate_time_state = |(time, state): (f64, &HybridState<S, L>)| {
             let distance = if &state.location == &self.location {
-                state_distance(&self.predicate, state).map_err(|inner| HybridPredicateError {
+                state_distance(&self.predicate, &state.variables).map_err(|inner| HybridPredicateError {
                     inner,
                     time,
                     kind: ErrorKind::PredicateError,
                 })
             } else {
-                guard_distance(self.automaton.paths(*state.location, self.location), state).map_err(|inner| {
+                guard_distance(self.automaton.paths(state.location, self.location), &state.variables).map_err(|inner| {
                     HybridPredicateError {
                         inner,
                         time,
