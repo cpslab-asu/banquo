@@ -44,5 +44,5 @@ mod testing {
 
 pub use backwards::Until;
 pub use binary::{And, Implies, Or};
-pub use forward::{Always, Eventually, Next};
+pub use forward::{Always, BoundedAlways, BoundedEventually, Eventually, Next};
 pub use unary::Not;
