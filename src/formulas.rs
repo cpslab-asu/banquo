@@ -1,15 +1,8 @@
-mod debug_robustness;
-mod hybrid_distance;
-mod robustness;
-
 use std::error::Error;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::trace::Trace;
-
-pub use debug_robustness::DebugRobustness;
-pub use hybrid_distance::{HybridDistance, PathGuardDistance};
 
 /// Evaluate a trace of states into their associated metric values
 pub trait Formula<State> {
