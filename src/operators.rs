@@ -22,7 +22,7 @@ mod testing {
     pub struct ConstError;
 
     impl Display for ConstError {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        fn fmt(&self, _: &mut Formatter<'_>) -> std::fmt::Result {
             unreachable!("Const cannot return an error")
         }
     }
