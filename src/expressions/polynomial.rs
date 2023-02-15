@@ -82,7 +82,7 @@ impl Display for PolynomialError {
 
 impl Error for PolynomialError {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Polynomial {
     terms: HashMap<String, f64>,
     constant: f64,
@@ -98,15 +98,6 @@ impl Display for Polynomial {
         }
 
         write!(f, "{}", self.constant)
-    }
-}
-
-impl Default for Polynomial {
-    fn default() -> Self {
-        Self {
-            terms: HashMap::default(),
-            constant: f64::default(),
-        }
     }
 }
 
@@ -204,23 +195,23 @@ impl Display for SumError {
 impl Error for SumError {}
 
 impl SumError {
-    fn missing(name: &String) -> Self {
+    fn missing(name: &str) -> Self {
         Self {
-            variable: name.clone(),
+            variable: name.to_owned(),
             kind: SumErrorKind::MissingValue,
         }
     }
 
-    fn nan(name: &String) -> Self {
+    fn nan(name: &str) -> Self {
         Self {
-            variable: name.clone(),
+            variable: name.to_owned(),
             kind: SumErrorKind::NanValue,
         }
     }
 }
 
 #[repr(transparent)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Variables(HashMap<Cow<'static, str>, f64>);
 
 impl Variables {
@@ -237,12 +228,6 @@ impl Variables {
 
     pub fn value(&self, name: &str) -> Option<f64> {
         self.0.get(name).copied()
-    }
-}
-
-impl Default for Variables {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

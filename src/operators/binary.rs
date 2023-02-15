@@ -33,8 +33,8 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::LeftError(err) => write!(f, "left subformula error: {}", err),
-            Self::RightError(err) => write!(f, "right subformula error: {}", err),
+            Self::LeftError(err) => write!(f, "left subformula error: {err}"),
+            Self::RightError(err) => write!(f, "right subformula error: {err}"),
         }
     }
 }

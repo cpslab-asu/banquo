@@ -1,4 +1,4 @@
-use std::ops::Neg;
+use std::{cmp::Ordering, ops::Neg};
 
 /// Robustness generalization to support hybrid automata.
 ///
@@ -122,15 +122,13 @@ impl Meet<&Self> for f64 {
 /// f64 to compute the minimum.
 impl Meet for StateDistance {
     fn meet(self, other: Self) -> Self {
-        if self.discrete > other.discrete {
-            self
-        } else if self.discrete < other.discrete {
-            other
-        } else {
-            StateDistance {
+        match self.discrete.cmp(&other.discrete) {
+            Ordering::Greater => self,
+            Ordering::Less => other,
+            Ordering::Equal => StateDistance {
                 discrete: self.discrete,
                 continuous: self.continuous.meet(other.continuous),
-            }
+            },
         }
     }
 }
@@ -192,15 +190,13 @@ impl Join<&Self> for f64 {
 /// f64 to compute the maximum.
 impl Join for StateDistance {
     fn join(self, other: Self) -> Self {
-        if self.discrete < other.discrete {
-            self
-        } else if self.discrete > other.discrete {
-            other
-        } else {
-            StateDistance {
+        match self.discrete.cmp(&other.discrete) {
+            Ordering::Less => self,
+            Ordering::Greater => other,
+            Ordering::Equal => StateDistance {
                 discrete: self.discrete,
                 continuous: self.continuous.join(other.continuous),
-            }
+            },
         }
     }
 }

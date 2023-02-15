@@ -287,7 +287,7 @@ where
     if let Some((time, mut metric)) = iter.next() {
         trace.insert_state(time, U::bottom());
 
-        while let Some((prev_time, prev_metric)) = iter.next() {
+        for (prev_time, prev_metric) in iter {
             trace.insert_state(prev_time, f(&prev_metric, metric));
             metric = prev_metric;
         }

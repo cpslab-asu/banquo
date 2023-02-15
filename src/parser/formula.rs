@@ -66,7 +66,7 @@ pub fn coeff(input: &str) -> IResult<&str, Term> {
 }
 
 pub fn term(input: &str) -> IResult<&str, Term> {
-    let constant = map(pos_neg_num, |value: f64| Term::constant(value));
+    let constant = map(pos_neg_num, Term::constant);
     let mut parser = alt((coeff, constant));
     let (rest, result) = parser(input)?;
 

@@ -66,7 +66,7 @@ fn state_distance(predicate: &Option<Predicate>, state: &Variables) -> Predicate
     Ok(HybridDistance::from(distance))
 }
 
-fn min_guard_dist<'a, P>(mut paths: P, init: Path<'a>, state: &Variables) -> PredicateResult<HybridDistance>
+fn min_guard_dist<'a, P>(paths: P, init: Path<'a>, state: &Variables) -> PredicateResult<HybridDistance>
 where
     P: Iterator<Item = Path<'a>>,
 {
@@ -75,7 +75,7 @@ where
         continuous: init.first_guard.min_distance(state)?,
     };
 
-    while let Some(path) = paths.next() {
+    for path in paths {
         if path.states > min_dist.discrete {
             continue;
         }
@@ -117,7 +117,7 @@ where
 
     fn evaluate_trace(&self, trace: &Trace<HybridState<L>>) -> Result<Trace<Self::Metric>, Self::Error> {
         let evaluate_time_state = |(time, state): (f64, &HybridState<L>)| {
-            let distance = if &state.location == &self.location {
+            let distance = if state.location == self.location {
                 state_distance(&self.predicate, &state.variables).map_err(|inner| HybridPredicateError {
                     inner,
                     time,
