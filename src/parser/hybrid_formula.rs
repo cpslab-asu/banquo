@@ -47,19 +47,34 @@ impl<'a, L> Formula<HybridState<L>> for ParsedFormula<'a, L> {
     }
 }
 
+mod sealed {
+    use std::borrow::Cow;
+    use std::collections::HashMap;
+
+    use super::HybridPredicate;
+
+    pub trait IntoPredicateMapSealed {}
+
+    impl<'a, T, L> IntoPredicateMapSealed for HashMap<T, HybridPredicate<'a, L>> where T: Into<Cow<'static, str>> {}
+}
+
 pub struct PredicateMap<'a, L>(HashMap<Cow<'static, str>, Rc<HybridPredicate<'a, L>>>);
 
-impl<'a, T, L> From<HashMap<T, HybridPredicate<'a, L>>> for PredicateMap<'a, L>
+pub trait IntoPredicateMap<'a, L>: sealed::IntoPredicateMapSealed {
+    fn into_predicate_map(self) -> PredicateMap<'a, L>;
+}
+
+impl<'a, T, L> IntoPredicateMap<'a, L> for HashMap<T, HybridPredicate<'a, L>>
 where
     T: Into<Cow<'static, str>>,
 {
-    fn from(value: HashMap<T, HybridPredicate<'a, L>>) -> PredicateMap<'a, L> {
-        let predicates = value
+    fn into_predicate_map(self) -> PredicateMap<'a, L> {
+        let predicates = self
             .into_iter()
             .map(|(name, predicate)| (name.into(), Rc::new(predicate)))
             .collect();
 
-        Self(predicates)
+        PredicateMap(predicates)
     }
 }
 
@@ -267,10 +282,10 @@ type ParseResult<'a, L> = Result<ParsedFormula<'a, L>, Box<dyn Error + 'a>>;
 
 pub fn parse_hybrid_formula<'a, P, L>(input: &'a str, predicates: P) -> ParseResult<'a, L>
 where
-    P: Into<PredicateMap<'a, L>>,
+    P: IntoPredicateMap<'a, L>,
     L: Copy + Ord + Hash + 'a,
 {
-    let map = predicates.into();
+    let map = predicates.into_predicate_map();
     let mut parser = HybridFormulaParser(Rc::new(map));
     let (rest, formula) = parser.parse(input)?;
 
@@ -290,8 +305,8 @@ mod tests {
     use nom::Parser;
 
     use super::{
-        AlwaysParser, AndParser, EventuallyParser, ImpliesParser, NextParser, NotParser, OrParser, ParsedFormula,
-        PredicateMap, PredicateParser,
+        AlwaysParser, AndParser, EventuallyParser, ImpliesParser, IntoPredicateMap, NextParser, NotParser, OrParser,
+        ParsedFormula, PredicateMap, PredicateParser,
     };
     use crate::automaton::Automaton;
     use crate::expressions::HybridPredicate;
@@ -306,7 +321,7 @@ mod tests {
         let mut predicates = HashMap::with_capacity(1);
         predicates.insert("p1", predicate);
 
-        Rc::new(predicates.into())
+        Rc::new(predicates.into_predicate_map())
     }
 
     #[test]
