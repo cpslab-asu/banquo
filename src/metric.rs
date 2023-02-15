@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 /// Robustness generalization to support hybrid automata.
 ///
 /// Hybrid distance is composed of two distance components. The discrete distance represents how
@@ -15,6 +17,70 @@ pub struct StateDistance {
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct HybridDistance(Option<StateDistance>);
+
+impl HybridDistance {
+    pub fn unreachable() -> Self {
+        Self(None)
+    }
+}
+
+impl From<f64> for HybridDistance {
+    fn from(value: f64) -> Self {
+        let distance = StateDistance {
+            discrete: 0,
+            continuous: value,
+        };
+
+        Self(Some(distance))
+    }
+}
+
+impl From<(usize, f64)> for HybridDistance {
+    fn from(value: (usize, f64)) -> Self {
+        let distance = StateDistance {
+            discrete: value.0,
+            continuous: value.1,
+        };
+
+        Self(Some(distance))
+    }
+}
+
+impl From<StateDistance> for HybridDistance {
+    fn from(value: StateDistance) -> Self {
+        Self(Some(value))
+    }
+}
+
+impl From<Option<StateDistance>> for HybridDistance {
+    fn from(value: Option<StateDistance>) -> Self {
+        Self(value)
+    }
+}
+
+fn neg_state_dist(state_dist: StateDistance) -> StateDistance {
+    if state_dist.continuous == 0.0 {
+        return state_dist;
+    }
+
+    StateDistance {
+        discrete: state_dist.discrete,
+        continuous: -state_dist.continuous,
+    }
+}
+
+/// Negation operator for HybridDistance
+///
+/// Since the discrete component of the hybrid distance is represented using an unsigned integer
+/// value, this implementation only negates the continuous component, and it is only negated when
+/// the discrete distance is zero (when the continuous component represents robustness).
+impl Neg for HybridDistance {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        HybridDistance(self.0.map(neg_state_dist))
+    }
+}
 
 /// Trait representing the binary operator that computes the greatest lower bound of two values.
 ///
