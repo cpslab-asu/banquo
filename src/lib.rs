@@ -42,7 +42,7 @@ where
     F::Error: 'a,
 {
     let robustness_trace = formula
-        .evaluate_states(trace.as_ref())
+        .evaluate_trace(trace.as_ref())
         .map_err(|err| EvaluationError::FormulaError(Box::new(err)))?;
     let (_, rho) = robustness_trace
         .into_iter()
@@ -58,7 +58,7 @@ where
     F::Error: 'a,
 {
     let distance_trace = formula
-        .evaluate_states(trace.as_ref())
+        .evaluate_trace(trace.as_ref())
         .map_err(|err| EvaluationError::FormulaError(Box::new(err)))?;
     let (_, distance) = distance_trace
         .into_iter()
