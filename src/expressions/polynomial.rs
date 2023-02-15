@@ -1,8 +1,7 @@
-use std::borrow::Borrow;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::hash::Hash;
 use std::ops::{Add, AddAssign};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -220,40 +219,80 @@ impl SumError {
     }
 }
 
-mod sealed {
-    use std::borrow::Borrow;
-    use std::collections::HashMap;
-    use std::hash::Hash;
+#[repr(transparent)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct Variables(HashMap<Cow<'static, str>, f64>);
 
-    pub trait VarMapSealed {
-        fn get_variable(&self, name: &str) -> Option<f64>;
+impl Variables {
+    pub fn new() -> Self {
+        Self(HashMap::new())
     }
 
-    impl<K> VarMapSealed for HashMap<K, f64>
+    pub fn set<N>(&mut self, name: N, value: f64) -> Option<f64>
     where
-        K: Eq + Hash + Borrow<str>,
+        N: Into<Cow<'static, str>>,
     {
-        fn get_variable(&self, name: &str) -> Option<f64> {
-            self.get(name).copied()
-        }
+        self.0.insert(name.into(), value)
+    }
+
+    pub fn value(&self, name: &str) -> Option<f64> {
+        self.0.get(name).copied()
     }
 }
 
-/// A trait to describe types that contain variable values indexed by name
-pub trait VarMap: sealed::VarMapSealed {}
+impl Default for Variables {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-impl<K> VarMap for HashMap<K, f64> where K: Eq + Hash + Borrow<str> {}
+impl<T, const N: usize> From<[(T, f64); N]> for Variables
+where
+    T: Into<Cow<'static, str>>,
+{
+    fn from(value: [(T, f64); N]) -> Self {
+        let entries = value.map(|(name, value)| (name.into(), value));
+        let map = HashMap::from(entries);
+
+        Self(map)
+    }
+}
+
+impl<T> FromIterator<(T, f64)> for Variables
+where
+    T: Into<Cow<'static, str>>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (T, f64)>,
+    {
+        let entries = iter.into_iter().map(|(name, value)| (name.into(), value));
+        let map = HashMap::from_iter(entries);
+
+        Self(map)
+    }
+}
+
+impl<T> Extend<(T, f64)> for Variables
+where
+    T: Into<Cow<'static, str>>,
+{
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = (T, f64)>,
+    {
+        let entries = iter.into_iter().map(|(name, value)| (name.into(), value));
+        self.0.extend(entries)
+    }
+}
 
 impl Polynomial {
-    pub fn sum<V>(&self, var_map: &V) -> Result<f64, SumError>
-    where
-        V: VarMap,
-    {
+    pub fn sum(&self, vars: &Variables) -> Result<f64, SumError> {
         let mut sum_result = self.constant;
 
         for (var_name, &coefficient) in &self.terms {
-            let var_value = var_map
-                .get_variable(var_name.as_str())
+            let var_value = vars
+                .value(var_name.as_str())
                 .ok_or_else(|| SumError::missing(var_name))?;
 
             if var_value.is_nan() {
