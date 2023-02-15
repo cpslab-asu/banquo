@@ -5,7 +5,8 @@ use std::hash::Hash;
 use super::polynomial::VarMap;
 use super::predicate::{Predicate, PredicateError};
 use crate::automaton::{Automaton, Path};
-use crate::formulas::{Formula, HybridDistance, PathGuardDistance};
+use crate::formulas::Formula;
+use crate::metric::{HybridDistance, StateDistance};
 use crate::trace::Trace;
 
 #[derive(Debug, Clone, Copy)]
@@ -65,7 +66,7 @@ where
         None => f64::INFINITY,
     };
 
-    Ok(HybridDistance::Robustness(distance))
+    Ok(HybridDistance::from(distance))
 }
 
 fn min_guard_dist<'a, P, V>(mut paths: P, init: Path<'a>, state: &V) -> PredicateResult<HybridDistance>
@@ -73,27 +74,27 @@ where
     P: Iterator<Item = Path<'a>>,
     V: VarMap,
 {
-    let mut min_dist = PathGuardDistance {
-        path_distance: init.states,
-        guard_distance: init.first_guard.min_distance(state)?,
+    let mut min_dist = StateDistance {
+        discrete: init.states,
+        continuous: init.first_guard.min_distance(state)?,
     };
 
     while let Some(path) = paths.next() {
-        if path.states > min_dist.path_distance {
+        if path.states > min_dist.discrete {
             continue;
         }
 
-        let path_min_guard_dist = path.first_guard.min_distance(state)?;
+        let guard_dist = path.first_guard.min_distance(state)?;
 
-        if path.states < min_dist.path_distance {
-            min_dist.path_distance = path.states;
-            min_dist.guard_distance = path_min_guard_dist;
-        } else if path.states == min_dist.path_distance {
-            min_dist.guard_distance = f64::min(min_dist.guard_distance, path_min_guard_dist);
+        if path.states < min_dist.discrete {
+            min_dist.discrete = path.states;
+            min_dist.continuous = guard_dist;
+        } else {
+            min_dist.continuous = f64::min(min_dist.continuous, guard_dist);
         }
     }
 
-    Ok(HybridDistance::PathDistance(min_dist))
+    Ok(HybridDistance::from(min_dist))
 }
 
 fn guard_distance<'a, P, V>(mut paths: P, state: &V) -> PredicateResult<HybridDistance>
@@ -104,7 +105,7 @@ where
     paths
         .next()
         .map(|path| min_guard_dist(paths, path, state))
-        .unwrap_or(Ok(HybridDistance::Infinite))
+        .unwrap_or_else(|| Ok(HybridDistance::unreachable()))
 }
 
 pub struct HybridState<S, L> {
