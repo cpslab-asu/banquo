@@ -5,7 +5,7 @@ use std::hash::Hash;
 use petgraph::algo::all_simple_paths;
 use petgraph::graphmap::DiGraphMap;
 
-use crate::expressions::{Predicate, PredicateError, VarMap};
+use crate::expressions::{Predicate, PredicateError, Variables};
 
 #[derive(Clone, Debug)]
 pub struct Guard {
@@ -13,10 +13,7 @@ pub struct Guard {
 }
 
 impl Guard {
-    pub fn min_distance<V>(&self, state: &V) -> Result<f64, PredicateError>
-    where
-        V: VarMap,
-    {
+    pub fn min_distance(&self, state: &Variables) -> Result<f64, PredicateError> {
         let distances = self
             .constraints
             .iter()
