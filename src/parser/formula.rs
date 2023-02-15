@@ -1,5 +1,6 @@
 use std::error::Error;
 
+use either::Either;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{space0, space1};
@@ -179,7 +180,8 @@ where
     S: VarMap,
 {
     let mut parser = operators::always(right_operand);
-    let (rest, formula) = parser(input)?;
+    let (rest, result) = parser(input)?;
+    let formula = result.either(ParsedFormula::new, ParsedFormula::new);
 
     Ok((rest, ParsedFormula::new(formula)))
 }
@@ -189,9 +191,10 @@ where
     S: VarMap,
 {
     let mut parser = operators::eventually(right_operand);
-    let (rest, formula) = parser(input)?;
+    let (rest, result) = parser(input)?;
+    let formula = result.either(ParsedFormula::new, ParsedFormula::new);
 
-    Ok((rest, ParsedFormula::new(formula)))
+    Ok((rest, formula))
 }
 
 fn until<S>(input: &str) -> IResult<&str, ParsedFormula<S>>
