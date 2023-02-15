@@ -1,11 +1,11 @@
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::hash::Hash;
-use std::{borrow::Borrow, collections::VecDeque};
 
 use petgraph::algo::all_simple_paths;
 use petgraph::graphmap::DiGraphMap;
 
-use crate::expressions::{Predicate, PredicateError};
+use crate::expressions::{Predicate, PredicateError, VarMap};
 
 #[derive(Clone, Debug)]
 pub struct Guard {
@@ -13,9 +13,9 @@ pub struct Guard {
 }
 
 impl Guard {
-    pub fn min_distance<K>(&self, state: &HashMap<K, f64>) -> Result<f64, PredicateError>
+    pub fn min_distance<V>(&self, state: &V) -> Result<f64, PredicateError>
     where
-        K: Eq + Hash + Borrow<str>,
+        V: VarMap,
     {
         let distances = self
             .constraints
