@@ -13,6 +13,7 @@ pub struct StateDistance {
 }
 
 #[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct HybridDistance(Option<StateDistance>);
 
 /// Trait representing the binary operator that computes the greatest lower bound of two values.
@@ -76,6 +77,12 @@ impl Meet for StateDistance {
 impl Meet for HybridDistance {
     fn meet(self, other: Self) -> Self {
         HybridDistance(self.0.zip(other.0).map(|(d1, d2)| d1.meet(d2)))
+    }
+}
+
+impl<'a> Meet<&'a Self> for HybridDistance {
+    fn meet(self, other: &'a Self) -> Self {
+        self.meet(*other)
     }
 }
 
@@ -147,6 +154,12 @@ impl Join for HybridDistance {
         };
 
         HybridDistance(inner)
+    }
+}
+
+impl<'a> Join<&'a Self> for HybridDistance {
+    fn join(self, other: &'a Self) -> Self {
+        self.join(*other)
     }
 }
 
