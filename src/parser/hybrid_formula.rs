@@ -65,7 +65,7 @@ impl<'a, L> Parser<&'a str, Rc<HybridPredicate<'a, L>>, NomError<&'a str>> for P
 
 struct SubformulaParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
 
-type HybridState<K, L> = (HashMap<K, f64>, L);
+type HybridState<V, L> = (V, L);
 
 impl<'a, K, L> Parser<&'a str, ParsedFormula<HybridState<K, L>>, NomError<&'a str>> for SubformulaParser<'a, L> {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<HybridState<K, L>>> {
@@ -177,9 +177,7 @@ impl<'a, K, L> Parser<&'a str, ParsedFormula<HybridState<K, L>>, NomError<&'a st
     }
 }
 
-struct NextParser<'a, L> {
-    predicates: Rc<HybridPredicateMap<'a, L>>,
-}
+struct NextParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
 
 impl<'a, K, L> Parser<&'a str, ParsedFormula<HybridState<K, L>>, NomError<&'a str>> for NextParser<'a, L> {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<HybridState<K, L>>> {
@@ -217,15 +215,15 @@ struct HybridFormulaParser<'a, L>(Rc<HybridPredicateMap<'a, L>>);
 impl<'a, K, L> Parser<&'a str, ParsedFormula<HybridState<K, L>>, NomError<&'a str>> for HybridFormulaParser<'a, L> {
     fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<HybridState<K, L>>, NomError<&'a str>> {
         let mut parser = alt((
-            NotParser::new(self.0.clone()),
-            NextParser::new(self.0.clone()),
-            AlwaysParser::new(self.0.clone()),
-            EventuallyParser::new(self.0.clone()),
-            AndParser::new(self.0.clone()),
-            OrParser::new(self.0.clone()),
-            ImpliesParser::new(self.0.clone()),
-            SubformulaParser::new(self.0.clone()),
-            map(PredicateParser::new(self.0.clone()), ParsedFormula::new),
+            NotParser(self.0.clone()),
+            NextParser(self.0.clone()),
+            AlwaysParser(self.0.clone()),
+            EventuallyParser(self.0.clone()),
+            AndParser(self.0.clone()),
+            OrParser(self.0.clone()),
+            ImpliesParser(self.0.clone()),
+            SubformulaParser(self.0.clone()),
+            map(PredicateParser(self.0.clone()), ParsedFormula::new),
         ));
 
         parser.parse(input)
