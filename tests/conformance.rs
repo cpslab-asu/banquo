@@ -1,16 +1,20 @@
-use std::collections::HashMap;
 use std::error::Error;
 
 use approx::assert_relative_eq;
-use banquo::expressions::Predicate;
+use banquo::eval_robustness;
+use banquo::expressions::{Predicate, Variables};
+use banquo::formulas::Formula;
 use banquo::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
 use banquo::parser::parse_formula;
 use banquo::trace::Trace;
-use banquo::{eval_robustness, Formula};
 
 const EPSILON: f64 = 1.0e-5;
 
-fn get_trace() -> Trace<HashMap<String, f64>> {
+fn make_variables((time, value): (f64, f64)) -> (f64, Variables) {
+    (time, Variables::from([("x", value)]))
+}
+
+fn get_trace() -> Trace<Variables> {
     let entries = [
         (0.0000, 0.0000),
         (0.3947, 0.5881),
@@ -45,15 +49,7 @@ fn get_trace() -> Trace<HashMap<String, f64>> {
         (5.7317, -0.816),
     ];
 
-    entries
-        .into_iter()
-        .map(|(time, var_value)| {
-            let mut state = HashMap::new();
-            state.insert("x".to_string(), var_value);
-
-            (time, state)
-        })
-        .collect()
+    entries.into_iter().map(make_variables).collect()
 }
 
 fn p1() -> Predicate {
@@ -68,7 +64,7 @@ type TestResult<'a> = Result<(), Box<dyn Error + 'a>>;
 
 fn conformance_test<'a, F>(f1: &'_ F, f2: &'a str, expected: f64) -> TestResult<'a>
 where
-    F: Formula<f64, State = HashMap<String, f64>>,
+    F: Formula<Variables, Metric = f64>,
     F::Error: 'a,
 {
     let trace = get_trace();
@@ -94,7 +90,7 @@ fn case01() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case02() -> Result<(), Box<dyn Error>> {
-    let f1 = Eventually::new_unbounded(p1());
+    let f1 = Eventually::unbounded(p1());
     let f2 = "<> -1.0*x <= 2.0";
 
     conformance_test(&f1, f2, 3.7508)
@@ -102,7 +98,7 @@ fn case02() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case03() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new_unbounded(p2());
+    let f1 = Always::unbounded(p2());
     let f2 = "[] 1.0*x <= 2.0";
 
     conformance_test(&f1, f2, 0.2492)
@@ -134,10 +130,7 @@ fn case06() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case07() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new_unbounded(Eventually::new_unbounded(And::new(
-        p2(),
-        Eventually::new_unbounded(p1()),
-    )));
+    let f1 = Always::unbounded(Eventually::unbounded(And::new(p2(), Eventually::unbounded(p1()))));
     let f2 = r"[] (<> (1.0*x <= 2.0 /\ (<> -1.0*x <= 2.0)))";
 
     conformance_test(&f1, f2, 1.184)
@@ -154,8 +147,8 @@ fn case08() -> Result<(), Box<dyn Error>> {
 #[test]
 fn case09() -> Result<(), Box<dyn Error>> {
     let f1 = And::new(
-        Eventually::new_unbounded(p1()),
-        Always::new_unbounded(Implies::new(p1(), Eventually::new_unbounded(p2()))),
+        Eventually::unbounded(p1()),
+        Always::unbounded(Implies::new(p1(), Eventually::unbounded(p2()))),
     );
     let f2 = r"(<> -1.0*x <= 2.0) /\ ([] (-1.0*x <= 2.0 -> (<> 1.0*x <= 2.0)))";
 
@@ -164,7 +157,7 @@ fn case09() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case10() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new_unbounded(Implies::new(p1(), Eventually::new_unbounded(Not::new(p1()))));
+    let f1 = Always::unbounded(Implies::new(p1(), Eventually::unbounded(Not::new(p1()))));
     let f2 = "[] (-1.0*x <= 2.0 -> (<> (not -1.0*x <= 2.0)))";
 
     conformance_test(&f1, f2, -1.184)
@@ -172,9 +165,9 @@ fn case10() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case11() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new_unbounded(Or::new(
+    let f1 = Always::unbounded(Or::new(
         Not::new(p1()),
-        Eventually::new_unbounded(Always::new_unbounded(Not::new(p1()))),
+        Eventually::unbounded(Always::unbounded(Not::new(p1()))),
     ));
     let f2 = r"[] ((not -1.0*x <= 2.0) \/ (<> ([] (not -1.0*x <= 2.0))))";
 
@@ -183,7 +176,7 @@ fn case11() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case12() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new_unbounded(Next::new(p1()));
+    let f1 = Always::unbounded(Next::new(p1()));
     let f2 = "[] (X -1.0*x <= 2.0)";
 
     conformance_test(&f1, f2, f64::NEG_INFINITY)
@@ -191,7 +184,7 @@ fn case12() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case13() -> Result<(), Box<dyn Error>> {
-    let f1 = Eventually::new_unbounded(Next::new(p1()));
+    let f1 = Eventually::unbounded(Next::new(p1()));
     let f2 = "<> (X -1.0*x <= 2.0)";
 
     conformance_test(&f1, f2, 3.7508)
@@ -199,7 +192,7 @@ fn case13() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case14() -> Result<(), Box<dyn Error>> {
-    let f1 = Always::new_unbounded(Next::new(Next::new(p1())));
+    let f1 = Always::unbounded(Next::new(Next::new(p1())));
     let f2 = "[] (X (X -1.0*x <= 2.0))";
 
     conformance_test(&f1, f2, f64::NEG_INFINITY)
@@ -207,7 +200,7 @@ fn case14() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case15() -> Result<(), Box<dyn Error>> {
-    let f1 = Next::new(Eventually::new_unbounded(Next::new(p1())));
+    let f1 = Next::new(Eventually::unbounded(Next::new(p1())));
     let f2 = "X (<> (X -1.0*x <= 2.0))";
 
     conformance_test(&f1, f2, 3.7508)
@@ -231,7 +224,7 @@ fn case17() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case23() -> Result<(), Box<dyn Error>> {
-    let f1 = Not::new(Eventually::new_bounded(Not::new(And::new(p2(), p1())), (0.0, 3.5)));
+    let f1 = Not::new(Eventually::bounded(0.0, 3.5, Not::new(And::new(p2(), p1()))));
     let f2 = r"not (<>{0,3.5} (not (1.0*x <= 2.0 /\ -1.0*x <= 2.0)))";
 
     conformance_test(&f1, f2, 0.2492)
@@ -239,7 +232,7 @@ fn case23() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case24() -> Result<(), Box<dyn Error>> {
-    let f1 = Not::new(Eventually::new_bounded(Not::new(p1()), (0.0, 1.0)));
+    let f1 = Not::new(Eventually::bounded(0.0, 1.0, Not::new(p1())));
     let f2 = "not (<>{0,1.0} (not -1.0*x <= 2.0))";
 
     conformance_test(&f1, f2, 2.0)
@@ -247,7 +240,7 @@ fn case24() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn case25() -> Result<(), Box<dyn Error>> {
-    let f1 = Eventually::new_bounded(p1(), (0.1, 30.0));
+    let f1 = Eventually::bounded(1.0, 30.0, p1());
     let f2 = "<>{0.1,30.0} (-1.0*x <= 2.0)";
 
     conformance_test(&f1, f2, 3.7508)
