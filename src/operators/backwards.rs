@@ -57,9 +57,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::{BinaryOperatorError, Until};
+    use crate::formulas::Formula;
     use crate::operators::testing::{Const, ConstError};
     use crate::trace::Trace;
-    use crate::Formula;
 
     #[test]
     fn test_robustness() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
@@ -67,8 +67,8 @@ mod tests {
         let right_trace = Trace::from_iter([(0.0, -2.1), (1.0, 3.7), (2.0, 1.2), (3.0, 2.2)]);
 
         let formula = Until::new(Const::from(left_trace), Const::from(right_trace));
-        let input = Trace::default();
-        let robustness = formula.evaluate_states(&input)?;
+        let input: Trace<()> = Trace::default();
+        let robustness = formula.evaluate_trace(&input)?;
 
         assert_eq!(robustness[3.0], 1.1);
         assert_eq!(robustness[2.0], 1.2);

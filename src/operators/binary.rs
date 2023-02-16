@@ -238,8 +238,8 @@ mod tests {
         let right = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
         let formula = Or::new(Const::from(left), Const::from(right));
 
-        let input = Trace::default();
-        let robustness = formula.evaluate_states(&input)?;
+        let input: Trace<()> = Trace::default();
+        let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 1.0), (1, 1.0), (2, 4.0), (3, 6.0)]);
 
         assert_eq!(robustness, expected);
@@ -252,8 +252,8 @@ mod tests {
         let right = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
         let formula = And::new(Const::from(left), Const::from(right));
 
-        let input = Trace::default();
-        let robustness = formula.evaluate_states(&input)?;
+        let input: Trace<()> = Trace::default();
+        let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 0.0), (1, 0.0), (2, 2.0), (3, 3.0)]);
 
         assert_eq!(robustness, expected);
@@ -266,8 +266,8 @@ mod tests {
         let consequent = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 2.0), (3, 6.0)]);
         let formula = Implies::new(Const::from(antecedent), Const::from(consequent));
 
-        let input = Trace::default();
-        let robustness = formula.evaluate_states(&input)?;
+        let input: Trace<()> = Trace::default();
+        let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
 
         assert_eq!(robustness, expected);
