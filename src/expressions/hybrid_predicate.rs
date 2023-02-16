@@ -1,13 +1,143 @@
+use std::collections::{HashMap, VecDeque};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
+use std::rc::Rc;
+
+use petgraph::algo::all_simple_paths;
+use petgraph::graphmap::DiGraphMap;
 
 use super::polynomial::Variables;
 use super::predicate::{Predicate, PredicateError};
-use crate::automaton::{Automaton, Path};
 use crate::formulas::Formula;
 use crate::metric::{HybridDistance, StateDistance};
 use crate::trace::Trace;
+
+#[derive(Clone, Debug)]
+pub struct Guard {
+    constraints: Vec<Predicate>,
+}
+
+impl Guard {
+    pub fn min_distance(&self, state: &Variables) -> Result<f64, PredicateError> {
+        let distances = self
+            .constraints
+            .iter()
+            .map(|constraint| constraint.evaluate_state(state))
+            .collect::<Result<Vec<_>, _>>();
+
+        let distance = distances?
+            .into_iter()
+            .reduce(f64::min)
+            .expect("At least one constraint must be provided to a guard");
+
+        Ok(distance)
+    }
+}
+
+impl FromIterator<Predicate> for Guard {
+    fn from_iter<T: IntoIterator<Item = Predicate>>(iter: T) -> Self {
+        Self {
+            constraints: Vec::from_iter(iter),
+        }
+    }
+}
+
+struct AutomatonInner<L>
+where
+    L: Copy + Ord + Hash,
+{
+    graph: DiGraphMap<L, Guard>,
+}
+
+impl<L> Default for AutomatonInner<L>
+where
+    L: Copy + Ord + Hash,
+{
+    fn default() -> Self {
+        Self {
+            graph: DiGraphMap::default(),
+        }
+    }
+}
+
+struct Path<'a> {
+    pub states: usize,
+    pub first_guard: &'a Guard,
+}
+
+struct Paths<'a, L> {
+    paths: VecDeque<Vec<L>>,
+    graph: &'a DiGraphMap<L, Guard>,
+}
+
+impl<'a, L> Iterator for Paths<'a, L>
+where
+    L: Copy + Ord + Hash,
+{
+    type Item = Path<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let path = self.paths.pop_front()?;
+        let length = path.len();
+        let first_node = path.get(0)?;
+        let second_node = path.get(1)?;
+        let guard = self.graph.edge_weight(*first_node, *second_node)?;
+        let path = Path {
+            states: length,
+            first_guard: guard,
+        };
+
+        Some(path)
+    }
+}
+
+impl<L> AutomatonInner<L>
+where
+    L: Copy + Ord + Hash,
+{
+    pub fn paths(&self, start: L, end: L) -> Paths<'_, L> {
+        Paths {
+            paths: all_simple_paths(&self.graph, start, end, 0, None).collect(),
+            graph: &self.graph,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Automaton<L>
+where
+    L: Copy + Ord + Hash,
+{
+    inner: Rc<AutomatonInner<L>>,
+}
+
+impl<L> Default for Automaton<L>
+where
+    L: Copy + Ord + Hash,
+{
+    fn default() -> Self {
+        Self {
+            inner: Rc::new(AutomatonInner::default()),
+        }
+    }
+}
+
+impl<L> From<HashMap<(L, L), Guard>> for Automaton<L>
+where
+    L: Copy + Ord + Hash,
+{
+    fn from(guard_map: HashMap<(L, L), Guard>) -> Self {
+        let graph = guard_map
+            .into_iter()
+            .map(|(edge, guard)| (edge.0, edge.1, guard))
+            .collect();
+
+        Automaton {
+            inner: Rc::new(AutomatonInner { graph }),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum ErrorKind {
@@ -36,21 +166,27 @@ impl Display for HybridPredicateError {
 impl Error for HybridPredicateError {}
 
 #[derive(Clone)]
-pub struct HybridPredicate<'a, L> {
+pub struct HybridPredicate<L>
+where
+    L: Copy + Ord + Hash,
+{
     predicate: Option<Predicate>,
-    automaton: &'a Automaton<L>,
     location: L,
+    automaton: Rc<AutomatonInner<L>>,
 }
 
-impl<'a, L> HybridPredicate<'a, L> {
-    pub fn new<P>(predicate: P, location: L, automaton: &'a Automaton<L>) -> Self
+impl<L> HybridPredicate<L>
+where
+    L: Copy + Ord + Hash,
+{
+    pub fn new<P>(predicate: P, location: L, automaton: &Automaton<L>) -> Self
     where
         P: Into<Option<Predicate>>,
     {
         Self {
             predicate: predicate.into(),
-            automaton,
             location,
+            automaton: Rc::clone(&automaton.inner),
         }
     }
 }
@@ -108,7 +244,7 @@ pub struct HybridState<L> {
     pub location: L,
 }
 
-impl<'a, L> Formula<HybridState<L>> for HybridPredicate<'a, L>
+impl<L> Formula<HybridState<L>> for HybridPredicate<L>
 where
     L: Copy + Hash + Ord,
 {
