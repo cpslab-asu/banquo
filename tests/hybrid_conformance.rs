@@ -1,16 +1,13 @@
 use std::collections::HashMap;
 use std::error::Error;
 
-use banquo::automaton::{Automaton, Guard};
 use banquo::eval_hybrid_distance;
-use banquo::expressions::{HybridPredicate, HybridState, Predicate, Variables};
+use banquo::expressions::{Automaton, Guard, HybridPredicate, HybridState, Predicate, Variables};
 use banquo::formulas::Formula;
 use banquo::metric::{HybridDistance, StateDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
 use banquo::trace::Trace;
-
-type VariableMap = HashMap<&'static str, f64>;
 
 fn make_timed_state((time, var_value, location): (f64, f64, usize)) -> (f64, HybridState<usize>) {
     let variables = Variables::from([("x", var_value)]);
@@ -146,15 +143,15 @@ fn get_automaton() -> Automaton<usize> {
     Automaton::from(guard_map)
 }
 
-fn p1<'a>(automaton: &'a Automaton<usize>) -> HybridPredicate<'a, usize> {
+fn p1(automaton: &Automaton<usize>) -> HybridPredicate<usize> {
     HybridPredicate::new(predicate_1d(-1.0, 0.0), 1, automaton)
 }
 
-fn p2<'a>(automaton: &'a Automaton<usize>) -> HybridPredicate<'a, usize> {
+fn p2(automaton: &Automaton<usize>) -> HybridPredicate<usize> {
     HybridPredicate::new(predicate_1d(-1.0, -5.0), 1, automaton)
 }
 
-fn p3<'a>(automaton: &'a Automaton<usize>) -> HybridPredicate<'a, usize> {
+fn p3(automaton: &Automaton<usize>) -> HybridPredicate<usize> {
     HybridPredicate::new(predicate_1d(1.0, 30.0), 2, automaton)
 }
 
@@ -173,7 +170,11 @@ where
     assert_eq!(distance, expected, "f1 error");
 
     let automaton = get_automaton();
-    let predicates = HashMap::from_iter([("p1", p1(&automaton)), ("p2", p2(&automaton)), ("p3", p3(&automaton))]);
+    let mut predicates = HashMap::new();
+    predicates.insert("p1", p1(&automaton));
+    predicates.insert("p2", p2(&automaton));
+    predicates.insert("p3", p3(&automaton));
+
     let parsed_formula = parse_hybrid_formula(f2, predicates)?;
     let distance = eval_hybrid_distance(parsed_formula, &trace)?;
 
