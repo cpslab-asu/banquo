@@ -18,7 +18,7 @@ impl<Left, Right, State, Metric> Formula<State> for Until<Left, Right>
 where
     Left: Formula<State, Metric = Metric>,
     Right: Formula<State, Metric = Metric>,
-    Metric: Top + Bottom + for<'a> Meet<&'a Metric> + Meet + for<'a> Join<&'a Metric>,
+    Metric: Clone + Top + Bottom + Meet + for<'a> Meet<&'a Metric> + for<'a> Join<&'a Metric>,
 {
     type Metric = Metric;
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
@@ -36,8 +36,9 @@ where
 
         let mut evaluated_trace = Trace::default();
         let mut last_metric = Metric::bottom();
+        let iter = right_trace.into_iter().rev();
 
-        for (time, right_metric) in right_trace.into_iter().rev() {
+        for (time, right_metric) in iter {
             let left_metric = left_trace
                 .range(..=time)
                 .into_iter()
@@ -46,7 +47,7 @@ where
             let combined_metric = left_metric.meet(right_metric);
             let next_metric = combined_metric.join(&last_metric);
 
-            evaluated_trace.insert_state(time, last_metric);
+            evaluated_trace.insert_state(time, next_metric.clone());
             last_metric = next_metric;
         }
 
