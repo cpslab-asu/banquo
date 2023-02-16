@@ -293,15 +293,12 @@ impl Polynomial {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-    use std::error::Error;
-
-    use super::{Polynomial, Term};
+    use super::{Polynomial, SumError, Term, Variables};
 
     #[test]
-    fn polynomial_sum() -> Result<(), Box<dyn Error>> {
+    fn polynomial_sum() -> Result<(), SumError> {
         let polynomial = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", 2.0), Term::constant(2.0)]);
-        let variable_map = HashMap::from([("x".to_string(), 3.0), ("y".to_string(), 5.0)]);
+        let variable_map = Variables::from([("x".to_string(), 3.0), ("y".to_string(), 5.0)]);
         let sum = polynomial.sum(&variable_map)?;
 
         assert_eq!(sum, 15.0);

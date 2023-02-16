@@ -116,8 +116,6 @@ impl Formula<Variables> for Predicate {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::{Predicate, PredicateError, TimedPredicateError};
     use crate::expressions::{Polynomial, Term, Variables};
     use crate::formulas::Formula;
@@ -142,11 +140,11 @@ mod tests {
         let right = Polynomial::from([Term::variable("x", 1.0), Term::variable("y", -1.0), Term::constant(2.0)]);
         let predicate = Predicate::new(left, right);
 
-        let trace: Trace<HashMap<&str, f64>> = Trace::from_iter([
-            (0.0, HashMap::from([("a", 3.0), ("b", 4.0), ("x", 10.0), ("y", 2.0)])),
-            (1.0, HashMap::from([("a", 2.0), ("b", 6.0), ("x", 1.0), ("y", -2.0)])),
-            (2.0, HashMap::from([("a", 7.0), ("b", 7.0), ("x", 7.0), ("y", 7.0)])),
-            (3.0, HashMap::from([("a", -1.0), ("b", 4.2), ("x", 1.1), ("y", 2.7)])),
+        let trace: Trace<Variables> = Trace::from_iter([
+            (0.0, Variables::from([("a", 3.0), ("b", 4.0), ("x", 10.0), ("y", 2.0)])),
+            (1.0, Variables::from([("a", 2.0), ("b", 6.0), ("x", 1.0), ("y", -2.0)])),
+            (2.0, Variables::from([("a", 7.0), ("b", 7.0), ("x", 7.0), ("y", 7.0)])),
+            (3.0, Variables::from([("a", -1.0), ("b", 4.2), ("x", 1.1), ("y", 2.7)])),
         ]);
 
         let result = predicate.evaluate_trace(&trace)?;
