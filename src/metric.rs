@@ -176,7 +176,7 @@ impl Join for f64 {
 
 impl Join<&Self> for f64 {
     fn join(self, other: &Self) -> Self {
-        self.meet(*other)
+        self.join(*other)
     }
 }
 
