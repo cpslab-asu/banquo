@@ -2,16 +2,24 @@ use std::collections::HashMap;
 use std::error::Error;
 
 use banquo::automaton::{Automaton, Guard};
-use banquo::expressions::{HybridPredicate, Predicate};
-use banquo::formulas::{HybridDistance, PathGuardDistance};
+use banquo::eval_hybrid_distance;
+use banquo::expressions::{HybridPredicate, HybridState, Predicate, Variables};
+use banquo::formulas::Formula;
+use banquo::metric::{HybridDistance, StateDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
 use banquo::trace::Trace;
-use banquo::{eval_hybrid_distance, Formula};
 
-type VariableMap = HashMap<String, f64>;
+type VariableMap = HashMap<&'static str, f64>;
 
-fn get_trace() -> Trace<(VariableMap, usize)> {
+fn make_timed_state((time, var_value, location): (f64, f64, usize)) -> (f64, HybridState<usize>) {
+    let variables = Variables::from([("x", var_value)]);
+    let state = HybridState { variables, location };
+
+    (time, state)
+}
+
+fn get_trace() -> Trace<HybridState<usize>> {
     let entries = [
         (1.0, 23.0, 2),
         (2.0, 21.0, 2),
@@ -115,15 +123,7 @@ fn get_trace() -> Trace<(VariableMap, usize)> {
         (100.0, 3.0, 4),
     ];
 
-    entries
-        .into_iter()
-        .map(|(time, var_value, location)| {
-            let mut state = HashMap::new();
-            state.insert("x".to_string(), var_value);
-
-            (time, (state, location))
-        })
-        .collect()
+    entries.into_iter().map(make_timed_state).collect()
 }
 
 fn predicate_1d(coefficient: f64, bound: f64) -> Predicate {
@@ -146,46 +146,34 @@ fn get_automaton() -> Automaton<usize> {
     Automaton::from(guard_map)
 }
 
-fn p1() -> HybridPredicate<Automaton<usize>, usize> {
-    let predicate = predicate_1d(-1.0, 0.0);
-    let automaton = get_automaton();
-
-    HybridPredicate::new(predicate, 1, automaton)
+fn p1<'a>(automaton: &'a Automaton<usize>) -> HybridPredicate<'a, usize> {
+    HybridPredicate::new(predicate_1d(-1.0, 0.0), 1, automaton)
 }
 
-fn p2() -> HybridPredicate<Automaton<usize>, usize> {
-    let predicate = predicate_1d(-1.0, -5.0);
-    let automaton = get_automaton();
-
-    HybridPredicate::new(predicate, 1, automaton)
+fn p2<'a>(automaton: &'a Automaton<usize>) -> HybridPredicate<'a, usize> {
+    HybridPredicate::new(predicate_1d(-1.0, -5.0), 1, automaton)
 }
 
-fn p3() -> HybridPredicate<Automaton<usize>, usize> {
-    let predicate = predicate_1d(1.0, 30.0);
-    let automaton = get_automaton();
-
-    HybridPredicate::new(predicate, 2, automaton)
+fn p3<'a>(automaton: &'a Automaton<usize>) -> HybridPredicate<'a, usize> {
+    HybridPredicate::new(predicate_1d(1.0, 30.0), 2, automaton)
 }
 
 fn trace_test_case<'a, F>(
     f1: F,
     f2: &'a str,
-    trace: Trace<(VariableMap, usize)>,
+    trace: Trace<HybridState<usize>>,
     expected: HybridDistance,
 ) -> Result<(), Box<dyn Error + 'a>>
 where
-    F: Formula<HybridDistance, State = (VariableMap, usize)>,
+    F: Formula<HybridState<usize>, Metric = HybridDistance>,
     F::Error: 'a,
 {
     let distance = eval_hybrid_distance(f1, &trace)?;
 
     assert_eq!(distance, expected, "f1 error");
 
-    let predicates = HashMap::from_iter([
-        ("p1".to_string(), p1()),
-        ("p2".to_string(), p2()),
-        ("p3".to_string(), p3()),
-    ]);
+    let automaton = get_automaton();
+    let predicates = HashMap::from_iter([("p1", p1(&automaton)), ("p2", p2(&automaton)), ("p3", p3(&automaton))]);
     let parsed_formula = parse_hybrid_formula(f2, predicates)?;
     let distance = eval_hybrid_distance(parsed_formula, &trace)?;
 
@@ -196,7 +184,7 @@ where
 
 fn test_case<'a, F>(f1: F, f2: &'a str, expected: HybridDistance) -> Result<(), Box<dyn Error + 'a>>
 where
-    F: Formula<HybridDistance, State = (VariableMap, usize)>,
+    F: Formula<HybridState<usize>, Metric = HybridDistance>,
     F::Error: 'a,
 {
     trace_test_case(f1, f2, get_trace(), expected)
@@ -204,77 +192,86 @@ where
 
 #[test]
 fn case01() -> Result<(), Box<dyn Error>> {
-    let formula = Eventually::new_unbounded(p1());
+    let automaton = get_automaton();
+    let formula = Eventually::unbounded(p1(&automaton));
     let formula_str = "<> p1";
 
-    test_case(formula, formula_str, HybridDistance::Robustness(52.0))
+    test_case(formula, formula_str, HybridDistance::from(52.0))
 }
 
 #[test]
 fn case02() -> Result<(), Box<dyn Error>> {
-    let formula = Eventually::new_unbounded(p2());
+    let automaton = get_automaton();
+    let formula = Eventually::unbounded(p2(&automaton));
     let formula_str = "<> p2";
 
-    test_case(formula, formula_str, HybridDistance::Robustness(47.0))
+    test_case(formula, formula_str, HybridDistance::from(47.0))
 }
 
 #[test]
 fn case03() -> Result<(), Box<dyn Error>> {
-    let formula = Eventually::new_unbounded(And::new(p1(), p2()));
+    let automaton = get_automaton();
+    let formula = Eventually::unbounded(And::new(p1(&automaton), p2(&automaton)));
     let formula_str = r"<> (p1 /\ p2)";
 
-    test_case(formula, formula_str, HybridDistance::Robustness(47.0))
+    test_case(formula, formula_str, HybridDistance::from(47.0))
 }
 
 #[test]
 fn case04() -> Result<(), Box<dyn Error>> {
-    let formula = Always::new_unbounded(And::new(p1(), p2()));
+    let automaton = get_automaton();
+    let formula = Always::unbounded(And::new(p1(&automaton), p2(&automaton)));
     let formula_str = r"[] (p1 /\ p2)";
-    let expected_distance = PathGuardDistance {
-        path_distance: 2,
-        guard_distance: -33.0,
+    let expected_distance = StateDistance {
+        discrete: 2,
+        continuous: -33.0,
     };
 
-    test_case(formula, formula_str, HybridDistance::PathDistance(expected_distance))
+    test_case(formula, formula_str, HybridDistance::from(expected_distance))
 }
 
 #[test]
 fn case05() -> Result<(), Box<dyn Error>> {
-    let formula = Eventually::new_unbounded(Or::new(p1(), p2()));
+    let automaton = get_automaton();
+    let formula = Eventually::unbounded(Or::new(p1(&automaton), p2(&automaton)));
     let formula_str = r"<> (p1 \/ p2)";
 
-    test_case(formula, formula_str, HybridDistance::Robustness(52.0))
+    test_case(formula, formula_str, HybridDistance::from(52.0))
 }
 
 #[test]
 fn case10() -> Result<(), Box<dyn Error>> {
-    let formula = And::new(And::new(p1(), p2()), p3());
+    let automaton = get_automaton();
+    let formula = And::new(And::new(p1(&automaton), p2(&automaton)), p3(&automaton));
     let formula_str = r"(p1 /\ p2) /\ p3";
-    let expected_distance = PathGuardDistance {
-        path_distance: 2,
-        guard_distance: -22.0,
+    let expected_distance = StateDistance {
+        discrete: 2,
+        continuous: -22.0,
     };
 
-    test_case(formula, formula_str, HybridDistance::PathDistance(expected_distance))
+    test_case(formula, formula_str, HybridDistance::from(expected_distance))
 }
 
 #[test]
 fn case11() -> Result<(), Box<dyn Error>> {
-    let s1: HashMap<String, f64> = HashMap::from_iter([("x".to_string(), 1.0)]);
-    let s2: HashMap<String, f64> = HashMap::from_iter([("x".to_string(), -2.0)]);
-    let trace = Trace::from_iter([(0.1, (s1, 1)), (0.2, (s2, 3))]);
-
-    let formula = Always::new_unbounded(And::new(p1(), p2()));
-    let formula_str = r"[] (p1 /\ p2)";
-    let expected_distance = PathGuardDistance {
-        path_distance: 1,
-        guard_distance: -2.0,
+    let s1 = HybridState {
+        variables: Variables::from_iter([("x", 1.0)]),
+        location: 1,
     };
 
-    trace_test_case(
-        formula,
-        formula_str,
-        trace,
-        HybridDistance::PathDistance(expected_distance),
-    )
+    let s2 = HybridState {
+        variables: Variables::from_iter([("x", -2.0)]),
+        location: 3,
+    };
+
+    let trace = Trace::from_iter([(0.1, s1), (0.2, s2)]);
+    let automaton = get_automaton();
+    let formula = Always::unbounded(And::new(p1(&automaton), p2(&automaton)));
+    let formula_str = r"[] (p1 /\ p2)";
+    let expected_distance = StateDistance {
+        discrete: 1,
+        continuous: -2.0,
+    };
+
+    trace_test_case(formula, formula_str, trace, HybridDistance::from(expected_distance))
 }
