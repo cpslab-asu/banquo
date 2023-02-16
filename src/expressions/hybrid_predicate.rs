@@ -104,8 +104,8 @@ where
 }
 
 pub struct HybridState<L> {
-    variables: Variables,
-    location: L,
+    pub variables: Variables,
+    pub location: L,
 }
 
 impl<'a, L> Formula<HybridState<L>> for HybridPredicate<'a, L>
