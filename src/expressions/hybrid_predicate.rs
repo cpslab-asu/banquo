@@ -79,7 +79,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let path = self.paths.pop_front()?;
-        let length = path.len();
+        let length = path.len(); // Simple path includes start node in node list, so we decrease the length by 1
         let first_node = path.get(0)?;
         let second_node = path.get(1)?;
         let guard = self.graph.edge_weight(*first_node, *second_node)?;
