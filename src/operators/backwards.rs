@@ -18,10 +18,9 @@ fn until_eval_time<M>(left: &Trace<M>, time: f64, right: M, prev: &M) -> M
 where
     M: Top + Meet + for<'a> Meet<&'a M> + for<'a> Join<&'a M>,
 {
-    let left_metric = left.range(..=time).into_iter().fold(M::top(), |l, (_, r)| l.meet(r));
-    let combined_metric = left_metric.meet(right);
-
-    combined_metric.join(prev)
+    let left_metric = left.range(..=time).into_iter().fold(M::top(), |l, (_, r)| l.meet(r)); // Minimum of left trace until time
+    let combined_metric = left_metric.meet(right); // minimum of ^ and right metric
+    combined_metric.join(prev) // Maximum of ^  and previous metric
 }
 
 fn until_op<M, I>(left: Trace<M>, right: I, mut prev_time: f64, mut prev_metric: M) -> Trace<M>

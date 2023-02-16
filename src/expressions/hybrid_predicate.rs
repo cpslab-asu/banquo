@@ -13,12 +13,14 @@ use crate::formulas::Formula;
 use crate::metric::{HybridDistance, StateDistance};
 use crate::trace::Trace;
 
+/// A set of constraints represeting the conditions necessary to switch states
 #[derive(Clone, Debug)]
 pub struct Guard {
     constraints: Vec<Predicate>,
 }
 
 impl Guard {
+    /// Compute the minimum distance to any guard in the set.
     pub fn min_distance(&self, state: &Variables) -> Result<f64, PredicateError> {
         let distances = self
             .constraints
@@ -79,7 +81,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let path = self.paths.pop_front()?;
-        let length = path.len() - 1; // Simple path includes start node in node list, so we decrease the length by 1
+        let length = path.len() - 1; // Simple path includes start node in node list, so decrease the length by 1
         let first_node = path.get(0)?;
         let second_node = path.get(1)?;
         let guard = self.graph.edge_weight(*first_node, *second_node)?;
