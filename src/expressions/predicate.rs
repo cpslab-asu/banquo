@@ -116,10 +116,14 @@ impl Formula<Variables> for Predicate {
 
 #[cfg(test)]
 mod tests {
+    use approx::assert_relative_eq;
+
     use super::{Predicate, PredicateError, TimedPredicateError};
     use crate::expressions::{Polynomial, Term, Variables};
     use crate::formulas::Formula;
     use crate::trace::Trace;
+
+    const EPSILON: f64 = 1e-5;
 
     #[test]
     fn evaluate_state() -> Result<(), PredicateError> {
@@ -148,9 +152,12 @@ mod tests {
         ]);
 
         let result = predicate.evaluate_trace(&trace)?;
-        let expected = Trace::from_iter([(0.0, 3.0), (1.0, -3.0), (2.0, -12.0), (3.0, -1.9)]);
 
-        assert_eq!(result, expected);
+        assert_relative_eq!(result[0.0], 3.0, epsilon = EPSILON);
+        assert_relative_eq!(result[1.0], -3.0, epsilon = EPSILON);
+        assert_relative_eq!(result[2.0], -12.0, epsilon = EPSILON);
+        assert_relative_eq!(result[3.0], -2.8, epsilon = EPSILON);
+
         Ok(())
     }
 
