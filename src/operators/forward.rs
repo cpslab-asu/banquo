@@ -97,10 +97,10 @@ where
 /// use banquo::operators::Always;
 ///
 /// let subformula = Predicate::new(Term::variable("x", 1.0), Term::constant(2.0));
-/// let unbounded_formula = Always::new_unbounded(subformula);
+/// let unbounded_formula = Always::unbounded(subformula);
 ///
 /// let subformula = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
-/// let bounded_formula = Always::new_bounded(subformula, (0.0, 4.0));
+/// let bounded_formula = Always::bounded(0.0, 4.0, subformula);
 /// ```
 #[derive(Clone, Debug)]
 pub struct Always<F> {
@@ -179,10 +179,10 @@ where
 /// use banquo::operators::Always;
 ///
 /// let subformula = Predicate::new(Term::variable("x", 1.0), Term::constant(2.0));
-/// let unbounded_formula = Always::new_unbounded(subformula);
+/// let unbounded_formula = Always::unbounded(subformula);
 ///
 /// let subformula = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
-/// let bounded_formula = Always::new_bounded(subformula, (0.0, 4.0));
+/// let bounded_formula = Always::bounded(0.0, 4.0, subformula);
 /// ```
 #[derive(Clone, Debug)]
 pub struct Eventually<F> {
