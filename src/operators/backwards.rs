@@ -14,6 +14,38 @@ impl<Left, Right> Until<Left, Right> {
     }
 }
 
+fn until_eval_time<M>(left: &Trace<M>, time: f64, right: M, prev: &M) -> M
+where
+    M: Top + Meet + for<'a> Meet<&'a M> + for<'a> Join<&'a M>,
+{
+    let left_metric = left.range(..=time).into_iter().fold(M::top(), |l, (_, r)| l.meet(r));
+    let combined_metric = left_metric.meet(right);
+
+    combined_metric.join(prev)
+}
+
+fn until_op<M, I>(left: Trace<M>, right: I, mut prev_time: f64, mut prev_metric: M) -> Trace<M>
+where
+    I: Iterator<Item = (f64, M)>,
+    M: Top + Bottom + Meet + for<'a> Meet<&'a M> + for<'a> Join<&'a M>,
+{
+    let mut trace = Trace::default();
+    let bottom = M::bottom();
+
+    prev_metric = until_eval_time(&left, prev_time, prev_metric, &bottom);
+
+    for (time, right_metric) in right {
+        let next_metric = until_eval_time(&left, time, right_metric, &prev_metric);
+
+        trace.insert_state(prev_time, prev_metric);
+        prev_time = time;
+        prev_metric = next_metric;
+    }
+
+    trace.insert_state(prev_time, prev_metric);
+    trace
+}
+
 impl<Left, Right, State, Metric> Formula<State> for Until<Left, Right>
 where
     Left: Formula<State, Metric = Metric>,
@@ -34,22 +66,13 @@ where
             .evaluate_trace(trace)
             .map_err(BinaryOperatorError::RightError)?;
 
-        let mut evaluated_trace = Trace::default();
-        let mut last_metric = Metric::bottom();
-        let iter = right_trace.into_iter().rev();
+        let mut iter = right_trace.into_iter().rev();
 
-        for (time, right_metric) in iter {
-            let left_metric = left_trace
-                .range(..=time)
-                .into_iter()
-                .fold(Metric::top(), |l, (_, r)| l.meet(r));
-
-            let combined_metric = left_metric.meet(right_metric);
-            let next_metric = combined_metric.join(&last_metric);
-
-            evaluated_trace.insert_state(time, next_metric.clone());
-            last_metric = next_metric;
-        }
+        let evaluated_trace = if let Some((prev_time, prev_metric)) = iter.next() {
+            until_op(left_trace, iter, prev_time, prev_metric)
+        } else {
+            Trace::default()
+        };
 
         Ok(evaluated_trace)
     }
