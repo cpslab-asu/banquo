@@ -4,6 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::rc::Rc;
 
+use nonempty::NonEmpty;
 use petgraph::algo::all_simple_paths;
 use petgraph::graphmap::DiGraphMap;
 
@@ -16,10 +17,17 @@ use crate::trace::Trace;
 /// A set of constraints represeting the conditions necessary to switch states
 #[derive(Clone, Debug)]
 pub struct Guard {
-    constraints: Vec<Predicate>,
+    constraints: NonEmpty<Predicate>,
 }
 
 impl Guard {
+    pub fn new<I>(values: I) -> Option<Self>
+    where
+        I: IntoIterator<Item = Predicate>,
+    {
+        NonEmpty::collect(values).map(|constraints| Self { constraints })
+    }
+
     /// Compute the minimum distance to any guard in the set.
     pub fn min_distance(&self, state: &Variables) -> Result<f64, PredicateError> {
         let distances = self
@@ -34,14 +42,6 @@ impl Guard {
             .expect("At least one constraint must be provided to a guard");
 
         Ok(distance)
-    }
-}
-
-impl FromIterator<Predicate> for Guard {
-    fn from_iter<T: IntoIterator<Item = Predicate>>(iter: T) -> Self {
-        Self {
-            constraints: Vec::from_iter(iter),
-        }
     }
 }
 

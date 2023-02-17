@@ -128,7 +128,7 @@ fn predicate_1d(coefficient: f64, bound: f64) -> Predicate {
 }
 
 fn guard_1d(coefficient: f64, bound: f64) -> Guard {
-    Guard::from_iter([predicate_1d(coefficient, bound)])
+    Guard::new([predicate_1d(coefficient, bound)]).unwrap()
 }
 
 fn get_automaton() -> Automaton<usize> {
