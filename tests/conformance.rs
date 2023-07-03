@@ -1,7 +1,6 @@
 use std::error::Error;
 
 use approx::assert_relative_eq;
-use banquo::eval_robustness;
 use banquo::expressions::{Predicate, Variables};
 use banquo::formulas::Formula;
 use banquo::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
@@ -50,6 +49,19 @@ fn get_trace() -> Trace<Variables> {
     ];
 
     entries.into_iter().map(make_variables).collect()
+}
+
+fn eval_robustness<F, State>(formula: F, trace: &Trace<State>) -> Result<F::Metric, F::Error>
+where
+    F: Formula<State>
+{
+    let evaluated = formula.evaluate_trace(trace)?;
+    let (_, metric) = evaluated
+        .into_iter()
+        .next()
+        .expect("Cannot evaluate empty trace");
+
+    Ok(metric)
 }
 
 fn p1() -> Predicate {

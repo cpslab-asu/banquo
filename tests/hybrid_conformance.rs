@@ -1,13 +1,25 @@
 use std::collections::HashMap;
 use std::error::Error;
 
-use banquo::eval_hybrid_distance;
 use banquo::expressions::{Automaton, Guard, HybridPredicate, HybridState, Predicate, Variables};
 use banquo::formulas::Formula;
 use banquo::metric::{HybridDistance, StateDistance};
 use banquo::operators::{Always, And, Eventually, Or};
 use banquo::parser::parse_hybrid_formula;
 use banquo::trace::Trace;
+
+fn eval_hybrid_distance<F, State>(formula: F, trace: &Trace<State>) -> Result<HybridDistance, F::Error>
+where
+    F: Formula<State, Metric = HybridDistance>,
+{
+    let evaluated = formula.evaluate_trace(trace)?;
+    let (_, metric) = evaluated
+        .into_iter()
+        .next()
+        .expect("Cannot evaluate empty trace");
+
+    Ok(metric)
+}
 
 fn make_timed_state((time, var_value, location): (f64, f64, usize)) -> (f64, HybridState<usize>) {
     let variables = Variables::from([("x", var_value)]);
