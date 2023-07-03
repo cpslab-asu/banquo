@@ -20,6 +20,7 @@ nom = { version = "^7.1.1", optional = true }
 nonempty = "0.8.1"
 ordered-float = "^3.4.0"
 petgraph = "^0.6.2"
+thiserror = "1.0.40"
 
 [dev-dependencies]
 approx = "^0.5.1"
