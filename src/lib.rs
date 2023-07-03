@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 
 pub mod expressions;
+pub mod formula;
 pub mod formulas;
 pub mod metric;
 pub mod operators;
