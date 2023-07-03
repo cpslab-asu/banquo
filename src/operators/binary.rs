@@ -230,7 +230,7 @@ mod tests {
     use super::{And, BinaryOperatorError, Implies, Or};
     use crate::operators::testing::{Const, ConstError};
     use crate::trace::Trace;
-    use crate::Formula;
+    use crate::formulas::Formula;
 
     #[test]
     fn or_robustness() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {

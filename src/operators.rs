@@ -8,7 +8,7 @@ mod testing {
     use std::fmt::{Display, Formatter};
 
     use crate::trace::Trace;
-    use crate::Formula;
+    use crate::formulas::Formula;
 
     pub struct Const<T>(Trace<T>);
 
