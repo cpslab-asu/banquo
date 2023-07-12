@@ -31,7 +31,7 @@ impl<T> Trace<T> {
         self.elements.get(&key)
     }
 
-    pub fn insert_state(&mut self, time: f64, state: T) -> Option<T> {
+    pub fn insert(&mut self, time: f64, state: T) -> Option<T> {
         let key = NotNan::new(time).unwrap();
         self.elements.insert(key, state)
     }

@@ -322,12 +322,12 @@ where
 
     for (time, metric) in iter {
         let next_u = combine(metric, &prev_u);
-        u_trace.insert_state(prev_time, prev_u);
+        u_trace.insert(prev_time, prev_u);
         prev_u = next_u;
         prev_time = time;
     }
 
-    u_trace.insert_state(prev_time, prev_u);
+    u_trace.insert(prev_time, prev_u);
     u_trace
 }
 
@@ -562,10 +562,10 @@ where
     let mut trace = Trace::default();
 
     if let Some((time, mut metric)) = iter.next() {
-        trace.insert_state(time, U::bottom());
+        trace.insert(time, U::bottom());
 
         for (prev_time, prev_metric) in iter {
-            trace.insert_state(prev_time, f(&prev_metric, metric));
+            trace.insert(prev_time, f(&prev_metric, metric));
             metric = prev_metric;
         }
     }
@@ -621,12 +621,12 @@ where
     for (time, right_metric) in right {
         let next_metric = until_eval_time(&left, time, right_metric, &prev_metric);
 
-        trace.insert_state(prev_time, prev_metric);
+        trace.insert(prev_time, prev_metric);
         prev_time = time;
         prev_metric = next_metric;
     }
 
-    trace.insert_state(prev_time, prev_metric);
+    trace.insert(prev_time, prev_metric);
     trace
 }
 
