@@ -10,8 +10,10 @@ pub struct Trace<T> {
 }
 
 impl<T> Trace<T> {
-    pub fn new(elements: BTreeMap<NotNan<f64>, T>) -> Self {
-        Self { elements }
+    pub fn new() -> Self {
+        Self {
+            elements: BTreeMap::new(),
+        }
     }
 
     pub fn zip<U>(self, mut trace: Trace<U>) -> Trace<(T, U)> {
