@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Neg;
+use std::ops::{Bound, Neg, RangeBounds};
+
+use thiserror::Error;
 
 use crate::formulas::Formula;
 use crate::metric::{Bottom, Join, Meet, Top};
@@ -515,6 +517,88 @@ where
         };
 
         Ok(evaluated_trace)
+    }
+}
+
+pub struct Bounded<F> {
+    subformula: F,
+    start: Bound<f64>,
+    end: Bound<f64>,
+}
+
+impl<F> Bounded<F> {
+    pub fn new<R>(interval: R, formula: F) -> Self
+    where
+        R: RangeBounds<f64>,
+    {
+        Self {
+            subformula: formula,
+            start: interval.start_bound().cloned(),
+            end: interval.end_bound().cloned(),
+        }
+    }
+}
+
+pub trait SupportsBounded<M> {
+    fn evaluate_bounded<'a>(&self, elements: impl Iterator<Item = (f64, &'a M)>) -> Trace<M>
+    where
+        M: 'a;
+}
+
+#[derive(Debug, Error)]
+pub enum BoundedError<F> {
+    #[error("Bounded formula error: {inner}")]
+    FormulaError { inner: F },
+}
+
+impl<F, S> Formula<S> for Bounded<F>
+where
+    F: Formula<S> + SupportsBounded<F::Metric>,
+{
+    type Error = BoundedError<F::Error>;
+    type Metric = F::Metric;
+
+    fn evaluate_trace(&self, trace: &Trace<S>) -> Result<Trace<Self::Metric>, Self::Error> {
+        todo!()
+    }
+}
+
+fn evaluate_bounded<A, B, F>(elements: impl Iterator<Item = (f64, A)>, initial: B, combine: F) -> Trace<B>
+where
+    B: Clone,
+    F: Fn(&B, A) -> B,
+{
+    let scan_fn = |state: &mut B, (time, value): (f64, A)| -> Option<(f64, B)> {
+        let next_state = combine(state, value);
+        *state = next_state;
+
+        Some((time, state.clone()))
+    };
+
+    elements.scan(initial, scan_fn).collect()
+}
+
+impl<M, F> SupportsBounded<M> for Always<F>
+where
+    M: Meet + Top + Clone,
+{
+    fn evaluate_bounded<'a>(&self, elements: impl Iterator<Item = (f64, &'a M)>) -> Trace<M>
+    where
+        M: 'a,
+    {
+        evaluate_bounded(elements, M::top(), M::meet)
+    }
+}
+
+impl<M, F> SupportsBounded<M> for Eventually<F>
+where
+    M: Join + Bottom + Clone,
+{
+    fn evaluate_bounded<'a>(&self, elements: impl Iterator<Item = (f64, &'a M)>) -> Trace<M>
+    where
+        M: 'a,
+    {
+        evaluate_bounded(elements, M::bottom(), M::join)
     }
 }
 
