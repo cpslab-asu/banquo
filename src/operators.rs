@@ -165,7 +165,7 @@ where
         let left = self.left.evaluate_trace(trace);
         let right = self.right.evaluate_trace(trace);
 
-        binop(left, right, Metric::join)
+        binop(left, right, |l, r| Metric::join(&l, &r))
     }
 }
 
@@ -219,7 +219,7 @@ where
         let left = self.left.evaluate_trace(trace);
         let right = self.right.evaluate_trace(trace);
 
-        binop(left, right, Metric::meet)
+        binop(left, right, |l, r| Metric::meet(&l, &r))
     }
 }
 
@@ -272,7 +272,10 @@ where
     fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         let ante = self.ante.evaluate_trace(trace);
         let cons = self.cons.evaluate_trace(trace);
-        let f = |a_val: Metric, c_val: Metric| Metric::join(-a_val, c_val);
+        let f = |a_val: Metric, c_val: Metric| {
+            let neg_a = -a_val;
+            Metric::join(&neg_a, &c_val)
+        };
 
         binop(ante, cons, f)
     }
@@ -416,7 +419,7 @@ impl<F> Always<F> {
 impl<State, F, M> Formula<State> for Always<F>
 where
     F: Formula<State, Metric = M>,
-    M: Top + for<'a> Meet<&'a M>,
+    M: Top + Meet,
 {
     type Metric = M;
     type Error = F::Error;
@@ -498,7 +501,7 @@ impl<F> Eventually<F> {
 impl<State, F, M> Formula<State> for Eventually<F>
 where
     F: Formula<State, Metric = M>,
-    M: Bottom + for<'a> Join<&'a M>,
+    M: Bottom + Join,
 {
     type Metric = M;
     type Error = F::Error;
@@ -601,17 +604,17 @@ impl<Left, Right> Until<Left, Right> {
 
 fn until_eval_time<M>(left: &Trace<M>, time: f64, right: M, prev: &M) -> M
 where
-    M: Top + Meet + for<'a> Meet<&'a M> + for<'a> Join<&'a M>,
+    M: Top + Meet + Join,
 {
     let left_metric = left.range(..=time).into_iter().fold(M::top(), |l, (_, r)| l.meet(r)); // Minimum of left trace until time
-    let combined_metric = left_metric.meet(right); // minimum of ^ and right metric
+    let combined_metric = left_metric.meet(&right); // minimum of ^ and right metric
     combined_metric.join(prev) // Maximum of ^  and previous metric
 }
 
 fn until_op<M, I>(left: Trace<M>, right: I, mut prev_time: f64, mut prev_metric: M) -> Trace<M>
 where
     I: Iterator<Item = (f64, M)>,
-    M: Top + Bottom + Meet + for<'a> Meet<&'a M> + for<'a> Join<&'a M>,
+    M: Top + Bottom + Meet + Join,
 {
     let mut trace = Trace::default();
     let bottom = M::bottom();
@@ -634,7 +637,7 @@ impl<Left, Right, State, Metric> Formula<State> for Until<Left, Right>
 where
     Left: Formula<State, Metric = Metric>,
     Right: Formula<State, Metric = Metric>,
-    Metric: Clone + Top + Bottom + Meet + for<'a> Meet<&'a Metric> + for<'a> Join<&'a Metric>,
+    Metric: Clone + Top + Bottom + Meet + Join,
 {
     type Metric = Metric;
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
