@@ -88,7 +88,7 @@ impl Neg for HybridDistance {
 /// When provided along with a partial ordering, the type forms a Meet-Semilattice.
 pub trait Meet<Other = Self> {
     /// Compute the greatest lower bound of self and other
-    fn meet(self, other: Other) -> Self;
+    fn meet(&self, other: &Other) -> Self;
 }
 
 /// Meet trait implementation for f64 by value
@@ -97,18 +97,12 @@ pub trait Meet<Other = Self> {
 /// alerted to any issues during computation. If either of the values being compared are NaN values
 /// then the result of the Meet operator will also be NaN.
 impl Meet for f64 {
-    fn meet(self, other: Self) -> Self {
+    fn meet(&self, other: &Self) -> Self {
         if self.is_nan() || other.is_nan() {
             f64::NAN
         } else {
-            f64::min(self, other)
+            f64::min(*self, *other)
         }
-    }
-}
-
-impl Meet<&Self> for f64 {
-    fn meet(self, other: &Self) -> Self {
-        self.meet(*other)
     }
 }
 
@@ -121,13 +115,13 @@ impl Meet<&Self> for f64 {
 /// behavior. To compare the continuous components, we delegate to the [Meet] implementation for
 /// f64 to compute the minimum.
 impl Meet for StateDistance {
-    fn meet(self, other: Self) -> Self {
+    fn meet(&self, other: &Self) -> Self {
         match self.discrete.cmp(&other.discrete) {
-            Ordering::Greater => self,
-            Ordering::Less => other,
+            Ordering::Greater => self.clone(),
+            Ordering::Less => other.clone(),
             Ordering::Equal => StateDistance {
                 discrete: self.discrete,
-                continuous: self.continuous.meet(other.continuous),
+                continuous: self.continuous.meet(&other.continuous),
             },
         }
     }
@@ -139,14 +133,8 @@ impl Meet for StateDistance {
 /// by the tuple (-inf, -inf) which we emulate using None. Since None represents the [Bottom] value
 /// for HybridDistance, both values must be Some in order to compute a distance that is not None.
 impl Meet for HybridDistance {
-    fn meet(self, other: Self) -> Self {
-        HybridDistance(self.0.zip(other.0).map(|(d1, d2)| d1.meet(d2)))
-    }
-}
-
-impl<'a> Meet<&'a Self> for HybridDistance {
-    fn meet(self, other: &'a Self) -> Self {
-        self.meet(*other)
+    fn meet(&self, other: &Self) -> Self {
+        HybridDistance(self.0.zip(other.0).map(|(d1, d2)| d1.meet(&d2)))
     }
 }
 
@@ -156,7 +144,7 @@ impl<'a> Meet<&'a Self> for HybridDistance {
 /// When provided along with a partial ordering, the type forms a Join-Semilattice.
 pub trait Join<Other = Self> {
     /// Compute the least upper bound of self and other
-    fn join(self, other: Other) -> Self;
+    fn join(&self, other: &Other) -> Self;
 }
 
 /// Join trait implementation for f64 by value
@@ -165,18 +153,12 @@ pub trait Join<Other = Self> {
 /// alerted to any issues during computation. If either of the values being compared are NaN values
 /// then the result of the Meet operator will also be NaN.
 impl Join for f64 {
-    fn join(self, other: Self) -> Self {
+    fn join(&self, other: &Self) -> Self {
         if self.is_nan() || other.is_nan() {
             f64::NAN
         } else {
-            f64::max(self, other)
+            f64::max(*self, *other)
         }
-    }
-}
-
-impl Join<&Self> for f64 {
-    fn join(self, other: &Self) -> Self {
-        self.join(*other)
     }
 }
 
@@ -189,13 +171,13 @@ impl Join<&Self> for f64 {
 /// behavior. To compare the continuous components, we delegate to the [Join] implementation for
 /// f64 to compute the maximum.
 impl Join for StateDistance {
-    fn join(self, other: Self) -> Self {
+    fn join(&self, other: &Self) -> Self {
         match self.discrete.cmp(&other.discrete) {
-            Ordering::Less => self,
-            Ordering::Greater => other,
+            Ordering::Less => self.clone(),
+            Ordering::Greater => other.clone(),
             Ordering::Equal => StateDistance {
                 discrete: self.discrete,
-                continuous: self.continuous.join(other.continuous),
+                continuous: self.continuous.join(&other.continuous),
             },
         }
     }
@@ -207,21 +189,15 @@ impl Join for StateDistance {
 /// by the tuple (-inf, -inf) which we emulate using None. Since None represents the [Bottom] value
 /// for HybridDistance, a None value is only returned if both of the values are None.
 impl Join for HybridDistance {
-    fn join(self, other: Self) -> Self {
+    fn join(&self, other: &Self) -> Self {
         let inner = match (self.0, other.0) {
-            (Some(d1), Some(d2)) => Some(d1.join(d2)),
+            (Some(d1), Some(d2)) => Some(d1.join(&d2)),
             (None, Some(right)) => Some(right),
             (Some(left), None) => Some(left),
             (None, None) => None,
         };
 
         HybridDistance(inner)
-    }
-}
-
-impl<'a> Join<&'a Self> for HybridDistance {
-    fn join(self, other: &'a Self) -> Self {
-        self.join(*other)
     }
 }
 
