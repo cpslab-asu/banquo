@@ -565,14 +565,12 @@ where
 
 fn evaluate_bounded<A, B, F>(elements: impl Iterator<Item = (f64, A)>, initial: B, combine: F) -> Trace<B>
 where
-    B: Clone,
     F: Fn(&B, A) -> B,
 {
     let scan_fn = |state: &mut B, (time, value): (f64, A)| -> Option<(f64, B)> {
-        let next_state = combine(state, value);
-        *state = next_state;
-
-        Some((time, state.clone()))
+        let mut tmp = combine(state, value);
+        std::mem::swap(state, &mut tmp);
+        Some((time, tmp))
     };
 
     elements.scan(initial, scan_fn).collect()
@@ -580,7 +578,7 @@ where
 
 impl<M, F> SupportsBounded<M> for Always<F>
 where
-    M: Meet + Top + Clone,
+    M: Meet + Top,
 {
     fn evaluate_bounded<'a>(&self, elements: impl Iterator<Item = (f64, &'a M)>) -> Trace<M>
     where
@@ -592,7 +590,7 @@ where
 
 impl<M, F> SupportsBounded<M> for Eventually<F>
 where
-    M: Join + Bottom + Clone,
+    M: Join + Bottom,
 {
     fn evaluate_bounded<'a>(&self, elements: impl Iterator<Item = (f64, &'a M)>) -> Trace<M>
     where
