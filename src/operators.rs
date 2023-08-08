@@ -549,6 +549,20 @@ pub trait SupportsBounded<M> {
 pub enum BoundedError<F> {
     #[error("Bounded formula error: {inner}")]
     FormulaError { inner: F },
+
+    #[error("Subtrace evaluation for interval ({start:?}, {end:?}) is empty")]
+    EmptySubtraceEvaluation { start: Bound<f64>, end: Bound<f64> },
+
+    #[error("Empty interval")]
+    EmptyInterval,
+}
+
+fn offset_bound(bound: &Bound<f64>, offset: f64) -> Bound<f64> {
+    match bound {
+        Bound::Unbounded => Bound::Unbounded,
+        Bound::Excluded(v) => Bound::Excluded(v + offset),
+        Bound::Included(v) => Bound::Included(v + offset),
+    }
 }
 
 impl<F, S> Formula<S> for Bounded<F>
@@ -559,7 +573,26 @@ where
     type Metric = F::Metric;
 
     fn evaluate_trace(&self, trace: &Trace<S>) -> Result<Trace<Self::Metric>, Self::Error> {
-        todo!()
+        let subformula_result = self
+            .subformula
+            .evaluate_trace(trace)
+            .map_err(|inner| BoundedError::FormulaError { inner })?;
+
+        subformula_result
+            .times()
+            .map(|time| {
+                let start = offset_bound(&self.start, time);
+                let end = offset_bound(&self.end, time);
+                let subtrace = subformula_result.range((start, end));
+                let evaluated_subtrace = self.subformula.evaluate_bounded(subtrace.into_iter());
+
+                evaluated_subtrace
+                    .into_iter()
+                    .next()
+                    .map(|(_, metric)| (time, metric))
+                    .ok_or_else(|| BoundedError::EmptySubtraceEvaluation { start, end })
+            })
+            .collect()
     }
 }
 
