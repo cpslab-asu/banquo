@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::formulas::Formula;
 use crate::metric::{Bottom, Join, Meet, Top};
-use crate::trace::Trace;
+use crate::trace::{Range, Trace};
 
 /// First-order operator that inverts its subformula
 ///
@@ -520,6 +520,112 @@ where
     }
 }
 
+pub trait SupportsBounded<'a, M> {
+    type Iter: Iterator<Item = (f64, M)>;
+    fn evaluate_range(&self, range: Range<'a, M>) -> Self::Iter;
+}
+
+struct RangeState<'a, M> {
+    range: Range<'a, M>,
+    state: Option<(f64, M)>,
+}
+
+impl<'a, M> RangeState<'a, M> {
+    fn new<F>(mut range: Range<'a, M>, initial: M, f: F) -> Self
+    where
+        F: Fn(&M, &M) -> M,
+    {
+        Self {
+            state: range.next_back().map(|(time, value)| (time, f(&initial, value))),
+            range,
+        }
+    }
+
+    fn update<F>(&mut self, f: F) -> Option<(f64, M)>
+    where
+        F: Fn(&M, &M) -> M,
+    {
+        let state = self.state.take()?;
+        self.state = self.range.next_back().map(|(time, value)| (time, f(&state.1, value)));
+
+        Some(state)
+    }
+}
+
+pub struct AlwaysRangeIter<'a, M> {
+    state: RangeState<'a, M>,
+}
+
+impl<'a, M> AlwaysRangeIter<'a, M>
+where
+    M: Meet + Top,
+{
+    fn new(range: Range<'a, M>) -> Self {
+        Self {
+            state: RangeState::new(range, M::top(), M::meet),
+        }
+    }
+}
+
+impl<'a, M> Iterator for AlwaysRangeIter<'a, M>
+where
+    M: Meet,
+{
+    type Item = (f64, M);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.state.update(M::meet)
+    }
+}
+
+impl<'a, M, F> SupportsBounded<'a, M> for Always<F>
+where
+    M: Meet + Top + 'a,
+{
+    type Iter = AlwaysRangeIter<'a, M>;
+
+    fn evaluate_range(&self, range: Range<'a, M>) -> Self::Iter {
+        AlwaysRangeIter::new(range)
+    }
+}
+
+pub struct EventuallyRangeIter<'a, M> {
+    state: RangeState<'a, M>,
+}
+
+impl<'a, M> EventuallyRangeIter<'a, M>
+where
+    M: Join + Bottom,
+{
+    fn new(range: Range<'a, M>) -> Self {
+        Self {
+            state: RangeState::new(range, M::bottom(), M::join),
+        }
+    }
+}
+
+impl<'a, M> Iterator for EventuallyRangeIter<'a, M>
+where
+    M: Join,
+{
+    type Item = (f64, M);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.state.update(M::join)
+    }
+}
+
+impl<'a, M, F> SupportsBounded<'a, M> for Eventually<F>
+where
+    M: Join + Bottom + 'a,
+{
+    type Iter = EventuallyRangeIter<'a, M>;
+
+    fn evaluate_range(&self, range: Range<'a, M>) -> Self::Iter {
+        EventuallyRangeIter::new(range)
+    }
+}
+
 pub struct Bounded<F> {
     subformula: F,
     start: Bound<f64>,
@@ -537,12 +643,6 @@ impl<F> Bounded<F> {
             end: interval.end_bound().cloned(),
         }
     }
-}
-
-pub trait SupportsBounded<M> {
-    fn evaluate_bounded<'a>(&self, elements: impl Iterator<Item = (f64, &'a M)>) -> Trace<M>
-    where
-        M: 'a;
 }
 
 #[derive(Debug, Error)]
@@ -567,7 +667,7 @@ fn offset_bound(bound: &Bound<f64>, offset: f64) -> Bound<f64> {
 
 impl<F, S> Formula<S> for Bounded<F>
 where
-    F: Formula<S> + SupportsBounded<F::Metric>,
+    F: Formula<S> + for<'a> SupportsBounded<'a, F::Metric>,
 {
     type Error = BoundedError<F::Error>;
     type Metric = F::Metric;
@@ -583,53 +683,15 @@ where
             .map(|time| {
                 let start = offset_bound(&self.start, time);
                 let end = offset_bound(&self.end, time);
-                let subtrace = subformula_result.range((start, end));
-                let evaluated_subtrace = self.subformula.evaluate_bounded(subtrace.into_iter());
+                let range = subformula_result.range((start, end));
+                let evaluated_subtrace = self.subformula.evaluate_range(range);
 
                 evaluated_subtrace
-                    .into_iter()
-                    .next()
+                    .last()
                     .map(|(_, metric)| (time, metric))
                     .ok_or_else(|| BoundedError::EmptySubtraceEvaluation { start, end })
             })
             .collect()
-    }
-}
-
-fn evaluate_bounded<A, B, F>(elements: impl Iterator<Item = (f64, A)>, initial: B, combine: F) -> Trace<B>
-where
-    F: Fn(&B, A) -> B,
-{
-    let scan_fn = |state: &mut B, (time, value): (f64, A)| -> Option<(f64, B)> {
-        let mut tmp = combine(state, value);
-        std::mem::swap(state, &mut tmp);
-        Some((time, tmp))
-    };
-
-    elements.scan(initial, scan_fn).collect()
-}
-
-impl<M, F> SupportsBounded<M> for Always<F>
-where
-    M: Meet + Top,
-{
-    fn evaluate_bounded<'a>(&self, elements: impl Iterator<Item = (f64, &'a M)>) -> Trace<M>
-    where
-        M: 'a,
-    {
-        evaluate_bounded(elements, M::top(), M::meet)
-    }
-}
-
-impl<M, F> SupportsBounded<M> for Eventually<F>
-where
-    M: Join + Bottom,
-{
-    fn evaluate_bounded<'a>(&self, elements: impl Iterator<Item = (f64, &'a M)>) -> Trace<M>
-    where
-        M: 'a,
-    {
-        evaluate_bounded(elements, M::bottom(), M::join)
     }
 }
 
