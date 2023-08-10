@@ -686,6 +686,9 @@ where
                 let range = subformula_result.range((start, end));
                 let evaluated_subtrace = self.subformula.evaluate_range(range);
 
+                // This implementation assumes that the iterator returned from evaluating the range
+                // is in reverse chronological order, thus the call to `last` instead of `next`.
+
                 evaluated_subtrace
                     .last()
                     .map(|(_, metric)| (time, metric))
