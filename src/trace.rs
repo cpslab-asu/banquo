@@ -47,6 +47,86 @@ impl<T> Trace<T> {
     }
 }
 
+pub struct Times<I>(I);
+
+impl<I, T> Iterator for Times<I>
+where
+    I: Iterator<Item = (f64, T)>,
+{
+    type Item = f64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|p| p.0)
+    }
+}
+
+impl<I, T> DoubleEndedIterator for Times<I>
+where
+    I: DoubleEndedIterator<Item = (f64, T)>,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back().map(|p| p.0)
+    }
+}
+
+pub struct States<I>(I);
+
+impl<I, T> Iterator for States<I>
+where
+    I: Iterator<Item = (f64, T)>,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|p| p.1)
+    }
+}
+
+impl<I, T> DoubleEndedIterator for States<I>
+where
+    I: DoubleEndedIterator<Item = (f64, T)>,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back().map(|p| p.1)
+    }
+}
+
+impl<T> Trace<T> {
+    pub fn times(&self) -> Times<Iter<T>> {
+        Times(self.iter())
+    }
+
+    pub fn states(&self) -> States<Iter<T>> {
+        States(self.iter())
+    }
+}
+
+pub struct Range<'a, T>(std::collections::btree_map::Range<'a, NotNan<f64>, T>);
+
+impl<'a, T> Iterator for Range<'a, T> {
+    type Item = (f64, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(time, value)| (time.into_inner(), value))
+    }
+}
+
+impl<'a, T> DoubleEndedIterator for Range<'a, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back().map(|(time, value)| (time.into_inner(), value))
+    }
+}
+
+impl<'a, T> Range<'a, T> {
+    pub fn times(self) -> Times<Self> {
+        Times(self)
+    }
+
+    pub fn states(self) -> States<Self> {
+        States(self)
+    }
+}
+
 fn convert_bound(bound: Bound<&f64>) -> Bound<NotNan<f64>> {
     match bound {
         Bound::Unbounded => Bound::Unbounded,
@@ -56,60 +136,14 @@ fn convert_bound(bound: Bound<&f64>) -> Bound<NotNan<f64>> {
 }
 
 impl<T> Trace<T> {
-    pub fn range<R>(&self, bounds: R) -> Trace<&T>
+    pub fn range<R>(&self, bounds: R) -> Range<T>
     where
         R: RangeBounds<f64>,
     {
         let start = convert_bound(bounds.start_bound());
         let end = convert_bound(bounds.end_bound());
 
-        let elements = self
-            .elements
-            .range((start, end))
-            .map(|(time, state)| (*time, state))
-            .collect();
-
-        Trace { elements }
-    }
-}
-
-pub struct Times<'a, T> {
-    times: std::collections::btree_map::Keys<'a, NotNan<f64>, T>,
-}
-
-impl<'a, T> Iterator for Times<'a, T> {
-    type Item = f64;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.times.next().cloned().map(NotNan::into_inner)
-    }
-}
-
-impl<T> Trace<T> {
-    pub fn times(&self) -> Times<T> {
-        Times {
-            times: self.elements.keys(),
-        }
-    }
-}
-
-pub struct States<'a, T> {
-    states: std::collections::btree_map::Values<'a, NotNan<f64>, T>,
-}
-
-impl<'a, T> Iterator for States<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.states.next()
-    }
-}
-
-impl<T> Trace<T> {
-    pub fn states(&self) -> States<T> {
-        States {
-            states: self.elements.values(),
-        }
+        Range(self.elements.range((start, end)))
     }
 }
 
@@ -273,10 +307,9 @@ mod tests {
         let times = 0..10;
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
         let trace = Trace::from_iter(times.zip(values));
-        let subtrace = trace.range(0f64..4.0);
 
-        let subtrace_times: Vec<f64> = subtrace.times().collect::<Vec<_>>();
-        let subtrace_states: Vec<f64> = subtrace.states().map(|state| **state).collect::<Vec<f64>>();
+        let subtrace_times: Vec<f64> = trace.range(0f64..4.0).times().collect::<Vec<_>>();
+        let subtrace_states: Vec<f64> = trace.range(0f64..4.0).states().map(|state| *state).collect::<Vec<f64>>();
 
         assert_eq!(subtrace_times, vec![0.0, 1.0, 2.0, 3.0]);
         assert_eq!(subtrace_states, vec![1.0, 2.0, 3.0, 4.0]);
