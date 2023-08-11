@@ -823,50 +823,67 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
-    use std::fmt::{Debug, Display, Formatter};
+    use std::fmt::Debug;
 
-    use super::{Always, And, BinaryOperatorError, Eventually, Implies, Next, Not, Or, Until};
+    use thiserror::Error;
+
+    use super::{Always, And, BinaryOperatorError, BoundedError, Eventually, Implies, Next, Not, Or, Until};
     use crate::formulas::Formula;
     use crate::trace::Trace;
 
-    pub struct Const<T>(Trace<T>);
+    pub struct Const;
 
-    impl<T> From<Trace<T>> for Const<T> {
-        fn from(value: Trace<T>) -> Self {
-            Self(value)
-        }
-    }
+    #[derive(Debug, Error)]
+    pub enum ConstError {}
 
-    #[derive(Debug)]
-    pub struct ConstError;
-
-    impl Display for ConstError {
-        fn fmt(&self, _: &mut Formatter<'_>) -> std::fmt::Result {
-            unreachable!("Const cannot return an error")
-        }
-    }
-
-    impl Error for ConstError {}
-
-    impl<S, T> Formula<S> for Const<T>
+    impl<S> Formula<S> for Const
     where
-        T: Clone,
+        S: Clone,
     {
-        type Metric = T;
+        type Metric = S;
         type Error = ConstError;
 
-        fn evaluate_trace(&self, _: &Trace<S>) -> Result<Trace<T>, Self::Error> {
-            Ok(self.0.clone())
+        fn evaluate_trace(&self, trace: &Trace<S>) -> Result<Trace<Self::Metric>, Self::Error> {
+            Ok(trace.clone())
+        }
+    }
+
+    pub struct ConstLeft;
+
+    impl<L, R> Formula<(L, R)> for ConstLeft
+    where
+        L: Clone,
+    {
+        type Metric = L;
+        type Error = ConstError;
+
+        fn evaluate_trace(&self, trace: &Trace<(L, R)>) -> Result<Trace<Self::Metric>, Self::Error> {
+            let left_trace = trace.iter().map(|(time, (left, _))| (time, left.clone())).collect();
+
+            Ok(left_trace)
+        }
+    }
+
+    pub struct ConstRight;
+
+    impl<L, R> Formula<(L, R)> for ConstRight
+    where
+        R: Clone,
+    {
+        type Metric = R;
+        type Error = ConstError;
+
+        fn evaluate_trace(&self, trace: &Trace<(L, R)>) -> Result<Trace<Self::Metric>, Self::Error> {
+            let right_trace = trace.iter().map(|(time, (_, right))| (time, right.clone())).collect();
+
+            Ok(right_trace)
         }
     }
 
     #[test]
     fn not() -> Result<(), ConstError> {
-        let trace = Trace::from_iter([(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]);
-        let formula = Not::new(Const::from(trace));
-
-        let input: Trace<()> = Trace::default();
+        let formula = Not::new(Const);
+        let input = Trace::from_iter([(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]);
         let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 0.0), (1, -1.0), (2, -2.0), (3, -3.0)]);
 
@@ -876,11 +893,10 @@ mod tests {
 
     #[test]
     fn or() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
+        let formula = Or::new(ConstLeft, ConstRight);
         let left = Trace::from_iter([(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]);
         let right = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
-        let formula = Or::new(Const::from(left), Const::from(right));
-
-        let input: Trace<()> = Trace::default();
+        let input = left.zip(right);
         let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 1.0), (1, 1.0), (2, 4.0), (3, 6.0)]);
 
@@ -890,11 +906,10 @@ mod tests {
 
     #[test]
     fn and() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
+        let formula = And::new(ConstLeft, ConstRight);
         let left = Trace::from_iter([(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]);
         let right = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
-        let formula = And::new(Const::from(left), Const::from(right));
-
-        let input: Trace<()> = Trace::default();
+        let input = left.zip(right);
         let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 0.0), (1, 0.0), (2, 2.0), (3, 3.0)]);
 
@@ -904,11 +919,10 @@ mod tests {
 
     #[test]
     fn implies() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
+        let formula = Implies::new(ConstLeft, ConstRight);
         let antecedent = Trace::from_iter([(0, 0.0), (1, 1.0), (2, -4.0), (3, 3.0)]);
         let consequent = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 2.0), (3, 6.0)]);
-        let formula = Implies::new(Const::from(antecedent), Const::from(consequent));
-
-        let input: Trace<()> = Trace::default();
+        let input = antecedent.zip(consequent);
         let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
 
@@ -916,70 +930,67 @@ mod tests {
         Ok(())
     }
 
-    fn fw_test_case<F, T>(formula: F, expected: Trace<T>) -> Result<(), ConstError>
-    where
-        F: Formula<(), Metric = T, Error = ConstError>,
-        T: Debug + PartialEq,
-    {
-        let input: Trace<()> = Trace::default();
+    #[test]
+    fn always() -> Result<(), BoundedError<ConstError>> {
+        let formula = Always::unbounded(Const);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
         let robustness = formula.evaluate_trace(&input)?;
+        let expected = Trace::from_iter([(0, 1.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
         Ok(())
     }
 
     #[test]
-    fn always_unbounded() -> Result<(), ConstError> {
-        let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Always::unbounded(Const::from(inner));
-        let expected = Trace::from_iter([(0, 1.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 3.0)]);
-
-        fw_test_case(formula, expected)
-    }
-
-    #[test]
-    fn always_bounded() -> Result<(), ConstError> {
-        let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Always::bounded(0, 2, Const::from(inner));
+    fn bounded_always() -> Result<(), BoundedError<ConstError>> {
+        let formula = Always::bounded(0f64..=2f64, Const);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
+        let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 2.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 3.0)]);
 
-        fw_test_case(formula, expected)
+        assert_eq!(robustness, expected);
+        Ok(())
     }
 
     #[test]
-    fn eventually_unbounded() -> Result<(), ConstError> {
-        let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
-        let formula = Eventually::unbounded(Const::from(inner));
+    fn eventually() -> Result<(), BoundedError<ConstError>> {
+        let formula = Eventually::unbounded(Const);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
+        let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 4.0), (1, 3.0), (2, 3.0), (3, 3.0), (4, 3.0)]);
 
-        fw_test_case(formula, expected)
+        assert_eq!(robustness, expected);
+        Ok(())
     }
 
     #[test]
-    fn eventually_bounded() -> Result<(), ConstError> {
-        let inner = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
-        let formula = Eventually::bounded(0, 2, Const::from(inner));
+    fn bounded_eventually() -> Result<(), BoundedError<ConstError>> {
+        let formula = Eventually::bounded(0f64..=2f64, Const);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
+        let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 4.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 3.0)]);
 
-        fw_test_case(formula, expected)
+        assert_eq!(robustness, expected);
+        Ok(())
     }
 
     #[test]
     fn next() -> Result<(), ConstError> {
-        let inner = Trace::from_iter([(0, 1.0), (1, 2.0), (2, 3.0), (3, 4.0)]);
-        let formula = Next::new(Const::from(inner));
+        let input = Trace::from_iter([(0, 1.0), (1, 2.0), (2, 3.0), (3, 4.0)]);
+        let formula = Next::new(Const);
+        let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 2.0), (1, 3.0), (2, 4.0), (3, f64::NEG_INFINITY)]);
 
-        fw_test_case(formula, expected)
+        assert_eq!(robustness, expected);
+        Ok(())
     }
 
     #[test]
     fn until() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
-        let left_trace = Trace::from_iter([(0.0, 3.0), (1.0, 1.5), (2.0, 1.4), (3.0, 1.1)]);
-        let right_trace = Trace::from_iter([(0.0, -2.1), (1.0, 3.7), (2.0, 1.2), (3.0, 2.2)]);
-
-        let formula = Until::new(Const::from(left_trace), Const::from(right_trace));
-        let input: Trace<()> = Trace::default();
+        let formula = Until::new(ConstLeft, ConstRight);
+        let left = Trace::from_iter([(0.0, 3.0), (1.0, 1.5), (2.0, 1.4), (3.0, 1.1)]);
+        let right = Trace::from_iter([(0.0, -2.1), (1.0, 3.7), (2.0, 1.2), (3.0, 2.2)]);
+        let input = left.zip(right);
         let robustness = formula.evaluate_trace(&input)?;
 
         assert_eq!(robustness[3.0], 1.1);
