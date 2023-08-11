@@ -447,21 +447,6 @@ struct BoundedUnary<F> {
     end: Bound<f64>,
 }
 
-fn map_bound<T, F, U>(bound: Bound<&T>, f: F) -> Bound<U>
-where
-    F: Fn(&T) -> U,
-{
-    match bound {
-        Bound::Unbounded => Bound::Unbounded,
-        Bound::Excluded(b) => Bound::Excluded(f(b)),
-        Bound::Included(b) => Bound::Included(f(b)),
-    }
-}
-
-fn shift_bound(bound: &Bound<f64>, amount: f64) -> Bound<f64> {
-    map_bound(bound.as_ref(), |b| b + amount)
-}
-
 impl<F> BoundedUnary<F> {
     fn new<R>(range: R, formula: F) -> Self
     where
@@ -474,12 +459,20 @@ impl<F> BoundedUnary<F> {
         }
     }
 
-    fn shift_start(&self, amount: f64) -> Bound<f64> {
-        shift_bound(&self.start, amount)
+    fn compute_start(&self, time: f64) -> Bound<f64> {
+        match self.start {
+            Bound::Unbounded => Bound::Included(time),
+            Bound::Excluded(b) => Bound::Excluded(b + time),
+            Bound::Included(b) => Bound::Included(b + time),
+        }
     }
 
-    fn shift_end(&self, amount: f64) -> Bound<f64> {
-        shift_bound(&self.end, amount)
+    fn compute_end(&self, time: f64) -> Bound<f64> {
+        match self.end {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Excluded(b) => Bound::Excluded(b + time),
+            Bound::Included(b) => Bound::Included(b + time),
+        }
     }
 
     fn evaluate<S, M, I, C>(&self, trace: &Trace<S>, init: I, combine: C) -> Result<Trace<M>, BoundedError<F::Error>>
@@ -495,8 +488,8 @@ impl<F> BoundedUnary<F> {
             .map_err(|inner| BoundedError::FormulaError { inner })?;
 
         let evaluate_time = |time: f64| -> Result<(f64, M), BoundedError<F::Error>> {
-            let start = self.shift_start(time);
-            let end = self.shift_end(time);
+            let start = self.compute_start(time);
+            let end = self.compute_end(time);
             let range = subformula_evaluation.range((start, end));
             let iter = self.inner.evaluate_range(range, &init, &combine);
 
