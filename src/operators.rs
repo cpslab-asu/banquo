@@ -356,6 +356,202 @@ where
     trace.times().map(eval_subtrace).collect()
 }
 
+struct UnboundedIter<'a, T, F> {
+    rest: Range<'a, T>,
+    state: Option<(f64, T)>,
+    combine: F,
+}
+
+impl<'a, T, F> UnboundedIter<'a, T, F>
+where
+    F: Fn(&T, &T) -> T,
+{
+    fn new(mut range: Range<'a, T>, init: T, combine: F) -> Self {
+        Self {
+            state: range.next_back().map(|(time, value)| (time, combine(&init, value))),
+            rest: range,
+            combine,
+        }
+    }
+}
+
+impl<'a, T, F> Iterator for UnboundedIter<'a, T, F>
+where
+    F: Fn(&T, &T) -> T,
+{
+    type Item = (f64, T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let state = self.state.take()?;
+        self.state = self
+            .rest
+            .next_back()
+            .map(|(time, value)| (time, (self.combine)(&state.1, value)));
+
+        Some(state)
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum BoundedError<F> {
+    #[error("Bounded formula error: {inner}")]
+    FormulaError { inner: F },
+
+    #[error("Subtrace evaluation for interval ({start:?}, {end:?}) is empty")]
+    EmptySubtraceEvaluation { start: Bound<f64>, end: Bound<f64> },
+
+    #[error("Empty interval")]
+    EmptyInterval,
+}
+
+#[derive(Clone)]
+struct UnboundedUnary<F> {
+    subformula: F,
+}
+
+impl<F> UnboundedUnary<F> {
+    fn new(formula: F) -> Self {
+        Self { subformula: formula }
+    }
+
+    fn evaluate_range<'a, T, I, C>(&self, range: Range<'a, T>, init: I, combine: C) -> UnboundedIter<'a, T, C>
+    where
+        I: Fn() -> T,
+        C: Fn(&T, &T) -> T,
+    {
+        UnboundedIter::new(range, init(), combine)
+    }
+
+    fn evaluate<S, M, I, C>(&self, trace: &Trace<S>, init: I, combine: C) -> Result<Trace<M>, BoundedError<F::Error>>
+    where
+        F: Formula<S, Metric = M>,
+        I: Fn() -> M,
+        C: Fn(&M, &M) -> M,
+    {
+        let subformula_evaluation = self
+            .subformula
+            .evaluate_trace(trace)
+            .map_err(|inner| BoundedError::FormulaError { inner })?;
+
+        let range = subformula_evaluation.range(..);
+        let result = self.evaluate_range(range, init, combine).collect();
+
+        Ok(result)
+    }
+}
+
+#[derive(Clone)]
+struct BoundedUnary<F> {
+    inner: UnboundedUnary<F>,
+    start: Bound<f64>,
+    end: Bound<f64>,
+}
+
+fn map_bound<T, F, U>(bound: Bound<&T>, f: F) -> Bound<U>
+where
+    F: Fn(&T) -> U,
+{
+    match bound {
+        Bound::Unbounded => Bound::Unbounded,
+        Bound::Excluded(b) => Bound::Excluded(f(b)),
+        Bound::Included(b) => Bound::Included(f(b)),
+    }
+}
+
+fn shift_bound(bound: &Bound<f64>, amount: f64) -> Bound<f64> {
+    map_bound(bound.as_ref(), |b| b + amount)
+}
+
+impl<F> BoundedUnary<F> {
+    fn new<R>(range: R, formula: F) -> Self
+    where
+        R: RangeBounds<f64>,
+    {
+        Self {
+            inner: UnboundedUnary { subformula: formula },
+            start: range.start_bound().cloned(),
+            end: range.end_bound().cloned(),
+        }
+    }
+
+    fn shift_start(&self, amount: f64) -> Bound<f64> {
+        shift_bound(&self.start, amount)
+    }
+
+    fn shift_end(&self, amount: f64) -> Bound<f64> {
+        shift_bound(&self.end, amount)
+    }
+
+    fn evaluate<S, M, I, C>(&self, trace: &Trace<S>, init: I, combine: C) -> Result<Trace<M>, BoundedError<F::Error>>
+    where
+        F: Formula<S, Metric = M>,
+        I: Fn() -> M,
+        C: Fn(&M, &M) -> M,
+    {
+        let subformula_evaluation = self
+            .inner
+            .subformula
+            .evaluate_trace(trace)
+            .map_err(|inner| BoundedError::FormulaError { inner })?;
+
+        let evaluate_time = |time: f64| -> Result<(f64, M), BoundedError<F::Error>> {
+            let start = self.shift_start(time);
+            let end = self.shift_end(time);
+            let range = subformula_evaluation.range((start, end));
+            let iter = self.inner.evaluate_range(range, &init, &combine);
+
+            iter.last()
+                .ok_or(BoundedError::EmptySubtraceEvaluation { start, end })
+                .map(|(_, value)| (time, value))
+        };
+
+        subformula_evaluation.times().map(evaluate_time).collect()
+    }
+}
+
+#[derive(Clone)]
+enum BoundedUnaryOperator<F> {
+    Bounded(BoundedUnary<F>),
+    Unbounded(UnboundedUnary<F>),
+}
+
+impl<F> BoundedUnaryOperator<F> {
+    fn unbounded(formula: F) -> Self {
+        Self::Unbounded(UnboundedUnary::new(formula))
+    }
+
+    fn bounded<R>(range: R, formula: F) -> Self
+    where
+        R: RangeBounds<f64>,
+    {
+        Self::Bounded(BoundedUnary::new(range, formula))
+    }
+
+    fn evaluate<S, M, I, C>(&self, trace: &Trace<S>, init: I, combine: C) -> Result<Trace<M>, BoundedError<F::Error>>
+    where
+        F: Formula<S, Metric = M>,
+        I: Fn() -> M,
+        C: Fn(&M, &M) -> M,
+    {
+        match self {
+            Self::Bounded(b) => b.evaluate(trace, init, combine),
+            Self::Unbounded(u) => u.evaluate(trace, init, combine),
+        }
+    }
+}
+
+impl<F> From<BoundedUnary<F>> for BoundedUnaryOperator<F> {
+    fn from(value: BoundedUnary<F>) -> Self {
+        Self::Bounded(value)
+    }
+}
+
+impl<F> From<UnboundedUnary<F>> for BoundedUnaryOperator<F> {
+    fn from(value: UnboundedUnary<F>) -> Self {
+        Self::Unbounded(value)
+    }
+}
+
 /// Temporal operator that requires its subformula to always hold
 ///
 /// The always operator works by scanning forward at each time and taking the minimum of all
@@ -384,11 +580,8 @@ where
 /// let subformula = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
 /// let bounded_formula = Always::bounded(0.0, 4.0, subformula);
 /// ```
-#[derive(Clone, Debug)]
-pub struct Always<F> {
-    subformula: F,
-    bounds: Option<TimeBounds>,
-}
+#[derive(Clone)]
+pub struct Always<F>(BoundedUnaryOperator<F>);
 
 impl<F> Always<F> {
     /// Create an unbounded always formula
@@ -396,25 +589,14 @@ impl<F> Always<F> {
     /// An unbounded formula analyzes to the end of the trace for each time step in the trace
     /// produced by the subformula.
     pub fn unbounded(formula: F) -> Self {
-        Self {
-            subformula: formula,
-            bounds: None,
-        }
+        Self(BoundedUnaryOperator::unbounded(formula))
     }
 
-    /// Create a bounded always formula
-    ///
-    /// A bounded formula analyzes from the time + lower bound to time + upper bound for each time
-    /// step in the trace produced by the subformula.
-    pub fn bounded<Lower, Upper>(lower: Lower, upper: Upper, formula: F) -> Self
+    pub fn bounded<R>(range: R, formula: F) -> Self
     where
-        Lower: Into<f64>,
-        Upper: Into<f64>,
+        R: RangeBounds<f64>,
     {
-        Self {
-            subformula: formula,
-            bounds: Some((lower.into(), upper.into())),
-        }
+        Self(BoundedUnaryOperator::bounded(range, formula))
     }
 }
 
@@ -424,17 +606,10 @@ where
     M: Top + Meet,
 {
     type Metric = M;
-    type Error = F::Error;
+    type Error = BoundedError<F::Error>;
 
     fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let subformula_trace = self.subformula.evaluate_trace(trace)?;
-        let meet = |left: M, right: &M| left.meet(right);
-        let evaluated_trace = match self.bounds {
-            None => fw_op_unbounded(subformula_trace, M::top(), meet),
-            Some(bounds) => fw_op_bounded(subformula_trace, bounds, M::top, meet),
-        };
-
-        Ok(evaluated_trace)
+        self.0.evaluate(trace, M::top, M::meet)
     }
 }
 
@@ -466,11 +641,8 @@ where
 /// let subformula = Predicate::new(Term::variable("x", -1.0), Term::constant(-2.0));
 /// let bounded_formula = Always::bounded(0.0, 4.0, subformula);
 /// ```
-#[derive(Clone, Debug)]
-pub struct Eventually<F> {
-    subformula: F,
-    bounds: Option<TimeBounds>,
-}
+#[derive(Clone)]
+pub struct Eventually<F>(BoundedUnaryOperator<F>);
 
 impl<F> Eventually<F> {
     /// Create an unbounded eventually formula
@@ -478,25 +650,14 @@ impl<F> Eventually<F> {
     /// An unbounded formula analyzes to the end of the trace for each time step in the trace
     /// produced by the subformula.
     pub fn unbounded(formula: F) -> Self {
-        Self {
-            subformula: formula,
-            bounds: None,
-        }
+        Self(BoundedUnaryOperator::unbounded(formula))
     }
 
-    /// Create a bounded eventually formula
-    ///
-    /// A bounded formula analyzes from the time + lower bound to time + upper bound for each time
-    /// step in the trace produced by the subformula.
-    pub fn bounded<Lower, Upper>(lower: Lower, upper: Upper, formula: F) -> Self
+    pub fn bounded<R>(range: R, formula: F) -> Self
     where
-        Lower: Into<f64>,
-        Upper: Into<f64>,
+        R: RangeBounds<f64>,
     {
-        Self {
-            subformula: formula,
-            bounds: Some((lower.into(), upper.into())),
-        }
+        Self(BoundedUnaryOperator::bounded(range, formula))
     }
 }
 
@@ -506,195 +667,10 @@ where
     M: Bottom + Join,
 {
     type Metric = M;
-    type Error = F::Error;
+    type Error = BoundedError<F::Error>;
 
     fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let subformula_trace = self.subformula.evaluate_trace(trace)?;
-        let join = |left: M, right: &M| left.join(right);
-        let evaluated_trace = match self.bounds {
-            None => fw_op_unbounded(subformula_trace, M::bottom(), join),
-            Some(bounds) => fw_op_bounded(subformula_trace, bounds, M::bottom, join),
-        };
-
-        Ok(evaluated_trace)
-    }
-}
-
-pub trait SupportsBounded<'a, M> {
-    type Iter: Iterator<Item = (f64, M)>;
-    fn evaluate_range(&self, range: Range<'a, M>) -> Self::Iter;
-}
-
-struct RangeState<'a, M> {
-    range: Range<'a, M>,
-    state: Option<(f64, M)>,
-}
-
-impl<'a, M> RangeState<'a, M> {
-    fn new<F>(mut range: Range<'a, M>, initial: M, f: F) -> Self
-    where
-        F: Fn(&M, &M) -> M,
-    {
-        Self {
-            state: range.next_back().map(|(time, value)| (time, f(&initial, value))),
-            range,
-        }
-    }
-
-    fn update<F>(&mut self, f: F) -> Option<(f64, M)>
-    where
-        F: Fn(&M, &M) -> M,
-    {
-        let state = self.state.take()?;
-        self.state = self.range.next_back().map(|(time, value)| (time, f(&state.1, value)));
-
-        Some(state)
-    }
-}
-
-pub struct AlwaysRangeIter<'a, M> {
-    state: RangeState<'a, M>,
-}
-
-impl<'a, M> AlwaysRangeIter<'a, M>
-where
-    M: Meet + Top,
-{
-    fn new(range: Range<'a, M>) -> Self {
-        Self {
-            state: RangeState::new(range, M::top(), M::meet),
-        }
-    }
-}
-
-impl<'a, M> Iterator for AlwaysRangeIter<'a, M>
-where
-    M: Meet,
-{
-    type Item = (f64, M);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.state.update(M::meet)
-    }
-}
-
-impl<'a, M, F> SupportsBounded<'a, M> for Always<F>
-where
-    M: Meet + Top + 'a,
-{
-    type Iter = AlwaysRangeIter<'a, M>;
-
-    fn evaluate_range(&self, range: Range<'a, M>) -> Self::Iter {
-        AlwaysRangeIter::new(range)
-    }
-}
-
-pub struct EventuallyRangeIter<'a, M> {
-    state: RangeState<'a, M>,
-}
-
-impl<'a, M> EventuallyRangeIter<'a, M>
-where
-    M: Join + Bottom,
-{
-    fn new(range: Range<'a, M>) -> Self {
-        Self {
-            state: RangeState::new(range, M::bottom(), M::join),
-        }
-    }
-}
-
-impl<'a, M> Iterator for EventuallyRangeIter<'a, M>
-where
-    M: Join,
-{
-    type Item = (f64, M);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.state.update(M::join)
-    }
-}
-
-impl<'a, M, F> SupportsBounded<'a, M> for Eventually<F>
-where
-    M: Join + Bottom + 'a,
-{
-    type Iter = EventuallyRangeIter<'a, M>;
-
-    fn evaluate_range(&self, range: Range<'a, M>) -> Self::Iter {
-        EventuallyRangeIter::new(range)
-    }
-}
-
-pub struct Bounded<F> {
-    subformula: F,
-    start: Bound<f64>,
-    end: Bound<f64>,
-}
-
-impl<F> Bounded<F> {
-    pub fn new<R>(interval: R, formula: F) -> Self
-    where
-        R: RangeBounds<f64>,
-    {
-        Self {
-            subformula: formula,
-            start: interval.start_bound().cloned(),
-            end: interval.end_bound().cloned(),
-        }
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum BoundedError<F> {
-    #[error("Bounded formula error: {inner}")]
-    FormulaError { inner: F },
-
-    #[error("Subtrace evaluation for interval ({start:?}, {end:?}) is empty")]
-    EmptySubtraceEvaluation { start: Bound<f64>, end: Bound<f64> },
-
-    #[error("Empty interval")]
-    EmptyInterval,
-}
-
-fn offset_bound(bound: &Bound<f64>, offset: f64) -> Bound<f64> {
-    match bound {
-        Bound::Unbounded => Bound::Unbounded,
-        Bound::Excluded(v) => Bound::Excluded(v + offset),
-        Bound::Included(v) => Bound::Included(v + offset),
-    }
-}
-
-impl<F, S> Formula<S> for Bounded<F>
-where
-    F: Formula<S> + for<'a> SupportsBounded<'a, F::Metric>,
-{
-    type Error = BoundedError<F::Error>;
-    type Metric = F::Metric;
-
-    fn evaluate_trace(&self, trace: &Trace<S>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let subformula_result = self
-            .subformula
-            .evaluate_trace(trace)
-            .map_err(|inner| BoundedError::FormulaError { inner })?;
-
-        subformula_result
-            .times()
-            .map(|time| {
-                let start = offset_bound(&self.start, time);
-                let end = offset_bound(&self.end, time);
-                let range = subformula_result.range((start, end));
-                let evaluated_subtrace = self.subformula.evaluate_range(range);
-
-                // This implementation assumes that the iterator returned from evaluating the range
-                // is in reverse chronological order, thus the call to `last` instead of `next`.
-
-                evaluated_subtrace
-                    .last()
-                    .map(|(_, metric)| (time, metric))
-                    .ok_or_else(|| BoundedError::EmptySubtraceEvaluation { start, end })
-            })
-            .collect()
+        self.0.evaluate(trace, M::bottom, M::join)
     }
 }
 
