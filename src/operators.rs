@@ -936,7 +936,7 @@ mod tests {
 
     #[test]
     fn bounded_always() -> Result<(), BoundedError<ConstError>> {
-        let formula = Always::bounded(0f64..=2f64, Const);
+        let formula = Always::bounded(..=2f64, Const);
         let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
         let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 2.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 3.0)]);
@@ -958,12 +958,27 @@ mod tests {
 
     #[test]
     fn bounded_eventually() -> Result<(), BoundedError<ConstError>> {
-        let formula = Eventually::bounded(0f64..=2f64, Const);
+        let formula = Eventually::bounded(..=2f64, Const);
         let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
         let robustness = formula.evaluate_trace(&input)?;
         let expected = Trace::from_iter([(0, 4.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn bounds() -> Result<(), BoundedError<ConstError>> {
+        let f1 = Eventually::bounded(0f64..=2f64, Const);
+        let f2 = Eventually::bounded(..=2f64, Const);
+        let f3 = Eventually::bounded(0f64..3f64, Const);
+
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
+        let expected = Trace::from_iter([(0, 4.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 3.0)]);
+
+        assert_eq!(f1.evaluate_trace(&input)?, expected);
+        assert_eq!(f2.evaluate_trace(&input)?, expected);
+        assert_eq!(f3.evaluate_trace(&input)?, expected);
         Ok(())
     }
 
