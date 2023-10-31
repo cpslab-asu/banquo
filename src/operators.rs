@@ -414,14 +414,6 @@ impl<F> UnboundedUnary<F> {
         Self { subformula: formula }
     }
 
-    fn evaluate_range<'a, T, I, C>(&self, range: Range<'a, T>, init: I, combine: C) -> UnboundedIter<'a, T, C>
-    where
-        I: Fn() -> T,
-        C: Fn(&T, &T) -> T,
-    {
-        UnboundedIter::new(range, init(), combine)
-    }
-
     fn evaluate<S, M, I, C>(&self, trace: &Trace<S>, init: I, combine: C) -> Result<Trace<M>, BoundedError<F::Error>>
     where
         F: Formula<S, Metric = M>,
@@ -434,7 +426,7 @@ impl<F> UnboundedUnary<F> {
             .map_err(|inner| BoundedError::FormulaError { inner })?;
 
         let range = subformula_evaluation.range(..);
-        let result = self.evaluate_range(range, init, combine).collect();
+        let result = UnboundedIter::new(range, init(), combine).collect();
 
         Ok(result)
     }
@@ -491,7 +483,7 @@ impl<F> BoundedUnary<F> {
             let start = self.compute_start(time);
             let end = self.compute_end(time);
             let range = subformula_evaluation.range((start, end));
-            let iter = self.inner.evaluate_range(range, &init, &combine);
+            let iter = UnboundedIter::new(range, init(), &combine);
 
             iter.last()
                 .ok_or(BoundedError::EmptySubtraceEvaluation { start, end })
