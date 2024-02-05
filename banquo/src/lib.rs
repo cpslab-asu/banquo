@@ -12,7 +12,9 @@
 //! metric value is useful because it can not only indicate if the requirement was satisfied,
 //! it can also provide a measure of distance of the system from a violation. This enables the use 
 //! of search-based testing techniques to find examples of violating inputs by trying to minimize
-//! the distance from violation.
+//! the distance from violation. The most common type of metric value for evaluating formulas is
+//! called [robustness], which is a real number representing the distance of the system state from
+//! the [polytope] representing the set of states that violate the requirement.
 //!
 //! As an example, consider the automatic transmission system in a car. We might create the
 //! following requirement when testing the vehicle:
@@ -26,6 +28,8 @@
 //! requirement like this, we could attempt to find some combination of system inputs in which the
 //! system does not behave properly.
 //!
+//! [polytope]: https://en.wikipedia.org/wiki/Polytope
+//! [robustness]: https://link.springer.com/chapter/10.1007/11940197_12
 //! [temporal logic]: https://en.wikipedia.org/wiki/Temporal_logic
 //!
 //! # Examples
