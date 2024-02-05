@@ -1,0 +1,16 @@
+[package]
+name = "banquo"
+version = "0.1.0"
+edition = "2021"
+authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
+rust-version = "1.60.0"
+readme = "README.md"
+description = "An offline monitor for Signal Temporal Logic formulas"
+repository = "https://gitlab.com/sbtg/banquo"
+license = "BSD-3-Clause"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+banquo-core = { path = "../banquo-core" }
+
+[dev-dependencies]
