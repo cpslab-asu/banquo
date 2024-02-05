@@ -173,7 +173,15 @@ struct UnaryOperator<F> {
     bounds: Option<Interval>
 }
 
-#[derive(Debug, Error)]
+/// Error produced during the evaluation of a forward operator
+///
+/// This error represents the following error conditions while evaluating a forward operator:
+///
+///   1. An error was encountered during the evaluation of the subformula
+///   2. The evaluation bounds for the operator resulted in a sub-trace with no elements
+///   3. The evaluation bounds for the operator create a zero-length interval
+///
+#[derive(Debug, Clone, Error)]
 pub enum ForwardOperatorError<F> {
     #[error("Bounded formula error: {0}")]
     FormulaError(F),
