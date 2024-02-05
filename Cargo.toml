@@ -1,29 +1,8 @@
 [workspace]
-members = ["banquo-core"]
-
-[package]
-name = "banquo"
-version = "0.1.0"
-edition = "2021"
-authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
-rust-version = "1.60.0"
-readme = "README.md"
-description = "An offline monitor for Signal Temporal Logic formulas"
-repository = "https://gitlab.com/sbtg/banquo"
-license = "BSD-3-Clause"
-
-[features]
-default = ["parser"]
-parser = ["dep:nom"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[dependencies]
-either = "1.8.1"
-nom = { version = "^7.1.1", optional = true }
-nonempty = "0.8.1"
-ordered-float = "^3.4.0"
-petgraph = "^0.6.2"
-thiserror = "1.0.40"
-
-[dev-dependencies]
-approx = "^0.5.1"
+resolver = "2"
+members = [
+    "banquo-core",
+    "banquo-hybrid_distance",
+    "banquo-parser",
+    "banquo",
+]
