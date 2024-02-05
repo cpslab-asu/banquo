@@ -6,11 +6,11 @@ use crate::Formula;
 use crate::metrics::{Meet, Join};
 use crate::trace::Trace;
 
-/// First-order operator that inverts its subformula
+/// First-order operator that inverts its subformula.
 ///
-/// The not operator is a unary operator, which means that it operates on a single subformula.
-/// The not operator evaluates a given trace using its subformula, then for each time in the
-/// resulting trace negates the state. For floating point numbers, this would look as follows:
+/// The `Not` operator is a unary operator, which means that it operates on a single subformula.
+/// This operator evaluates a given trace using its subformula, then for each time in the resulting
+/// trace negates the state. For floating point numbers, this would look as follows:
 ///
 /// | time | subformula | not  |
 /// | ---- | ---------- | ---- |
@@ -24,7 +24,7 @@ use crate::trace::Trace;
 /// use banquo::predicate;
 /// use banquo::operators::Not;
 ///
-/// let subformula = predicate!(x * 1.0 <= 1.0);
+/// let subformula = predicate!{ x * 1.0 <= 1.0 };
 /// let formula = Not::new(subformula);
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -55,6 +55,13 @@ where
     }
 }
 
+/// Error produced during application of a binary operation
+///
+/// This error can be produced in the following circumstances:
+///
+///   1. The two input traces do not have the same lengths
+///   2. When iterating over both traces, the corresponding times do not match.
+///
 #[derive(Debug, Clone, Error)]
 pub enum BinaryEvaluationError {
     #[error("Metric traces have mismatched lengths: [{0}] [{1}]")]
@@ -64,18 +71,14 @@ pub enum BinaryEvaluationError {
     MismatchedTimes(f64, f64),
 }
 
-/// Binary operator definitions
+/// Error produced during the evaluation of a binary operator
 ///
-/// Binary operators combine the outputs of two subformulas for each time-step. Instead of
-/// computing each formula at each time step, each subformula is evaluated completely and then
-/// combined together.
-
-/// Representation of an error in either the left or right subformula of a binary operator
+/// An error can occur when evaluating a binary operator in the following circumstances:
 ///
-/// This type only represents an error in one of the formulas, meaning that it cannot represent the
-/// case where an error is occured in both formulas. This is not normally an issue because the
-/// binary operators short-circuit when the first error is encountered, but it is important if you
-/// use this error type for your own implementations.
+///   1. An error occurs during the evaluation of the left subformula
+///   2. An error occurs during the evaluation of the right subformula
+///   3. An error occurs during the application of the binary operation on the outputs of the
+///      sub-formulas, resulting in a [`BinaryEvaluationError`].
 #[derive(Debug, Clone, Error)]
 pub enum BinaryOperatorError<L, R> {
     /// An error produced by the subformula on the left of the operator
