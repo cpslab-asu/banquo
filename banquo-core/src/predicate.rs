@@ -11,6 +11,8 @@
 //! provided by the system trace. The [robustness] value of the inequality is computed using the
 //! equation `b - `**`a`**`·`**`x`**.
 //!
+//! [robustness]: https://link.springer.com/chapter/10.1007/11940197_12
+//!
 //! # Examples
 //!
 //! You can explicitly create a new empty `Predicate` using the [`Predicate::new`] function:
@@ -117,8 +119,7 @@
 //!
 //! let _ = p.evaluate(&trace);
 //! ```
-//!
-//! [robustness]: https://link.springer.com/chapter/10.1007/11940197_12
+
 use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
