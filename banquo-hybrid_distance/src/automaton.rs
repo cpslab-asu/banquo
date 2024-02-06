@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use banquo_core::predicate::Predicate;
-use petgraph::algo::FloatMeasure;
-use petgraph::graphmap::DiGraphMap;
+use petgraph::algo::astar;
+use petgraph::graph::DiGraph;
 
 /// A set of constraints represeting the conditions necessary to switch states
 #[derive(Debug, Clone)]
@@ -47,11 +47,30 @@ impl Guard {
 }
 
 #[derive(Debug, Clone)]
-pub struct Automaton<Label>(DiGraphMap<Label, Guard>);
+pub struct Automaton<Label>(DiGraph<Label, Guard>);
 
-impl<Label> From<HashMap<(Label, Label), Guard>> for Automaton<Label> {
-    fn from(value: HashMap<(Label, Label), Guard>) -> Self {
-        Self(DiGraphMap::from(value))
+impl<Label> From<HashMap<(Label, Label), Guard>> for Automaton<Label>
+where
+    Label: PartialEq,
+{
+    fn from(adjmap: HashMap<(Label, Label), Guard>) -> Self {
+        let mut graph = DiGraph::default();
+
+        for ((start, end), guard) in adjmap {
+            let start_idx = graph
+                .node_indices()
+                .find(|&idx| &graph[idx] == &start)
+                .unwrap_or_else(|| graph.add_node(start));
+
+            let end_idx = graph
+                .node_indices()
+                .find(|&idx| &graph[idx] == &end)
+                .unwrap_or_else(|| graph.add_node(end));
+
+            graph.add_edge(start_idx, end_idx, guard);
+        }
+
+        Self(graph)
     }
 }
 
