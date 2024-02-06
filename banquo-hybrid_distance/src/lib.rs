@@ -1,3 +1,6 @@
+mod predicate;
+mod automaton;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
