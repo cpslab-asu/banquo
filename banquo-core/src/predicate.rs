@@ -189,7 +189,7 @@ impl Predicate {
     }
 }
 
-/// Iterator over the coefficient terms of a predicate
+/// Iterator over the coefficient terms of a predicate.
 ///
 /// The coefficient terms are the terms with a variable name associated with them. This iterator
 /// does not guarantee any order of the terms.
@@ -280,7 +280,7 @@ impl Neg for Predicate {
     }
 }
 
-/// A variable or constant term in a predicate
+/// A variable or constant term in a predicate.
 ///
 /// A `Variable` term contains a variable name and the associated coefficient, while a `Constant`
 /// term contains only a constant value. The purpose of this type is to provide a conversion target
@@ -424,8 +424,9 @@ where
     }
 }
 
-/// Trait representing a set of named variables
+/// Trait representing a set of named variables.
 pub trait VariableSet {
+    /// Return the value for a name in the set if it exists.
     fn value_for(&self, name: &str) -> Option<f64>;
 }
 
@@ -626,20 +627,14 @@ impl Predicate {
     }
 }
 
-/// The error type when evaluating a state trace using a [`Predicate`]
+/// The error type when evaluating a state trace using a [`Predicate`].
 #[derive(Debug, Clone, Error)]
 #[error("At time {time} encountered error: {error}")]
 pub struct FormulaError {
-    time: f64,
+    pub time: f64,
 
     #[source]
-    error: PredicateError,
-}
-
-impl FormulaError {
-    pub fn new(time: f64, error: PredicateError) -> Self {
-        Self { time, error }
-    }
+    pub error: PredicateError,
 }
 
 /// Evaluate a [`Trace`] of state values by evaluating each state individually.
@@ -656,13 +651,13 @@ where
             .map(|(time, state)| {
                 self.evaluate_state(state)
                     .map(|rho| (time, rho))
-                    .map_err(|err| FormulaError::new(time, err))
+                    .map_err(|error| FormulaError{ time, error })
             })
             .collect()
     }
 }
 
-/// Create a [`Predicate`] from a given algebraic expression
+/// Create a [`Predicate`] from a given algebraic expression.
 ///
 /// This macro parses an algebraic expression into a predicate from right to left. Terms can be
 /// specified as either a `constant`, `variable`, `coefficient * variable`, or

@@ -6,7 +6,7 @@ use crate::Formula;
 use crate::metrics::{Meet, Join};
 use crate::trace::Trace;
 
-/// First-order operator that inverts its subformula.
+/// First-order operator that inverts its subformula, written `!`, or `not`.
 ///
 /// The `Not` operator is a unary operator, which means that it operates on a single subformula.
 /// This operator evaluates a given trace using its subformula, then for each time in the resulting
@@ -55,7 +55,7 @@ where
     }
 }
 
-/// Error produced during application of a binary operation
+/// Error produced during application of a binary operation.
 ///
 /// This error can be produced in the following circumstances:
 ///
@@ -71,7 +71,7 @@ pub enum BinaryEvaluationError {
     MismatchedTimes(f64, f64),
 }
 
-/// Error produced during the evaluation of a binary operator
+/// Error produced during the evaluation of a binary operator.
 ///
 /// An error can occur when evaluating a binary operator in the following circumstances:
 ///
@@ -141,7 +141,8 @@ where
         .collect()
 }
 
-/// First-order operator that requires either of its subformulas to hold
+/// First-order operator that requires either of its subformulas to hold written `\/`, `||`, or
+/// `or`.
 ///
 /// This operator evaluates a trace using both subformulas and takes the maximum of the
 /// two states for each time. The intuition behind this operator is that given two states where
@@ -193,7 +194,8 @@ where
     }
 }
 
-/// First-order operator that requires both of its subformulas to hold
+/// First-order operator that requires both of its subformulas to hold, written `/\`, `&&`, or
+/// `and`.
 ///
 /// This operator evaluates a trace with both subformulas and takes the minimum of the
 /// two states for each time. The intuition behind this operator is that given two states where
@@ -245,7 +247,8 @@ where
     }
 }
 
-/// First-order operator that requires the right subformula to hold if the left subformula holds.
+/// First-order operator that requires the right subformula to hold if the left subformula holds,
+/// written `->` or `implies`.
 ///
 /// The implication operator is a binary operator, which means that it operates over two
 /// subformulas. This operator evaluates a trace with both subformulas and takes the maximum of the

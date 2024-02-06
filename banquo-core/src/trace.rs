@@ -221,12 +221,12 @@ impl<T> Trace<T> {
         Self(BTreeMap::new())
     }
 
-    /// Number of elements in the trace
+    /// Number of elements in the trace.
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    /// Determine if the trace contains any elements
+    /// Determine if the trace contains any elements.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -252,8 +252,9 @@ impl<T> Trace<T> {
     }
 }
 
-/// Iterator over the times in a trace. The times are yielded in chronological order
-/// (lower times -> higher times).
+/// Iterator over the times in a trace.
+///
+/// The times are yielded in chronological order (lower times -> higher times).
 ///
 /// This iterator can be construced by calling the `times()` method on either a `Trace` or `Range`
 /// value.
@@ -309,8 +310,10 @@ where
     }
 }
 
-/// Iterator over the states in a trace. The states are yielded in chronological order
-/// (lower times -> higher times).
+/// Iterator over the states in a trace.
+///
+/// The states are yielded in chronological order (lower times -> higher times).
+///
 /// This iterator can be construced by calling the `states()` method on either a `Trace` or `Range`
 /// value.
 ///
@@ -436,8 +439,9 @@ where
     }
 }
 
-/// Borrowing iterator over the (time, state) pairs in a trace. The values are yielded in
-/// chronological order (lower times -> higher times).
+/// Borrowing iterator over the `(time, state)` pairs in a trace.
+///
+/// The values are yielded in chronological order (lower times -> higher times).
 ///
 /// ```rust
 /// use banquo::Trace;
@@ -542,8 +546,9 @@ impl<'a, T> Iter<'a, T> {
     }
 }
 
-/// Owning iterator over the (time, state) pairs in a trace. The values are yielded in
-/// chronological order (lower times -> higher times).
+/// Owning iterator over the `(time, state)` pairs in a trace.
+///
+/// The values are yielded in chronological order (lower times -> higher times).
 ///
 /// ```rust
 /// use banquo::Trace;
@@ -651,7 +656,7 @@ impl<T> IntoIter<T> {
     }
 }
 
-/// Mutably borrowing iterator over the (time, state) pairs in a trace.
+/// Mutably borrowing iterator over the `(time, state)` pairs in a trace.
 ///
 /// The values are yielded in chronological order (lower times -> higher times).
 ///
@@ -732,10 +737,13 @@ impl<'a, T> ExactSizeIterator for IterMut<'a, T> {
     }
 }
 
-/// Iterator over the (time, &state) pairs of a sub-interval of trace. The values are yielded in
-/// chronological order (lower times -> higher times).
+/// Borrowing iterator over the `(time, state)` pairs of a sub-interval of trace.
+///
+/// The values are yielded in chronological order (lower times -> higher times).
 ///
 /// This value can be constructed by calling the `range()` method on a `Trace` value;
+///
+/// # Example
 ///
 /// ```rust
 /// use banquo::Trace;
@@ -779,7 +787,7 @@ impl<'a, T> DoubleEndedIterator for Range<'a, T> {
 }
 
 impl<'a, T> Range<'a, T> {
-    /// Create an iterator over the times of the trace, ignoring the states
+    /// Create an iterator over the times of the range, ignoring the states.
     ///
     /// # Example
     ///
@@ -804,7 +812,7 @@ impl<'a, T> Range<'a, T> {
         Times(self)
     }
 
-    /// Create an iterator over states of the trace, ignoring the times
+    /// Create an iterator over states of the range, ignoring the times.
     ///
     /// # Example
     ///
@@ -828,7 +836,29 @@ impl<'a, T> Range<'a, T> {
     pub fn states(self) -> States<Self> {
         States(self)
     }
-
+    
+    /// Create an iterator that applies the function `f` to each state of the sub-interval, while keeping
+    /// the times the same.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use banquo::Trace;
+    ///
+    /// let trace = Trace::from([
+    ///     (0.0, "s1".to_string()),
+    ///     (1.0, "s2".to_string()),
+    ///     (2.0, "s3".to_string()),
+    ///     (3.0, "s4".to_string()),
+    ///     (4.0, "s5".to_string()),
+    ///     (5.0, "s6".to_string()),
+    /// ]);
+    ///
+    /// let iter: Trace<usize> = trace
+    ///     .iter()
+    ///     .map_states(|state: &String| state.len())
+    ///     .collect();
+    /// ```
     pub fn map_states<F, U>(self, f: F) -> MapStates<Self, F>
     where
         F: FnMut(&'a T) -> U,
@@ -837,8 +867,9 @@ impl<'a, T> Range<'a, T> {
     }
 }
 
-/// Iterator over the (time, &mut state) pairs of a sub-interval of trace. The values are yielded in
-/// chronological order (lower times -> higher times).
+/// Mutably borrowing iterator over the `(time, state)` pairs of a sub-interval of trace.
+///
+/// The values are yielded in chronological order (lower times -> higher times).
 ///
 /// This value can be constructed by calling the `range_mut()` method on a `Trace` value;
 ///
@@ -884,19 +915,29 @@ impl<'a, T> DoubleEndedIterator for RangeMut<'a, T> {
 }
 
 impl<'a, T> RangeMut<'a, T> {
-    pub fn times(self) -> Times<Self> {
-        Times(self)
-    }
-
+    /// Create an iterator over states of the range, ignoring the times.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use banquo::Trace;
+    ///
+    /// let mut trace = Trace::from([
+    ///     (0.0, 'a'),
+    ///     (1.0, 'b'),
+    ///     (2.0, 'c'),
+    ///     (3.0, 'd'),
+    ///     (4.0, 'e'),
+    ///     (5.0, 'f'),
+    /// ]);
+    ///
+    /// let iter: Vec<&char> = trace
+    ///     .range(1.0..=4.0)
+    ///     .states()
+    ///     .collect();
+    /// ```
     pub fn states(self) -> States<Self> {
         States(self)
-    }
-
-    pub fn map_states<F, U>(self, f: F) -> MapStates<Self, F>
-    where
-        F: FnMut(&'a T) -> U,
-    {
-        MapStates { f, iter: self }
     }
 }
 
@@ -909,12 +950,12 @@ fn convert_bound(bound: Bound<&f64>) -> Bound<NotNan<f64>> {
 }
 
 impl<T> Trace<T> {
-    /// Create an iterator yielding (time, &state) values from the trace in chronological order.
+    /// Create an iterator yielding `(time, &state)` values from the trace in chronological order.
     pub fn iter(&self) -> Iter<T> {
         self.into_iter()
     }
 
-    /// Create an iterator yielding (time, &mut state) values from the trace in chronological order.
+    /// Create an iterator yielding `(time, &mut state)` values from the trace in chronological order.
     pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut(self.0.iter_mut())
     }
@@ -924,18 +965,18 @@ impl<T> Trace<T> {
         Times(self.iter())
     }
 
-    /// Create an iterator yielding &state values from the trace in chronological order.
+    /// Create an iterator yielding `&state` values from the trace in chronological order.
     pub fn states(&self) -> States<Iter<T>> {
         States(self.iter())
     }
 
-    /// Create an iterator yielding &mut state values from the trace in chronological order.
+    /// Create an iterator yielding `&mut state values` from the trace in chronological order.
     pub fn states_mut(&mut self) -> States<IterMut<T>> {
         States(self.iter_mut())
     }
 
-    /// Create an iterator over the (time, &state) values from a sub-interval of the trace. Values
-    /// are yielded in chronological order.
+    /// Create an iterator over the `(time, &state)` values from a sub-interval of the trace in
+    /// chronological order
     ///
     /// # Safety
     ///
@@ -950,8 +991,8 @@ impl<T> Trace<T> {
         Range(self.0.range((start, end)))
     }
 
-    /// Create an iterator over the (time, &mut state) values from a sub-interval of the trace.
-    /// Values are yielded in chronological order.
+    /// Create an iterator over the `(time, &mut state)` values from a sub-interval of the trace in
+    /// chronological order.
     ///
     /// # Safety
     ///

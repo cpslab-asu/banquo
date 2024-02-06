@@ -57,7 +57,7 @@ pub trait Bottom {
 ///
 /// [`Meet::min`] is takes its parameters as references rather than by value to reduce the amount
 /// of copying necessary for a function that is not required to return one of its arguments. For
-/// small types like [`f64`] there is no efficiency gain, but for arbtrarily large types it can be
+/// small types like [`f64`] there is no efficiency gain, but for arbitrarily large types it can be
 /// more efficient.
 ///
 /// [infimum]: https://en.wikipedia.org/wiki/Infimum_and_supremum
@@ -86,7 +86,7 @@ pub trait Meet: PartialOrd {
 ///
 /// [`Join::max`] is takes its parameters as references rather than by value to reduce the amount
 /// of copying necessary for a function that is not required to return one of its arguments. For
-/// small types like [`f64`] there is no efficiency gain, but for arbtrarily large types it can be
+/// small types like [`f64`] there is no efficiency gain, but for arbitrarily large types it can be
 /// more efficient.
 ///
 /// [supremum]: https://en.wikipedia.org/wiki/Infimum_and_supremum

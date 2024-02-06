@@ -173,7 +173,7 @@ struct UnaryOperator<F> {
     bounds: Option<Interval>
 }
 
-/// Error produced during the evaluation of a forward operator
+/// Error produced during the evaluation of a forward operator.
 ///
 /// This error represents the following error conditions while evaluating a forward operator:
 ///
@@ -237,7 +237,8 @@ impl<F> UnaryOperator<F> {
     }
 }
 
-/// Temporal operator that requires its subformula to hold for every time.
+/// Temporal operator that requires its subformula to hold for every time, written `[]`, `G`, or
+/// `always`.
 ///
 /// The `Always` operator works by scanning forward at each time and taking the minimum of all
 /// included values. In cases where negative values represent failure, this behavior ensures that
@@ -318,7 +319,8 @@ where
     }
 }
 
-/// Temporal operator that requires its subformula to hold at some time in the future.
+/// Temporal operator that requires its subformula to hold at some time in the future, written
+/// `<>`, `F`, or `eventually`.
 ///
 /// The `Eventually` operator works by scanning forward at each time and taking the maximum of all
 /// included values. In cases where negative values represent failure, this behavior ensures that
@@ -399,7 +401,7 @@ where
     }
 }
 
-/// Temporal operator that requires its subformula to hold at next time step.
+/// Temporal operator that requires its subformula to hold at next time step, written `X` or `next`.
 ///
 /// The `Next` operator is a special case of temporal operator that only operates on the next value in
 /// the output of the subformula rather than a sub-trace of arbitrary length like [`Always`] and
@@ -485,7 +487,7 @@ where
 }
 
 /// Temporal operator that requires its right subformula to hold and its left subformula to hold up
-/// to and including the time the right subformula holds.
+/// to and including the time the right subformula holds, written `p U q` or `p until q`.
 ///
 /// For each time in the trace, The `Until` operator evaluates the current state using the right
 /// subformula, and all states from the start of the trace to current time using the left trace.

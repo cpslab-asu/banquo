@@ -1,4 +1,4 @@
-//! Combinatorial operators for constructing formulas
+//! Combinatorial operators for constructing formulas.
 //!
 //! In temporal logic formulas, much like arithmetic formulas, operators modify the metric values
 //! of their inputs to produce a new metric value. All of the operators defined in this module do
