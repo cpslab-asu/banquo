@@ -79,15 +79,29 @@ pub struct ShortestPath<'a> {
     pub next_guard: &'a Guard,
 }
 
-pub struct Paths<'a>(&'a ());
-
 impl<Label> Automaton<Label> {
-    pub fn shortest_path<Start, End>(&self, start: Start, end: End) -> ShortestPath<'_>
+    pub fn shortest_path(&self, start: &Label, end: &Label) -> Option<ShortestPath<'_>>
     where
-        Start: ToOwned<Owned = Label>,
-        End: ToOwned<Owned = Label>,
+        Label: PartialEq,
     {
-        unimplemented!()
+        // Determine node index that contains start label
+        let start_idx = self.0
+            .node_indices()
+            .find(|&idx| &self.0[idx] == start)?;
+
+        // Determine the shortest path from start node to the node that contains the end label
+        let (hops, path) = astar(&self.0, start_idx, |idx| &self.0[idx] == end, |_| 1, |_| 0)?;
+
+        // First node in returned path is the start node, so take the second node
+        let end_idx = path.get(1).copied()?;
+        
+        // Get the index for the edge given the node endpoint indices
+        let edge_idx = self.0.find_edge(start_idx, end_idx)?;
+
+        // Get the guard for the first edge in the shortest path
+        let next_guard = self.0.edge_weight(edge_idx)?;
+
+        Some(ShortestPath { hops, next_guard })
     }
 }
 
