@@ -1,9 +1,9 @@
 //! Expressions and operators for creating [temporal logic] [`Formula`]s to evaluate timed sequences
 //! of system states called [`Trace`]s.
 //!
-//! Temporal logic formulas are a system for evaluation logical propositions over time are are
-//! useful for evaluating the behaviors of complex systems over time. Behavioral requirements can
-//! be something as simple as _The aircraft altitude should always be greater than zero_ or
+//! Temporal logic formulas are a system for the evaluation of logical propositions over time are
+//! are useful for evaluating the behaviors of complex systems over time. Behavioral requirements
+//! can be something as simple as _The aircraft altitude should always be greater than zero_ or
 //! something more complex like _The vehicle should always brake within 3 seconds if a pedestrian
 //! is detected inside of a 60 degree cone of the front of the vehicle_. To determine if a system
 //! violates a behavioral requirement, we can provide a set of system states along with the times
@@ -48,7 +48,7 @@
 //! let formula = Always::unbounded(Or::new(p1, Not::new(p2)));  // Operators
 //! ```
 //!
-//! In order to evaluate a formula you must provide a [`Trace`], which a set of value where each
+//! In order to evaluate a formula you must provide a [`Trace`], which is a set of value where each
 //! value has an associated time. A trace is constructed like so:
 //!
 //! ```rust
@@ -94,7 +94,7 @@
 //! ]);
 //!
 //! let phi = Always::unbounded(predicate!{ x <= 110.0 });
-//! let result = phi.evaluate(&trace);
+//! let result: Result<Trace<f64>, _> = phi.evaluate(&trace);
 //! ```
 //!
 //! Formulas can also be evaluated using the [`evaluate`] function, which returns the first metric
@@ -103,7 +103,7 @@
 //! ```rust
 //! use std::collections::HashMap;
 //!
-//! use banquo::{Trace, evaluate, predicate};
+//! use banquo::{EvaluationError, Trace, evaluate, predicate};
 //! use banquo::operators::Always;
 //!
 //! // A predicate can only evaluate a named variable set, so we define a helper function to create
@@ -121,7 +121,7 @@
 //! ]);
 //!
 //! let phi = Always::unbounded(predicate!{ x <= 110.0 });
-//! let result = evaluate(&trace, &phi);
+//! let result: Result<f64, EvaluationError> = evaluate(&trace, &phi);
 //! ```
 
 extern crate banquo_core as core;
