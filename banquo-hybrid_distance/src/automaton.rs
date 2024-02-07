@@ -1,14 +1,19 @@
 //! A finite-state automaton with continuous-valued transition guards.
 //!
-//! In this library, an [`Automaton`] is a set of discrete states, with edges between each state
-//! representing transitions. Each discrete system state can contain 0 or more continuous variables.
-//! This type of mixed automaton is called a _[hybrid automaton]_. Each transition contains a
-//! [`Guard`], which is a set of constraints represented as inequalities, that can evaluate the
-//! continuous part of the current discrete state to determine if a transition should be taken.
+//! In this library, an [`Automaton`] is a set of discrete locations, with edges between each
+//! location representing transitions. Each discrete system location can contain 0 or more
+//! continuous variables. This type of mixed automaton is called a _[hybrid automaton]_. Each
+//! transition contains a [`Guard`], which is a set of constraints represented as inequalities,
+//! that can evaluate the continuous system variables to determine if a transition should be taken.
 //! This library assumes that as soon as the guard for a transition is satisfied, the transition
 //! will be taken immediately. Note that this library only provides the faculties for determining
-//! the transition distances from a given state and is not capable of simulating the system
+//! the transition distances from a given location and is not capable of simulating the system
 //! dynamics.
+//!
+//! This library uses the term **mode** to refer to the discrete locations of the automaton, and
+//! the term **state** to refer to the continuous-valued variables of the system. In addition, the
+//! type variable `Label` in some type definitions refers to the type of the values used to
+//! unqiuely label each mode.
 //!
 //! [hybrid automaton]: https://en.wikipedia.org/wiki/Hybrid_automaton
 //!
@@ -203,6 +208,8 @@ impl Guard {
 ///
 /// An [`Automaton`] value is created out of an _adjacency map_, which is a mapping that represents
 /// the edges between states, along with the [`Guard`] for each edge.
+///
+/// See the [module-level](self) documentation for mode information.
 ///
 /// # Examples
 ///
