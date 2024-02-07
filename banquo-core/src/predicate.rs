@@ -133,7 +133,7 @@ use crate::trace::Trace;
 /// System requirements expressed as the inequality **`ax`**`≤ b`.
 ///
 /// See the [`predicate`](predicate) module for more information on the semantics of this data type.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Predicate {
     coefficients: HashMap<String, f64>,
     constant: f64,
