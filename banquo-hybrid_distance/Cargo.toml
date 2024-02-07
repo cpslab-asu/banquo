@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 petgraph = "0.6.4"
 banquo-core = { path = "../banquo-core" }
+thiserror = "1.0.56"
+
+[dev-dependencies]
+banquo = { path = "../banquo" }
