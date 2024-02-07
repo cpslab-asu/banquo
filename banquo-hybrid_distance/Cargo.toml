@@ -2,12 +2,18 @@
 name = "banquo-hybrid_distance"
 version = "0.1.0"
 edition = "2021"
+authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
+description = "Hybrid distance implementation for Banquo monitor"
+documentation = "https://docs.rs/banquo"
+repository = "https://github.com/cpslab-asu/banquo"
+license = "BSD-3-Clause"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 petgraph = "0.6.4"
-banquo-core = { path = "../banquo-core" }
+banquo-core = { path = "../banquo-core", version = "0.1.0" }
 thiserror = "1.0.56"
 
 [dev-dependencies]
