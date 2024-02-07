@@ -2,6 +2,12 @@
 name = "banquo-parser"
 version = "0.1.0"
 edition = "2021"
+authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
+description = "Formula parsing functionality for Banquo monitor"
+documentation = "https://docs.rs/banquo"
+repository = "https://github.com/cpslab-asu/banquo"
+license = "BSD-3-Clause"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
