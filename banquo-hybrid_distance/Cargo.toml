@@ -17,4 +17,4 @@ banquo-core = { path = "../banquo-core", version = "0.1.0" }
 thiserror = "1.0.56"
 
 [dev-dependencies]
-banquo = { path = "../banquo" }
+banquo = { path = "../banquo", features = ["hybrid-distance"] }
