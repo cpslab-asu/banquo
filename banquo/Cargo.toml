@@ -13,10 +13,10 @@ readme = "README.md"
 [dependencies]
 banquo-core = { path = "../banquo-core", version = "0.1.0" }
 banquo-hybrid_distance = { path = "../banquo-hybrid_distance", version = "0.1.0", optional = true }
-banquo-parser = { path = "../banquo-parser", version = "0.1.0", optional = true }
+# banquo-parser = { path = "../banquo-parser", version = "0.1.0", optional = true }
 
 [features]
 default = []
 hybrid-distance = ["dep:banquo-hybrid_distance"]
-parser = ["dep:banquo-parser"]
+# parser = ["dep:banquo-parser"]
 
