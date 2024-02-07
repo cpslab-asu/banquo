@@ -1,20 +1,25 @@
-//! Expressions and operators for creating [temporal logic] [`Formula`]s to evaluate timed sequences
-//! of system states called [`Trace`]s.
+//! _Why, by the verities on thee made good, may they not be my oracles as well, and set me up in
+//! hope_
 //!
-//! Temporal logic formulas are a system for the evaluation of logical propositions over time are
-//! are useful for evaluating the behaviors of complex systems over time. Behavioral requirements
-//! can be something as simple as _The aircraft altitude should always be greater than zero_ or
-//! something more complex like _The vehicle should always brake within 3 seconds if a pedestrian
-//! is detected inside of a 60 degree cone of the front of the vehicle_. To determine if a system
-//! violates a behavioral requirement, we can provide a set of system states along with the times
-//! each state was recorded called a `Trace`, which the formula can evaluate into a metric value.
-//! This process is called monitoring, making `Banquo` a _temporal logic monitor_. The computed
-//! metric value is useful because it can not only indicate if the requirement was satisfied,
-//! it can also provide a measure of distance of the system from a violation. This enables the use 
-//! of search-based testing techniques to find examples of violating inputs by trying to minimize
-//! the distance from violation. The most common type of metric value for evaluating formulas is
-//! called [robustness], which is a real number representing the distance of the system state from
-//! the [polytope] representing the set of states that violate the requirement.
+//! Banquo is an offline monitor for [Signal Temporal Logic] (STL). The name Banquo comes from a
+//! character in Shakespeare's tragedy _MacBeth_ who's role is to observe in place of the audience.
+//!
+//! This library provides expressions and operators to create temporal logic [`Formula`]s to
+//! evaluate timed sequences of system states called [`Trace`]s. Temporal logic formulas are a
+//! system for the evaluation of logical propositions over time are are useful for evaluating the
+//! behaviors of complex systems over time. Behavioral requirements can be something as simple as
+//! _The aircraft altitude should always be greater than zero_ or something more complex like _The
+//! vehicle should always brake within 3 seconds if a pedestrian is detected inside of a 60 degree
+//! cone of the front of the vehicle_. To determine if a system violates a behavioral requirement,
+//! we can provide a set of system states along with the times each state was recorded called a
+//! `Trace`, which the formula can evaluate into a metric value. This process is called monitoring,
+//! making `Banquo` a _temporal logic monitor_. The computed metric value is useful because it can
+//! not only indicate if the requirement was satisfied, it can also provide a measure of distance of
+//! the system from a violation. This enables the use of search-based testing techniques to find
+//! examples of violating inputs by trying to minimize the distance from violation. The most common
+//! type of metric value for evaluating formulas is called [robustness], which is a real number
+//! representing the distance of the system state from the [polytope] representing the set of states
+//! that violate the requirement.
 //!
 //! As an example, consider the automatic transmission system in a car. We might create the
 //! following requirement when testing the vehicle:
@@ -30,7 +35,7 @@
 //!
 //! [polytope]: https://en.wikipedia.org/wiki/Polytope
 //! [robustness]: https://link.springer.com/chapter/10.1007/11940197_12
-//! [temporal logic]: https://en.wikipedia.org/wiki/Temporal_logic
+//! [Signal Temporal Logic]: https://en.wikipedia.org/wiki/Temporal_logic
 //!
 //! # Examples
 //!
@@ -156,3 +161,7 @@ pub use banquo_hybrid_distance::{
     automaton,
     predicate as hybrid_predicate,
 };
+
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+struct ReadmeDoctests;
