@@ -448,8 +448,13 @@ where
     }
 }
 
+/// Error categories that can be produced from [`Predicate::evaluate_state`]
+///
+/// This enum is marked as `non_exhaustive` so it is best practice to match against the `ErrorKind`
+/// variants you are expecting, and use `_` for all the rest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-enum ErrorKind {
+#[non_exhaustive]
+pub enum ErrorKind {
     #[error("Missing variable")]
     Missing,
 
@@ -472,12 +477,12 @@ enum ErrorKind {
 /// error. 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[error("Error evaluating predicate: {kind} \"{name}\"")]
-pub struct PredicateError {
+pub struct EvaluationError {
     kind: ErrorKind,
     name: String,
 }
 
-impl PredicateError {
+impl EvaluationError {
     /// Create an error for a missing variable
     ///
     /// This method creates a clone of the name argument.
@@ -485,8 +490,8 @@ impl PredicateError {
     /// # Example
     ///
     /// ```rust
-    /// # use banquo::predicate::PredicateError;
-    /// let err = PredicateError::missing("foo");
+    /// # use banquo::predicate::EvaluationError;
+    /// let err = EvaluationError::missing("foo");
     /// ```
     pub fn missing(name: &str) -> Self {
         Self {
@@ -502,8 +507,8 @@ impl PredicateError {
     /// # Example
     ///
     /// ```rust
-    /// # use banquo::predicate::PredicateError;
-    /// let err = PredicateError::nan_value("foo");
+    /// # use banquo::predicate::EvaluationError;
+    /// let err = EvaluationError::nan_value("foo");
     /// ```
     pub fn nan_value(name: &str) -> Self {
         Self {
@@ -519,8 +524,8 @@ impl PredicateError {
     /// # Example
     ///
     /// ```rust
-    /// # use banquo::predicate::PredicateError;
-    /// let err = PredicateError::nan_coefficient("foo");
+    /// # use banquo::predicate::EvaluationError;
+    /// let err = EvaluationError::nan_coefficient("foo");
     /// ```
     pub fn nan_coefficient(name: &str) -> Self {
         Self {
@@ -534,19 +539,9 @@ impl PredicateError {
         &self.name
     }
 
-    /// Check if the cause of the error is a missing variable
-    pub fn is_missing(&self) -> bool {
-        self.kind == ErrorKind::Missing
-    }
-
-    /// Check if the cause for the error is a NaN value
-    pub fn is_value(&self) -> bool {
-        self.kind == ErrorKind::NanValue
-    }
-
-    /// Check if the cause of the error is a NaN coefficient
-    pub fn is_coefficient(&self) -> bool {
-        self.kind == ErrorKind::NanCoefficient
+    /// Return the [`ErrorKind`] for this error
+    pub fn kind(&self) -> ErrorKind {
+        self.kind
     }
 }
 
@@ -601,7 +596,7 @@ impl Predicate {
     ///
     /// p.evaluate_state(&state);  // Error -> Variable "y" has NaN coefficient
     /// ```
-    pub fn evaluate_state<State>(&self, state: &State) -> Result<f64, PredicateError>
+    pub fn evaluate_state<State>(&self, state: &State) -> Result<f64, EvaluationError>
     where
         State: VariableSet,
     {
@@ -609,15 +604,15 @@ impl Predicate {
 
         for (name, coeff) in &self.coefficients {
             if coeff.is_nan() {
-                return Err(PredicateError::nan_coefficient(name));
+                return Err(EvaluationError::nan_coefficient(name));
             }
 
             let value = state
                 .value_for(name.as_str())
-                .ok_or_else(|| PredicateError::missing(name))?;
+                .ok_or_else(|| EvaluationError::missing(name))?;
 
             if value.is_nan() {
-                return Err(PredicateError::nan_value(name));
+                return Err(EvaluationError::nan_value(name));
             }
 
             sum += coeff * value;
@@ -631,10 +626,35 @@ impl Predicate {
 #[derive(Debug, Clone, Error)]
 #[error("At time {time} encountered error: {error}")]
 pub struct FormulaError {
-    pub time: f64,
+    time: f64,
 
     #[source]
-    pub error: PredicateError,
+    error: EvaluationError,
+}
+
+impl FormulaError {
+    /// Create a new evaluation error for a given time.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use banquo::predicate::{EvaluationError, FormulaError};
+    ///
+    /// let err = FormulaError::new(1.0, EvaluationError::missing("x"));
+    /// ```
+    pub fn new(time: f64, error: EvaluationError) -> Self {
+        Self { time, error }
+    }
+
+    /// Returns the time of the state that produced the [`EvaluationError`].
+    pub fn time(&self) -> f64 {
+        self.time
+    }
+
+    /// Returns a reference to the [`EvaluationError`] that was generated.
+    pub fn error(&self) -> &EvaluationError {
+        &self.error
+    }
 }
 
 /// Evaluate a [`Trace`] of state values by evaluating each state individually.
@@ -749,7 +769,7 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use crate::predicate;
-    use super::{Predicate, PredicateError};
+    use super::{Predicate, EvaluationError};
 
     #[test]
     fn macro_parsing() {
@@ -777,11 +797,11 @@ mod tests {
 
         assert_eq!(p.evaluate_state(&hash_map), Ok(6.0));
         assert_eq!(p.evaluate_state(&btree), Ok(-5.0));
-        assert_eq!(p.evaluate_state(&missing), Err(PredicateError::missing("x")));
-        assert_eq!(p.evaluate_state(&nan_value), Err(PredicateError::nan_value("y")));
+        assert_eq!(p.evaluate_state(&missing), Err(EvaluationError::missing("x")));
+        assert_eq!(p.evaluate_state(&nan_value), Err(EvaluationError::nan_value("y")));
 
         p += ("z", f64::NAN);
 
-        assert_eq!(p.evaluate_state(&hash_map), Err(PredicateError::nan_coefficient("z")));
+        assert_eq!(p.evaluate_state(&hash_map), Err(EvaluationError::nan_coefficient("z")));
     }
 }
