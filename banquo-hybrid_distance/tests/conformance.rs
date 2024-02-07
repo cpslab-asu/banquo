@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use banquo::{HybridDistance, HybridPredicate, HybridState, Trace, evaluate, predicate};
-use banquo::automaton::Automaton;
-use banquo::operators::{Always, And, Eventually, Or};
+use banquo_core::{Trace, evaluate, predicate};
+use banquo_core::operators::{Always, And, Eventually, Or};
+use banquo_hybrid_distance::{HybridDistance, HybridPredicate, HybridState};
+use banquo_hybrid_distance::automaton::Automaton;
 
 type State = HashMap<&'static str, f64>;
 
