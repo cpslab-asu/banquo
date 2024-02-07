@@ -146,3 +146,13 @@ pub use core::predicate;
 
 #[doc(inline)]
 pub use core::predicate::Predicate;
+
+#[cfg(feature = "hybrid-distance")]
+#[doc(inline)]
+pub use banquo_hybrid_distance::{
+    HybridDistance,
+    HybridPredicate,
+    HybridState,
+    automaton,
+    predicate as hybrid_predicate,
+};
