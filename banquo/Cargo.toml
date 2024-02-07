@@ -12,5 +12,12 @@ license = "BSD-3-Clause"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 banquo-core = { path = "../banquo-core" }
+banquo-hybrid_distance = { path = "../banquo-hybrid_distance", optional = true }
+banquo-parser = { path = "../banquo-parser", optional = true }
+
+[features]
+default = ["hybrid-distance"]
+hybrid-distance = ["dep:banquo-hybrid_distance"]
+parser = ["dep:banquo-parser"]
 
 [dev-dependencies]
