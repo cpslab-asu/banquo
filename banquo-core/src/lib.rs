@@ -161,7 +161,6 @@ impl EvaluationError {
 /// use std::collections::HashMap;
 ///
 /// use banquo::{EvaluationError, Trace, evaluate, predicate};
-/// use banquo::predicate::PredicateError;
 ///
 /// let phi = predicate!{ x <= 10.0 };
 ///
