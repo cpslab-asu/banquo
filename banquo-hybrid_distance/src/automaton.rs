@@ -47,7 +47,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
-use banquo_core::predicate::{Predicate, PredicateError, VariableSet};
+use banquo_core::predicate::{Predicate, EvaluationError, VariableSet};
 use petgraph::algo::astar;
 use petgraph::graph::DiGraph;
 
@@ -187,7 +187,7 @@ impl Guard {
     ///
     /// guard.distances(&state); // vec![0.5, -1.2]
     /// ```
-    pub fn distances<S>(&self, state: &S) -> Result<Vec<f64>, PredicateError>
+    pub fn distances<S>(&self, state: &S) -> Result<Vec<f64>, EvaluationError>
     where
         S: VariableSet,
     {
