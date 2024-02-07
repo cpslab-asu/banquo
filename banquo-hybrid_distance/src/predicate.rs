@@ -1,5 +1,5 @@
 use banquo_core::{Bottom, Formula, Join, Meet, Top, Trace};
-use banquo_core::predicate::{Predicate, PredicateError, VariableSet};
+use banquo_core::predicate::{Predicate, VariableSet};
 use thiserror::Error;
 
 use crate::automaton::Automaton;
@@ -205,9 +205,9 @@ pub struct HybridState<State, Label> {
 
 /// Error produced during the evaluation of a [`HybridState`] using a [`HybridPredicate`].
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
-pub enum HybridEvaluationError {
+pub enum ErrorKind {
     #[error("Error evaluating inner predicate: {0}")]
-    PredicateError(#[from] PredicateError),
+    PredicateError(#[from] banquo_core::predicate::EvaluationError),
 
     #[error("Transition guard cannot have 0 constraints")]
     EmptyConstraints,
@@ -216,11 +216,33 @@ pub enum HybridEvaluationError {
     NoNegativeValues,
 }
 
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
+#[error(transparent)]
+pub struct EvaluationError(ErrorKind);
+
+impl From<banquo_core::predicate::EvaluationError> for EvaluationError {
+    fn from(error: banquo_core::predicate::EvaluationError) -> Self {
+        Self(ErrorKind::from(error))
+    }
+}
+
+impl From<ErrorKind> for EvaluationError {
+    fn from(kind: ErrorKind) -> Self {
+        Self(kind)
+    }
+}
+
+impl EvaluationError {
+    pub fn kind(&self) -> &ErrorKind {
+        &self.0
+    }
+}
+
 impl<'a, Label> HybridPredicate<'a, Label>
 where
     Label: PartialEq,
 {
-    pub fn evaluate_state<State>(&self, hybrid_state: &HybridState<State, Label>) -> Result<HybridDistance, HybridEvaluationError>
+    pub fn evaluate_state<State>(&self, hybrid_state: &HybridState<State, Label>) -> Result<HybridDistance, EvaluationError>
     where
         State: VariableSet
     {
@@ -242,7 +264,7 @@ where
                 let label_dists = path.next_guard.distances(&hybrid_state.state)?;
 
                 if label_dists.is_empty() {
-                    return Err(HybridEvaluationError::EmptyConstraints);
+                    return Err(EvaluationError::from(ErrorKind::EmptyConstraints));
                 }
 
                 // Find the smallest distance to satisfying one of the unsatisfied guard
@@ -267,11 +289,36 @@ where
 /// Error produced during the evaluation of a [`Trace`] using a [`HybridPredicate`].
 #[derive(Debug, Clone, Error)]
 #[error("At time {time} encountered error evaluation hybrid predicate: {error}")]
-pub struct HybridFormulaError {
-    pub time: f64,
+pub struct FormulaError {
+    time: f64,
 
     #[source]
-    pub error: HybridEvaluationError,
+    error: EvaluationError,
+}
+
+impl FormulaError {
+    /// Create a new evaluation error for a given time.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use banquo::hybrid_predicate::{ErrorKind, EvaluationError, FormulaError};
+    ///
+    /// let err = FormulaError::new(1.0, EvaluationError::from(ErrorKind::EmptyConstraints));
+    /// ```
+    pub fn new(time: f64, error: EvaluationError) -> Self {
+        Self { time, error }
+    }
+
+    /// Returns the time of the state that produced the [`EvaluationError`].
+    pub fn time(&self) -> f64 {
+        self.time
+    }
+
+    /// Returns a reference to the [`EvaluationError`] that was generated.
+    pub fn error(&self) -> &EvaluationError {
+        &self.error
+    }
 }
 
 impl<'a, State, Label> Formula<HybridState<State, Label>> for HybridPredicate<'a, Label>
@@ -280,7 +327,7 @@ where
     Label: PartialEq,
 {
     type Metric = HybridDistance;
-    type Error = HybridFormulaError;
+    type Error = FormulaError;
 
     fn evaluate(&self, trace: &Trace<HybridState<State, Label>>) -> Result<Trace<Self::Metric>, Self::Error> {
         trace
@@ -288,7 +335,7 @@ where
             .map(|(time, hybrid_state)| {
                 self.evaluate_state(hybrid_state)
                     .map(|dist| (time, dist))
-                    .map_err(|error| HybridFormulaError { time, error })
+                    .map_err(|error| FormulaError { time, error })
             })
             .collect()
     }
