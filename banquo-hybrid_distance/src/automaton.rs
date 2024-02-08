@@ -277,14 +277,14 @@ where
             // a new node
             let start_idx = graph
                 .node_indices()
-                .find(|&idx| &graph[idx] == &start)
+                .find(|&idx| graph[idx] == start)
                 .unwrap_or_else(|| graph.add_node(start));
 
             // If the end label already exists in the graph retrieve its index, otherwise create
             // a new node
             let end_idx = graph
                 .node_indices()
-                .find(|&idx| &graph[idx] == &end)
+                .find(|&idx| graph[idx] == end)
                 .unwrap_or_else(|| graph.add_node(end));
 
             // Add the edge between start and end nodes containing the transition guards
@@ -313,7 +313,7 @@ where
     G: Into<Guard>,
 {
     fn from(edges: [(Label, Label, G); N]) -> Self {
-        Self::from_iter(edges.into_iter())
+        Self::from_iter(edges)
     }
 }
 

@@ -148,6 +148,8 @@
 //! let result = evaluate(trace, &phi);
 //! ```
 
+use std::cmp::Ordering;
+
 use banquo_core::predicate::{Predicate, VariableSet};
 use banquo_core::{Bottom, Formula, Join, Meet, Top, Trace};
 use thiserror::Error;
@@ -261,20 +263,18 @@ impl Meet for HybridDistance {
                 // If the other is a StateDistance, the min is the distance with the greater
                 // number of hops, or the more negative guard distance
                 Self::StateDistance { hops: rhops, dist: rdist } => {
-                    if lhops > rhops {
-                        self.clone()
-                    } else if lhops < rhops {
-                        other.clone()
-                    } else {
-                        Self::StateDistance {
+                    match lhops.cmp(rhops) {
+                        Ordering::Less => *other,
+                        Ordering::Greater => *self,
+                        Ordering::Equal => Self::StateDistance {
                             hops: *lhops,
-                            dist: f64::min(*ldist, *rdist),
+                            dist: f64::min(*ldist, *rdist)
                         }
                     }
                 }
 
                 // If the other is a Robustness then the min of the two is a StateDistance
-                Self::Robustness(_) => self.clone(),
+                Self::Robustness(_) => *self,
             },
 
             // If both values are Robustness then find the min of the two, otherwise, the non-Robustness
@@ -283,7 +283,7 @@ impl Meet for HybridDistance {
                 if let Self::Robustness(right) = other {
                     Self::Robustness(f64::min(*left, *right))
                 } else {
-                    other.clone()
+                    *other
                 }
             }
         }
@@ -295,23 +295,21 @@ impl Join for HybridDistance {
         match self {
             // If self is Unreachable, then no matter what the other side is, the max of the two
             // values is the other
-            Self::Unreachable => other.clone(),
+            Self::Unreachable => *other,
 
             Self::StateDistance { hops: lhops, dist: ldist } => match other {
                 // If the other is Unreachable then the max of the two is whatever Self is
-                Self::Unreachable => self.clone(),
+                Self::Unreachable => *self,
 
                 // If the other is a StateDistance, the max is the distance with the lesser
                 // number of hops, or the less negative guard distance
                 Self::StateDistance { hops: rhops, dist: rdist } => {
-                    if lhops < rhops {
-                        self.clone()
-                    } else if lhops > rhops {
-                        other.clone()
-                    } else {
-                        Self::StateDistance {
+                    match lhops.cmp(rhops) {
+                        Ordering::Less => *self,
+                        Ordering::Greater => *other,
+                        Ordering::Equal => Self::StateDistance {
                             hops: *lhops,
-                            dist: f64::max(*ldist, *rdist),
+                            dist: f64::max(*ldist, *rdist)
                         }
                     }
                 }
@@ -326,7 +324,7 @@ impl Join for HybridDistance {
                 if let Self::Robustness(right) = other {
                     Self::Robustness(f64::max(*left, *right))
                 } else {
-                    self.clone()
+                    *self
                 }
             }
         }
@@ -509,7 +507,7 @@ where
                 let max_neg_dist = label_dists
                     .into_iter()
                     .map(|dist| if dist > 0.0 { 0.0 } else { dist })
-                    .fold(f64::NEG_INFINITY, |max, dist| f64::max(max, dist));
+                    .fold(f64::NEG_INFINITY, f64::max);
 
                 // Keep the distance to the closest label
                 min_dist = min_dist.max(&HybridDistance::StateDistance {
