@@ -416,7 +416,7 @@ where
     T: Into<Term>,
 {
     fn sub_assign(&mut self, rhs: T) {
-        *self += rhs.into().neg();
+        *self += -rhs.into();
     }
 }
 
