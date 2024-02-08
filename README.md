@@ -2,6 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/banquo)](https://crates.io/crates/banquo)
 [![Documentation](https://docs.rs/banquo/badge.svg)](https://docs.rs/banquo)
+[![CI](https://github.com/cpslab-asu/banquo/actions/workflows/ci.yaml/badge.svg)](https://github.com/cpslab-asu/banquo/actions/workflows/ci.yaml)
 
 This repository contains the crates that make up the banquo temporal logic monitoring library. For
 more information, please refer to the README in the `banquo` crate or the documentation on
