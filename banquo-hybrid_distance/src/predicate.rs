@@ -262,16 +262,14 @@ impl Meet for HybridDistance {
 
                 // If the other is a StateDistance, the min is the distance with the greater
                 // number of hops, or the more negative guard distance
-                Self::StateDistance { hops: rhops, dist: rdist } => {
-                    match lhops.cmp(rhops) {
-                        Ordering::Less => *other,
-                        Ordering::Greater => *self,
-                        Ordering::Equal => Self::StateDistance {
-                            hops: *lhops,
-                            dist: f64::min(*ldist, *rdist)
-                        }
-                    }
-                }
+                Self::StateDistance { hops: rhops, dist: rdist } => match lhops.cmp(rhops) {
+                    Ordering::Less => *other,
+                    Ordering::Greater => *self,
+                    Ordering::Equal => Self::StateDistance {
+                        hops: *lhops,
+                        dist: f64::min(*ldist, *rdist),
+                    },
+                },
 
                 // If the other is a Robustness then the min of the two is a StateDistance
                 Self::Robustness(_) => *self,
@@ -303,16 +301,14 @@ impl Join for HybridDistance {
 
                 // If the other is a StateDistance, the max is the distance with the lesser
                 // number of hops, or the less negative guard distance
-                Self::StateDistance { hops: rhops, dist: rdist } => {
-                    match lhops.cmp(rhops) {
-                        Ordering::Less => *self,
-                        Ordering::Greater => *other,
-                        Ordering::Equal => Self::StateDistance {
-                            hops: *lhops,
-                            dist: f64::max(*ldist, *rdist)
-                        }
-                    }
-                }
+                Self::StateDistance { hops: rhops, dist: rdist } => match lhops.cmp(rhops) {
+                    Ordering::Less => *self,
+                    Ordering::Greater => *other,
+                    Ordering::Equal => Self::StateDistance {
+                        hops: *lhops,
+                        dist: f64::max(*ldist, *rdist),
+                    },
+                },
 
                 // If the other is a Robustness then the max of the two is a Robustness
                 Self::Robustness(rho) => Self::Robustness(*rho),
