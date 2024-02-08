@@ -90,13 +90,13 @@
 //! let iter = IntoIterator::into_iter(&mut trace);
 //!
 //! for (time, state) in &mut trace {  // (f64, &mut f64)
-//!     // ... 
+//!     // ...
 //! }
 //!
 //! // let iter = trace.into_iter();
 //!
 //! for (time, state) in trace {  // (f64, f64)
-//!     // ... 
+//!     // ...
 //! }
 //! ```
 //!
@@ -652,7 +652,7 @@ impl<T> IntoIter<T> {
     where
         F: FnMut(T) -> U,
     {
-        MapStates{ f, iter: self }
+        MapStates { f, iter: self }
     }
 }
 
@@ -836,7 +836,7 @@ impl<'a, T> Range<'a, T> {
     pub fn states(self) -> States<Self> {
         States(self)
     }
-    
+
     /// Create an iterator that applies the function `f` to each state of the sub-interval, while keeping
     /// the times the same.
     ///
@@ -1050,12 +1050,7 @@ mod tests {
 
     #[test]
     fn times() {
-        let trace = Trace::from_iter([
-            (1.0, ()),
-            (2.0, ()),
-            (3.0, ()),
-            (4.0, ()),
-        ]);
+        let trace = Trace::from_iter([(1.0, ()), (2.0, ()), (3.0, ()), (4.0, ())]);
 
         let mut times = trace.times();
 
@@ -1068,12 +1063,7 @@ mod tests {
 
     #[test]
     fn states() {
-        let trace = Trace::from_iter([
-            (1.0, 1.0),
-            (2.0, 2.0),
-            (3.0, 3.0),
-            (4.0, 4.0),
-        ]);
+        let trace = Trace::from_iter([(1.0, 1.0), (2.0, 2.0), (3.0, 3.0), (4.0, 4.0)]);
 
         let mut states = trace.states();
 
@@ -1091,7 +1081,7 @@ mod tests {
         let trace = Trace::from_iter(times.zip(values));
 
         let subtrace_times: Vec<f64> = trace.range(0f64..4.0).times().collect::<Vec<_>>();
-        let subtrace_states: Vec<f64> = trace.range(0f64..4.0).states().map(|state| *state).collect::<Vec<f64>>();
+        let subtrace_states: Vec<f64> = trace.range(0f64..4.0).states().map(|state| *state).collect();
 
         assert_eq!(subtrace_times, vec![0.0, 1.0, 2.0, 3.0]);
         assert_eq!(subtrace_states, vec![1.0, 2.0, 3.0, 4.0]);

@@ -3,8 +3,8 @@ use std::error::Error;
 
 use approx::assert_relative_eq;
 use banquo_core::evaluate;
-use banquo_core::predicate;
 use banquo_core::operators::{Always, And, Eventually, Implies, Next, Not, Or, Until};
+use banquo_core::predicate;
 use banquo_core::predicate::Predicate;
 use banquo_core::trace::Trace;
 
@@ -52,11 +52,11 @@ fn get_trace() -> Trace<HashMap<&'static str, f64>> {
 }
 
 fn p1() -> Predicate {
-    predicate!{ x * -1.0 <= 2.0 }
+    predicate! { x * -1.0 <= 2.0 }
 }
 
 fn p2() -> Predicate {
-    predicate!{ x <= 2.0 }
+    predicate! { x <= 2.0 }
 }
 
 type TestResult = Result<(), Box<dyn Error>>;

@@ -2,9 +2,9 @@ use std::ops::Neg;
 
 use thiserror::Error;
 
-use crate::Formula;
-use crate::metrics::{Meet, Join};
+use crate::metrics::{Join, Meet};
 use crate::trace::Trace;
+use crate::Formula;
 
 /// First-order operator that inverts its subformula, written `!`, or `not`.
 ///
@@ -49,9 +49,7 @@ where
     fn evaluate(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
         self.subformula
             .evaluate(trace)
-            .map(|result| {
-                result.into_iter().map_states(|state| state.neg()).collect()
-            })
+            .map(|result| result.into_iter().map_states(|state| state.neg()).collect())
     }
 }
 
@@ -90,9 +88,8 @@ pub enum BinaryOperatorError<L, R> {
     RightError(R),
 
     #[error("Error evaluation binary operator: {0}")]
-    EvaluationError(#[from] BinaryEvaluationError)
+    EvaluationError(#[from] BinaryEvaluationError),
 }
-
 
 type BinOpResult<T, E1, E2> = Result<Trace<T>, BinaryOperatorError<E1, E2>>;
 
@@ -172,7 +169,7 @@ pub struct Or<Left, Right>(Binop<Left, Right>);
 
 impl<Left, Right> Or<Left, Right> {
     pub fn new(left: Left, right: Right) -> Self {
-        Self(Binop { left, right }) 
+        Self(Binop { left, right })
     }
 }
 
@@ -292,11 +289,7 @@ where
     type Error = BinaryOperatorError<Ante::Error, Cons::Error>;
 
     fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let ante = self.0
-            .evaluate_left(trace)?
-            .into_iter()
-            .map_states(|state| -state);
-
+        let ante = self.0.evaluate_left(trace)?.into_iter().map_states(|state| -state);
         let cons = self.0.evaluate_right(trace)?;
         let result = binop(ante, cons.into_iter(), |neg_a, c| Metric::max(neg_a, c))?;
 
@@ -306,29 +299,19 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::Formula;
+    use super::{And, Implies, Not, Or};
     use crate::operators::test::*;
     use crate::operators::BinaryOperatorError;
     use crate::trace::Trace;
-    use super::{And, Implies, Not, Or};
+    use crate::Formula;
 
     #[test]
     fn not() -> Result<(), ConstError> {
-        let input = Trace::from_iter([
-            (0, 0.0),
-            (1, 1.0),
-            (2, 2.0),
-            (3, 3.0),
-        ]);
+        let input = Trace::from_iter([(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]);
 
         let formula = Not::new(Const);
         let robustness = formula.evaluate(&input)?;
-        let expected = Trace::from_iter([
-            (0, 0.0),
-            (1, -1.0),
-            (2, -2.0),
-            (3, -3.0),
-        ]);
+        let expected = Trace::from_iter([(0, 0.0), (1, -1.0), (2, -2.0), (3, -3.0)]);
 
         assert_eq!(robustness, expected);
         Ok(())
@@ -336,21 +319,11 @@ mod tests {
 
     #[test]
     fn or() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
-        let input = Trace::from_iter([
-            (0, (0.0, 1.0)),
-            (1, (1.0, 0.0)),
-            (2, (2.0, 4.0)),
-            (3, (3.0, 6.0)),
-        ]);
+        let input = Trace::from_iter([(0, (0.0, 1.0)), (1, (1.0, 0.0)), (2, (2.0, 4.0)), (3, (3.0, 6.0))]);
 
         let formula = Or::new(ConstLeft, ConstRight);
         let robustness = formula.evaluate(&input)?;
-        let expected = Trace::from_iter([
-            (0, 1.0),
-            (1, 1.0),
-            (2, 4.0),
-            (3, 6.0),
-        ]);
+        let expected = Trace::from_iter([(0, 1.0), (1, 1.0), (2, 4.0), (3, 6.0)]);
 
         assert_eq!(robustness, expected);
         Ok(())
@@ -358,12 +331,7 @@ mod tests {
 
     #[test]
     fn and() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
-        let input = Trace::from_iter([
-            (0, (0.0, 1.0)),
-            (1, (1.0, 0.0)),
-            (2, (2.0, 4.0)),
-            (3, (3.0, 6.0)),
-        ]);
+        let input = Trace::from_iter([(0, (0.0, 1.0)), (1, (1.0, 0.0)), (2, (2.0, 4.0)), (3, (3.0, 6.0))]);
 
         let formula = And::new(ConstLeft, ConstRight);
         let robustness = formula.evaluate(&input)?;
@@ -375,21 +343,11 @@ mod tests {
 
     #[test]
     fn implies() -> Result<(), BinaryOperatorError<ConstError, ConstError>> {
-        let input = Trace::from_iter([
-            (0, (0.0, 1.0)),
-            (1, (1.0, 0.0)),
-            (2, (-4.0, 2.0)),
-            (3, (3.0, 6.0)),
-        ]);
+        let input = Trace::from_iter([(0, (0.0, 1.0)), (1, (1.0, 0.0)), (2, (-4.0, 2.0)), (3, (3.0, 6.0))]);
 
         let formula = Implies::new(ConstLeft, ConstRight);
         let robustness = formula.evaluate(&input)?;
-        let expected = Trace::from_iter([
-            (0, 1.0),
-            (1, 0.0),
-            (2, 4.0),
-            (3, 6.0),
-        ]);
+        let expected = Trace::from_iter([(0, 1.0), (1, 0.0), (2, 4.0), (3, 6.0)]);
 
         assert_eq!(robustness, expected);
         Ok(())

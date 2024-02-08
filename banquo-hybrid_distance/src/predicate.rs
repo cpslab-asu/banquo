@@ -148,8 +148,8 @@
 //! let result = evaluate(trace, &phi);
 //! ```
 
-use banquo_core::{Bottom, Formula, Join, Meet, Top, Trace};
 use banquo_core::predicate::{Predicate, VariableSet};
+use banquo_core::{Bottom, Formula, Join, Meet, Top, Trace};
 use thiserror::Error;
 
 use crate::automaton::Automaton;
@@ -266,9 +266,12 @@ impl Meet for HybridDistance {
                     } else if lhops < rhops {
                         other.clone()
                     } else {
-                        Self::StateDistance { hops: *lhops, dist: f64::min(*ldist, *rdist) }
+                        Self::StateDistance {
+                            hops: *lhops,
+                            dist: f64::min(*ldist, *rdist),
+                        }
                     }
-                },
+                }
 
                 // If the other is a Robustness then the min of the two is a StateDistance
                 Self::Robustness(_) => self.clone(),
@@ -282,7 +285,7 @@ impl Meet for HybridDistance {
                 } else {
                     other.clone()
                 }
-            },
+            }
         }
     }
 }
@@ -306,9 +309,12 @@ impl Join for HybridDistance {
                     } else if lhops > rhops {
                         other.clone()
                     } else {
-                        Self::StateDistance { hops: *lhops, dist: f64::max(*ldist, *rdist) }
+                        Self::StateDistance {
+                            hops: *lhops,
+                            dist: f64::max(*ldist, *rdist),
+                        }
                     }
-                },
+                }
 
                 // If the other is a Robustness then the max of the two is a Robustness
                 Self::Robustness(rho) => Self::Robustness(*rho),
@@ -322,7 +328,7 @@ impl Join for HybridDistance {
                 } else {
                     self.clone()
                 }
-            },
+            }
         }
     }
 }
@@ -406,7 +412,7 @@ impl<'a, Label> HybridPredicate<'a, Label> {
 ///
 /// When constructing a `HybridState` value, the state `field` should contain the continuous-valued
 /// variables of the system, while the `label` value should contain the uniquely identifying value
-/// for a discrete location in the [`Automaton`]. 
+/// for a discrete location in the [`Automaton`].
 pub struct HybridState<State, Label> {
     /// The continuous-valued values of the system
     pub state: State,
@@ -425,7 +431,7 @@ pub struct HybridState<State, Label> {
 ///   3. No `Guard` distance is negative.
 ///
 /// Values of this type can be queried for its cause, as well as the variable name causing the
-/// error. 
+/// error.
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ErrorKind {
@@ -470,26 +476,26 @@ impl<'a, Label> HybridPredicate<'a, Label>
 where
     Label: PartialEq,
 {
-    pub fn evaluate_state<State>(&self, hybrid_state: &HybridState<State, Label>) -> Result<HybridDistance, EvaluationError>
+    pub fn evaluate_state<State>(&self, hs: &HybridState<State, Label>) -> Result<HybridDistance, EvaluationError>
     where
-        State: VariableSet
+        State: VariableSet,
     {
         // Compute the robustness for the continuous state if the state label is one of the target
         // labels or if no labels are provided
-        if self.labels.contains(&hybrid_state.label) ||self.labels.is_empty() {
+        if self.labels.contains(&hs.label) || self.labels.is_empty() {
             let rho = match &self.predicate {
-                Some(predicate) => predicate.evaluate_state(&hybrid_state.state)?,
+                Some(predicate) => predicate.evaluate_state(&hs.state)?,
                 None => f64::top(),
             };
 
             return Ok(HybridDistance::from(rho));
-        } 
+        }
 
         let mut min_dist = HybridDistance::bottom();
 
         for target in &self.labels {
-            if let Some(path) = self.system.shortest_path(&hybrid_state.label, target) {
-                let label_dists = path.next_guard.distances(&hybrid_state.state)?;
+            if let Some(path) = self.system.shortest_path(&hs.label, target) {
+                let label_dists = path.next_guard.distances(&hs.state)?;
 
                 if label_dists.is_empty() {
                     return Err(EvaluationError::from(ErrorKind::EmptyConstraints));
@@ -504,9 +510,12 @@ where
                     .into_iter()
                     .map(|dist| if dist > 0.0 { 0.0 } else { dist })
                     .fold(f64::NEG_INFINITY, |max, dist| f64::max(max, dist));
-                
+
                 // Keep the distance to the closest label
-                min_dist = min_dist.max(&HybridDistance::StateDistance { hops: path.hops, dist: max_neg_dist });
+                min_dist = min_dist.max(&HybridDistance::StateDistance {
+                    hops: path.hops,
+                    dist: max_neg_dist,
+                });
             }
         }
 
@@ -573,10 +582,10 @@ where
 mod tests {
     use std::collections::HashMap;
 
-    use banquo_core::{Join, Meet, predicate};
+    use banquo_core::{predicate, Join, Meet};
 
-    use crate::{automaton::Automaton, HybridState};
     use super::{HybridDistance, HybridPredicate};
+    use crate::{automaton::Automaton, HybridState};
 
     #[test]
     fn meet() {
@@ -639,13 +648,11 @@ mod tests {
 
         let automaton = Automaton::from([
             // Green -> Yellow after 15 seconds
-            (State::Green, State::Yellow, predicate!{ -1.0 * t <= -15.0 }),
-        
+            (State::Green, State::Yellow, predicate! { -1.0 * t <= -15.0 }),
             // Yellow -> Red after 5 seconds
-            (State::Yellow, State::Red, predicate!{ -1.0 * t <= -5.0 }),
-        
+            (State::Yellow, State::Red, predicate! { -1.0 * t <= -5.0 }),
             // Red -> Green after 20 seconds
-            (State::Red, State::Green, predicate!{ -1.0 * t <= -20.0 }),
+            (State::Red, State::Green, predicate! { -1.0 * t <= -20.0 }),
         ]);
 
         let g = HybridState {
@@ -662,35 +669,53 @@ mod tests {
             label: State::Red,
             state: HashMap::from([("t", 18.0)]),
         };
-        
+
         // This predicate will be checked for all system states.
-        let all = HybridPredicate::new(predicate!{ t <= 10.0 }, [], &automaton);
+        let all = HybridPredicate::new(predicate! { t <= 10.0 }, [], &automaton);
 
         assert_eq!(all.evaluate_state(&g).unwrap(), HybridDistance::Robustness(-1.0));
         assert_eq!(all.evaluate_state(&y).unwrap(), HybridDistance::Robustness(8.0));
         assert_eq!(all.evaluate_state(&r).unwrap(), HybridDistance::Robustness(-8.0));
-        
+
         // This predicate will only be checked when the system is in the Green state.
         // When the system is not in the Green state, this evaluates to the system distance from
         // the Green state
-        let green = HybridPredicate::new(predicate!{ t <= 15.0 }, [State::Green], &automaton);
+        let green = HybridPredicate::new(predicate! { t <= 15.0 }, [State::Green], &automaton);
 
         assert_eq!(green.evaluate_state(&g).unwrap(), HybridDistance::Robustness(4.0));
-        assert_eq!(green.evaluate_state(&y).unwrap(), HybridDistance::StateDistance { hops: 2, dist: -3.0 });
-        assert_eq!(green.evaluate_state(&r).unwrap(), HybridDistance::StateDistance { hops: 1, dist: -2.0 });
-        
+        assert_eq!(
+            green.evaluate_state(&y).unwrap(),
+            HybridDistance::StateDistance { hops: 2, dist: -3.0 }
+        );
+        assert_eq!(
+            green.evaluate_state(&r).unwrap(),
+            HybridDistance::StateDistance { hops: 1, dist: -2.0 }
+        );
+
         // This predicate has no requirement, and will only check if the system is in the target state.
         let state = HybridPredicate::new(None, [State::Red], &automaton);
 
-        assert_eq!(state.evaluate_state(&g).unwrap(), HybridDistance::StateDistance { hops: 2, dist: -4.0 });
-        assert_eq!(state.evaluate_state(&y).unwrap(), HybridDistance::StateDistance { hops: 1, dist: -3.0 });
-        assert_eq!(state.evaluate_state(&r).unwrap(), HybridDistance::Robustness(f64::INFINITY));
+        assert_eq!(
+            state.evaluate_state(&g).unwrap(),
+            HybridDistance::StateDistance { hops: 2, dist: -4.0 }
+        );
+        assert_eq!(
+            state.evaluate_state(&y).unwrap(),
+            HybridDistance::StateDistance { hops: 1, dist: -3.0 }
+        );
+        assert_eq!(
+            state.evaluate_state(&r).unwrap(),
+            HybridDistance::Robustness(f64::INFINITY)
+        );
 
         let bad = HybridState {
             label: State::Yellow,
             state: HashMap::from([("t", 6.0)]),
         };
 
-        assert_eq!(state.evaluate_state(&bad).unwrap(), HybridDistance::StateDistance { hops: 1, dist: 0.0 });
+        assert_eq!(
+            state.evaluate_state(&bad).unwrap(),
+            HybridDistance::StateDistance { hops: 1, dist: 0.0 }
+        );
     }
 }

@@ -1,8 +1,8 @@
 #![deny(clippy::all)]
 
 use std::borrow::Borrow;
-use std::sync::Arc;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use thiserror::Error;
 
@@ -11,8 +11,8 @@ pub mod operators;
 pub mod predicate;
 pub mod trace;
 
+pub use crate::metrics::{Bottom, Join, Meet, Top};
 pub use crate::trace::Trace;
-pub use crate::metrics::{Top, Bottom, Meet, Join};
 
 /// Trait representing a temporal logic formula that can evaluate a timed set of system states
 /// called a [`Trace`].
@@ -113,9 +113,7 @@ where
 #[derive(Debug, Error)]
 enum ErrorKind {
     #[error("Error evaluating formula: {source}")]
-    FormulaError {
-        source: Box<dyn std::error::Error>,
-    },
+    FormulaError { source: Box<dyn std::error::Error> },
 
     #[error("Empty trace")]
     EmptyTraceError,

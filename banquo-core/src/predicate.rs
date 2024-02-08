@@ -80,7 +80,7 @@
 //!     ("z", 3.0),
 //!     ("a", 0.5),
 //! ]);
-//! 
+//!
 //! let s2 = BTreeMap::from([
 //!     ("x", 1.5),
 //!     ("y", 0.8),
@@ -127,8 +127,8 @@ use std::ops::{AddAssign, Index, Neg, SubAssign};
 
 use thiserror::Error;
 
-use crate::Formula;
 use crate::trace::Trace;
+use crate::Formula;
 
 /// System requirements expressed as the inequality **`ax`**`≤ b`.
 ///
@@ -200,9 +200,7 @@ impl<'a> Iterator for Coefficients<'a> {
     type Item = (&'a str, f64);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0
-            .next()
-            .map(|(name, value)| (name.as_str(), *value))
+        self.0.next().map(|(name, value)| (name.as_str(), *value))
     }
 }
 
@@ -230,9 +228,9 @@ impl<T> FromIterator<T> for Predicate
 where
     T: Into<Term>,
 {
-    fn from_iter<I>(terms: I) -> Self 
+    fn from_iter<I>(terms: I) -> Self
     where
-        I: IntoIterator<Item = T>
+        I: IntoIterator<Item = T>,
     {
         let mut p = Predicate::new();
 
@@ -255,7 +253,7 @@ where
 
 impl Index<&str> for Predicate {
     type Output = f64;
-    
+
     /// Returns a reference to a coefficient in the predicate
     ///
     /// # Panics
@@ -272,7 +270,8 @@ impl Neg for Predicate {
     fn neg(self) -> Self::Output {
         Self {
             constant: -self.constant,
-            coefficients: self.coefficients
+            coefficients: self
+                .coefficients
                 .into_iter()
                 .map(|(name, coeff)| (name, -coeff))
                 .collect(),
@@ -402,15 +401,12 @@ where
     fn add_assign(&mut self, rhs: T) {
         match rhs.into() {
             Term::Variable(name, value) => {
-                let coeff = self.coefficients
-                    .entry(name)
-                    .or_insert(0.0);
-
+                let coeff = self.coefficients.entry(name).or_insert(0.0);
                 *coeff += value;
-            },
+            }
             Term::Constant(value) => {
                 self.constant += value;
-            },
+            }
         }
     }
 }
@@ -474,7 +470,7 @@ pub enum ErrorKind {
 ///   3. A variable has a coefficient that is NaN
 ///
 /// Values of this type can be queried for its cause, as well as the variable name causing the
-/// error. 
+/// error.
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[error("Error evaluating predicate: {kind} \"{name}\"")]
 pub struct EvaluationError {
@@ -671,7 +667,7 @@ where
             .map(|(time, state)| {
                 self.evaluate_state(state)
                     .map(|rho| (time, rho))
-                    .map_err(|error| FormulaError{ time, error })
+                    .map_err(|error| FormulaError { time, error })
             })
             .collect()
     }
@@ -682,7 +678,7 @@ where
 /// This macro parses an algebraic expression into a predicate from right to left. Terms can be
 /// specified as either a `constant`, `variable`, `coefficient * variable`, or
 /// `variable * coefficient`. Malformed expressions will result in a compile-time error. An empty
-/// expression will also result in compile-time error. 
+/// expression will also result in compile-time error.
 ///
 /// # Example
 ///
@@ -768,13 +764,13 @@ macro_rules! predicate {
 mod tests {
     use std::collections::{BTreeMap, HashMap};
 
+    use super::{EvaluationError, Predicate};
     use crate::predicate;
-    use super::{Predicate, EvaluationError};
 
     #[test]
     fn macro_parsing() {
         // Equivalent to 3.0 * x - 4.1 * y - 1.0 * z <= 2.2
-        let p = predicate!{ x * 3.0 + 1.0 <= y * 4.1 + 3.2 + z };
+        let p = predicate! { x * 3.0 + 1.0 <= y * 4.1 + 3.2 + z };
 
         assert_eq!(p.get("x"), Some(3.0));
         assert_eq!(p.get("y"), Some(-4.1));

@@ -28,7 +28,7 @@
 //!
 //! ```rust
 //! use std::collections::HashMap;
-//! 
+//!
 //! use banquo::predicate;
 //! use banquo::automaton::Automaton;
 //!
@@ -52,7 +52,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
-use banquo_core::predicate::{Predicate, EvaluationError, VariableSet};
+use banquo_core::predicate::{EvaluationError, Predicate, VariableSet};
 use petgraph::algo::astar;
 use petgraph::graph::DiGraph;
 
@@ -217,7 +217,7 @@ impl Guard {
 ///
 /// ```rust
 /// use std::collections::HashMap;
-/// 
+///
 /// use banquo::predicate;
 /// use banquo::automaton::Automaton;
 ///
@@ -301,9 +301,7 @@ where
     G: Into<Guard>,
 {
     fn from(adjmap: HashMap<(Label, Label), G>) -> Self {
-        let iter = adjmap
-            .into_iter()
-            .map(|(edge, guard)| (edge.0, edge.1, guard));
+        let iter = adjmap.into_iter().map(|(edge, guard)| (edge.0, edge.1, guard));
 
         Self::from_iter(iter)
     }
@@ -377,9 +375,7 @@ where
         let end_label: &Label = end.borrow();
 
         // Determine node index that contains start label
-        let start_idx = self.0
-            .node_indices()
-            .find(|&idx| &self.0[idx] == start_label)?;
+        let start_idx = self.0.node_indices().find(|&idx| &self.0[idx] == start_label)?;
 
         // Determine the shortest path from start node to the node that contains the end label
         // Using 0 as the heuristic makes this equivalent to Dijkstra's algorithm
@@ -387,7 +383,7 @@ where
 
         // First node in returned path is the start node, so take the second node
         let end_idx = path.get(1).copied()?;
-        
+
         // Get the index for the edge given the node endpoint indices
         let edge_idx = self.0.find_edge(start_idx, end_idx)?;
 

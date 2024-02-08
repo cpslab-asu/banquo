@@ -77,7 +77,7 @@
 //!
 //! Given a `Trace`, the formula can be evaluated using the [`Formula::evaluate`] method into a
 //! [`Result`] containing either a `Trace` of metric values, or an error.
-//! 
+//!
 //! ```rust
 //! use std::collections::HashMap;
 //!
@@ -132,10 +132,10 @@
 extern crate banquo_core as core;
 
 #[doc(inline)]
-pub use core::{Formula, EvaluationError, evaluate};
+pub use core::{evaluate, EvaluationError, Formula};
 
 #[doc(inline)]
-pub use core::metrics::{Top, Bottom, Meet, Join};
+pub use core::metrics::{Bottom, Join, Meet, Top};
 
 #[doc(inline)]
 pub use core::trace;
@@ -155,11 +155,7 @@ pub use core::predicate::Predicate;
 #[cfg(feature = "hybrid-distance")]
 #[doc(inline)]
 pub use banquo_hybrid_distance::{
-    HybridDistance,
-    HybridPredicate,
-    HybridState,
-    automaton,
-    predicate as hybrid_predicate,
+    automaton, predicate as hybrid_predicate, HybridDistance, HybridPredicate, HybridState,
 };
 
 #[doc = include_str!("../README.md")]

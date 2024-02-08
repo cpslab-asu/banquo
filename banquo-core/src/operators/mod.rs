@@ -76,8 +76,8 @@
 //!
 //! # Examples
 //!
-//! Creating a first-order logic operator is straight-forward: 
-//! 
+//! Creating a first-order logic operator is straight-forward:
+//!
 //! ```rust
 //! use banquo::predicate;
 //! use banquo::operators::{And, Not};
@@ -148,14 +148,14 @@
 mod first_order;
 mod forward;
 
-pub use first_order::{And, Implies, Or, Not, BinaryEvaluationError, BinaryOperatorError};
-pub use forward::{Always, Eventually, Next, Until, ForwardOperatorError};
+pub use first_order::{And, BinaryEvaluationError, BinaryOperatorError, Implies, Not, Or};
+pub use forward::{Always, Eventually, ForwardOperatorError, Next, Until};
 
 mod test {
     use thiserror::Error;
 
-    use crate::Formula;
     use crate::trace::Trace;
+    use crate::Formula;
 
     pub struct Const;
 
@@ -184,11 +184,7 @@ mod test {
         type Error = ConstError;
 
         fn evaluate(&self, trace: &Trace<(L, R)>) -> Result<Trace<Self::Metric>, Self::Error> {
-            let left_trace = trace
-                .iter()
-                .map(|(time, (left, _))| (time, left.clone()))
-                .collect();
-
+            let left_trace = trace.iter().map(|(time, (left, _))| (time, left.clone())).collect();
             Ok(left_trace)
         }
     }
@@ -203,11 +199,7 @@ mod test {
         type Error = ConstError;
 
         fn evaluate(&self, trace: &Trace<(L, R)>) -> Result<Trace<Self::Metric>, Self::Error> {
-            let right_trace = trace
-                .iter()
-                .map(|(time, (_, right))| (time, right.clone()))
-                .collect();
-
+            let right_trace = trace.iter().map(|(time, (_, right))| (time, right.clone())).collect();
             Ok(right_trace)
         }
     }

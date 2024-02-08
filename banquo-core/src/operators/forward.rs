@@ -3,10 +3,10 @@ use std::ops::{Bound, RangeBounds};
 
 use thiserror::Error;
 
-use crate::Formula;
-use crate::metrics::{Top, Bottom, Meet, Join};
-use crate::trace::{Range, Trace};
 use super::BinaryOperatorError;
+use crate::metrics::{Bottom, Join, Meet, Top};
+use crate::trace::{Range, Trace};
+use crate::Formula;
 
 struct ForwardIter<'a, T, F> {
     rest: Range<'a, T>,
@@ -27,11 +27,7 @@ where
             None => Some((0.0, init)),
         };
 
-        Self {
-            rest: range,
-            state,
-            combine,
-        }
+        Self { rest: range, state, combine }
     }
 }
 
@@ -170,7 +166,7 @@ impl RangeBounds<f64> for Interval {
 #[derive(Debug, Clone)]
 struct UnaryOperator<F> {
     subformula: F,
-    bounds: Option<Interval>
+    bounds: Option<Interval>,
 }
 
 /// Error produced during the evaluation of a forward operator.
@@ -193,14 +189,16 @@ pub enum ForwardOperatorError<F> {
     EmptyInterval,
 }
 
+type ForwardResult<T, Err> = Result<Trace<T>, ForwardOperatorError<Err>>;
+
 impl<F> UnaryOperator<F> {
     fn new(bounds: Option<Interval>, subformula: F) -> Self {
         Self { bounds, subformula }
     }
 
-    fn evaluate<State, I, C, Metric>(&self, trace: &Trace<State>, init: I, combine: C) -> Result<Trace<F::Metric>, ForwardOperatorError<F::Error>>
+    fn evaluate<T, I, C, Metric>(&self, trace: &Trace<T>, init: I, combine: C) -> ForwardResult<Metric, F::Error>
     where
-        F: Formula<State, Metric = Metric>,
+        F: Formula<T, Metric = Metric>,
         I: Fn() -> Metric,
         C: Fn(&Metric, &Metric) -> Metric,
     {
@@ -208,7 +206,8 @@ impl<F> UnaryOperator<F> {
             return Ok(Trace::from_iter([(0.0, init())]));
         }
 
-        let inner = self.subformula
+        let inner = self
+            .subformula
             .evaluate(trace)
             .map_err(ForwardOperatorError::FormulaError)?;
 
@@ -219,7 +218,7 @@ impl<F> UnaryOperator<F> {
                 let result = ForwardIter::new(range, first, combine).collect();
 
                 Ok(result)
-            },
+            }
             Some(interval) => {
                 let evaluate_time = |time: f64| -> Result<(f64, Metric), ForwardOperatorError<F::Error>> {
                     let shifted = interval.shift(time);
@@ -232,7 +231,7 @@ impl<F> UnaryOperator<F> {
                 };
 
                 inner.times().map(evaluate_time).collect()
-            },
+            }
         }
     }
 }
@@ -539,10 +538,7 @@ fn until_eval_time<M>(left: &Trace<M>, time: f64, right: M, prev: &M) -> M
 where
     M: Top + Meet + Join,
 {
-    let left_metric = left
-        .range(..=time)
-        .fold(M::top(), |l, (_, r)| l.min(r)); // Minimum of left trace until time
-
+    let left_metric = left.range(..=time).fold(M::top(), |l, (_, r)| l.min(r)); // Minimum of left trace until time
     let combined_metric = left_metric.min(&right); // minimum of ^ and right metric
     combined_metric.max(prev) // Maximum of ^  and previous metric
 }
@@ -579,22 +575,13 @@ where
     type Error = BinaryOperatorError<Left::Error, Right::Error>;
 
     fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let left_trace = self
-            .left
-            .evaluate(trace)
-            .map_err(BinaryOperatorError::LeftError)?;
-
-        let right_trace = self
-            .right
-            .evaluate(trace)
-            .map_err(BinaryOperatorError::RightError)?;
-
+        let left_trace = self.left.evaluate(trace).map_err(BinaryOperatorError::LeftError)?;
+        let right_trace = self.right.evaluate(trace).map_err(BinaryOperatorError::RightError)?;
         let mut iter = right_trace.into_iter().rev();
 
-        let evaluated_trace = if let Some((prev_time, prev_metric)) = iter.next() {
-            until_op(left_trace, iter, prev_time, prev_metric)
-        } else {
-            Trace::default()
+        let evaluated_trace = match iter.next() {
+            Some((prev_time, prev_metric)) => until_op(left_trace, iter, prev_time, prev_metric),
+            None => Trace::default(),
         };
 
         Ok(evaluated_trace)
@@ -603,31 +590,19 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::Formula;
-    use crate::operators::BinaryOperatorError;
+    use super::{Always, Eventually, ForwardOperatorError, Next, Until};
     use crate::operators::test::*;
+    use crate::operators::BinaryOperatorError;
     use crate::trace::Trace;
-    use super::{Always, Eventually, Next, Until, ForwardOperatorError};
+    use crate::Formula;
 
     #[test]
     fn always() -> Result<(), ForwardOperatorError<ConstError>> {
-        let input = Trace::from_iter([
-            (0, 4.0),
-            (1, 2.0),
-            (2, 3.0),
-            (3, 1.0),
-            (4, 3.0),
-        ]);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
 
         let formula = Always::unbounded(Const);
         let robustness = formula.evaluate(&input)?;
-        let expected = Trace::from_iter([
-            (0, 1.0),
-            (1, 1.0),
-            (2, 1.0),
-            (3, 1.0),
-            (4, 3.0),
-        ]);
+        let expected = Trace::from_iter([(0, 1.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
         Ok(())
@@ -635,23 +610,11 @@ mod tests {
 
     #[test]
     fn bounded_always() -> Result<(), ForwardOperatorError<ConstError>> {
-        let input = Trace::from_iter([
-            (0, 4.0),
-            (1, 2.0),
-            (2, 3.0),
-            (3, 1.0),
-            (4, 3.0),
-        ]);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
 
         let formula = Always::bounded(0.0..=2.0, Const);
         let robustness = formula.evaluate(&input)?;
-        let expected = Trace::from_iter([
-            (0, 2.0),
-            (1, 1.0),
-            (2, 1.0),
-            (3, 1.0),
-            (4, 3.0),
-        ]);
+        let expected = Trace::from_iter([(0, 2.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
         Ok(())
@@ -659,23 +622,11 @@ mod tests {
 
     #[test]
     fn eventually() -> Result<(), ForwardOperatorError<ConstError>> {
-        let input = Trace::from_iter([
-            (0, 4.0),
-            (1, 2.0),
-            (2, 3.0),
-            (3, 1.0),
-            (4, 3.0),
-        ]);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 3.0), (3, 1.0), (4, 3.0)]);
 
         let formula = Eventually::unbounded(Const);
         let robustness = formula.evaluate(&input)?;
-        let expected = Trace::from_iter([
-            (0, 4.0),
-            (1, 3.0),
-            (2, 3.0),
-            (3, 3.0),
-            (4, 3.0),
-        ]);
+        let expected = Trace::from_iter([(0, 4.0), (1, 3.0), (2, 3.0), (3, 3.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
         Ok(())
@@ -683,23 +634,11 @@ mod tests {
 
     #[test]
     fn bounded_eventually() -> Result<(), ForwardOperatorError<ConstError>> {
-        let input = Trace::from_iter([
-            (0, 4.0),
-            (1, 2.0),
-            (2, 1.0),
-            (3, 5.0),
-            (4, 3.0),
-        ]);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
 
         let formula = Eventually::bounded(0.0..=2.0, Const);
         let robustness = formula.evaluate(&input)?;
-        let expected = Trace::from_iter([
-            (0, 4.0),
-            (1, 5.0),
-            (2, 5.0),
-            (3, 5.0),
-            (4, 3.0),
-        ]);
+        let expected = Trace::from_iter([(0, 4.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 3.0)]);
 
         assert_eq!(robustness, expected);
         Ok(())
@@ -707,21 +646,9 @@ mod tests {
 
     #[test]
     fn bounds() -> Result<(), ForwardOperatorError<ConstError>> {
-        let input = Trace::from_iter([
-            (0, 4.0),
-            (1, 2.0),
-            (2, 1.0),
-            (3, 5.0),
-            (4, 3.0),
-        ]);
+        let input = Trace::from_iter([(0, 4.0), (1, 2.0), (2, 1.0), (3, 5.0), (4, 3.0)]);
 
-        let expected = Trace::from_iter([
-            (0, 4.0),
-            (1, 5.0),
-            (2, 5.0),
-            (3, 5.0),
-            (4, 3.0),
-        ]);
+        let expected = Trace::from_iter([(0, 4.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 3.0)]);
 
         let f1 = Eventually::bounded(0f64..=2f64, Const);
         let f2 = Eventually::bounded(0f64..3f64, Const);
@@ -733,21 +660,11 @@ mod tests {
 
     #[test]
     fn next() -> Result<(), ConstError> {
-        let input = Trace::from_iter([
-            (0, 1.0),
-            (1, 2.0),
-            (2, 3.0),
-            (3, 4.0),
-        ]);
+        let input = Trace::from_iter([(0, 1.0), (1, 2.0), (2, 3.0), (3, 4.0)]);
 
         let formula = Next::new(Const);
         let robustness = formula.evaluate(&input)?;
-        let expected = Trace::from_iter([
-            (0, 2.0),
-            (1, 3.0),
-            (2, 4.0),
-            (3, f64::NEG_INFINITY),
-        ]);
+        let expected = Trace::from_iter([(0, 2.0), (1, 3.0), (2, 4.0), (3, f64::NEG_INFINITY)]);
 
         assert_eq!(robustness, expected);
         Ok(())

@@ -72,7 +72,7 @@ pub trait Meet: PartialOrd {
 /// Trait representing a type that can compute the [supremum] of two values.
 ///
 /// For a [`PartialOrd`] type the output [`Join::max`] for values `a` and `b` should return a value
-/// `v*` of the same type such that the `v* >= a`, `v* >= b`, and `v*` is less than or equal to 
+/// `v*` of the same type such that the `v* >= a`, `v* >= b`, and `v*` is less than or equal to
 /// all other members of the type which are also greater than or equal to `a` and `b`. This trait is
 /// sometimes referred to as the _Smallest Upper Bound_. In the case of types with a total ordering,
 /// like `usize`, this is just the largest value in the set. However, in general the supremum is not
