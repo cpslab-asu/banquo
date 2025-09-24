@@ -10,4 +10,5 @@ name = "_banquo_impl"
 crate-type = ["cdylib"]
 
 [dependencies]
+banquo-core = { path = "../banquo-core", version = "0.1.0" }
 pyo3 = { version = "0.26.0", features = ["extension-module"] }
