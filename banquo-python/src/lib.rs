@@ -1,2 +1,2 @@
 #[pyo3::pymodule]
-mod banquo {}
+mod _banquo_impl {}
