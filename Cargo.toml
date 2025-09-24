@@ -4,5 +4,6 @@ members = [
     "banquo-core",
     "banquo-hybrid_distance",
     "banquo-parser",
+    "banquo-python",
     "banquo",
 ]
