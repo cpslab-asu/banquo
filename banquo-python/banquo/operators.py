@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import typing
 
-from . import _banquo_impl as _impl
+from ._banquo_impl import M_neg, M_lt
+from ._banquo_impl import And as _And
+from ._banquo_impl import Not as _Not
 
 if typing.TYPE_CHECKING:
     from .core import Formula
@@ -12,16 +14,16 @@ M = typing.TypeVar("M")
 
 
 class OperatorMixin:
-    def not_(self: Formula[S, _impl.M_neg]) -> Not[S, _impl.M_neg]:
+    def not_(self: Formula[S, M_neg]) -> Not[S, M_neg]:
         return Not(self)
 
-    def and_(self: Formula[S, _impl.M_lt], other: Formula[S, _impl.M_lt]) -> And[S, _impl.M_lt]:
+    def and_(self: Formula[S, M_lt], other: Formula[S, M_lt]) -> And[S, M_lt]:
         return And(self, other)
 
 
-class Not(_impl.Not[S, _impl.M_neg], OperatorMixin):
+class Not(_Not[S, M_neg], OperatorMixin):
     ...
 
 
-class And(_impl.And[S, _impl.M_lt], OperatorMixin):
+class And(_And[S, M_lt], OperatorMixin):
     ...
