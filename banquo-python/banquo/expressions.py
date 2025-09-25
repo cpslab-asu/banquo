@@ -13,7 +13,7 @@ class Polynomial(_Polynomial):
 
 @functools.singledispatch
 def _to_polynomial(value: object) -> Polynomial:
-    raise TypeError(f"Cannot convert value of type {type} to polynomial")
+    raise TypeError(f"Cannot convert value of type {type(value)} to polynomial")
 
 
 @_to_polynomial.register
