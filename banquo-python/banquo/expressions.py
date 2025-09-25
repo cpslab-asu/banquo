@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import functools
 
-from . import _banquo_impl as _impl
+from ._banquo_impl import Polynomial as _Polynomial
+from ._banquo_impl import Predicate as _Predicate
 from .operators import OperatorMixin
 
 
-class Polynomial(_impl.Polynomial):
+class Polynomial(_Polynomial):
     ...
 
 
@@ -30,7 +31,7 @@ def _(value: Polynomial) -> Polynomial:
     return value
 
 
-class Predicate(_impl.Predicate, OperatorMixin):
+class Predicate(_Predicate, OperatorMixin):
     def __init__(
         self,
         lhs: Polynomial | dict[str, float] | float,
