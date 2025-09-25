@@ -4,8 +4,8 @@ import typing
 
 from ._banquo_impl import Trace
 
-S = typing.TypeVar("S")
-M = typing.TypeVar("M")
+S = typing.TypeVar("S", contravariant=True)
+M = typing.TypeVar("M", covariant=True)
 
 
 class Formula(typing.Protocol[S, M]):

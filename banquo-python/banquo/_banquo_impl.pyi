@@ -5,7 +5,7 @@ from typing_extensions import Self
 
 from .core import Formula
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
 
 class Trace(Generic[T]):
     def __init__(self, elements: Mapping[float, T]) -> None: ...
@@ -19,22 +19,21 @@ class Predicate(Formula[dict[str, float], float]):
     def evaluate(self, trace: Trace[dict[str, float]]) -> Trace[float]: ...
 
 S = TypeVar("S")
-M = TypeVar("M")
 
 class SupportsNeg(Protocol):
     def __neg__(self) -> Self: ...
 
-M_neg = TypeVar("M_neg", bound=SupportsNeg)
+M_neg = TypeVar("M_neg", bound=SupportsNeg, covariant=True)
 
 class Not(Formula[S, M_neg]):
-    def __init__(self, inner: Formula[S, M]) -> None: ...
+    def __init__(self, inner: Formula[S, M_neg]) -> None: ...
     @override
     def evaluate(self, trace: Trace[S]) -> Trace[M_neg]: ...
 
 class SupportsLT(Protocol):
     def __lt__(self, other: Any) -> bool: ...
 
-M_lt = TypeVar("M_lt", bound=SupportsLT)
+M_lt = TypeVar("M_lt", bound=SupportsLT, covariant=True)
 
 class And(Formula[S, M_lt]):
     def __init__(self, lhs: Formula[S, M_lt], rhs: Formula[S, M_lt]) -> None: ...
