@@ -12,7 +12,7 @@ M = typing.TypeVar("M")
 
 
 class OperatorMixin:
-    def __and__(self: Formula[S, _impl.M_lt], other: Formula[S, _impl.M_lt]) -> And[S, _impl.M_lt]:
+    def and_(self: Formula[S, _impl.M_lt], other: Formula[S, _impl.M_lt]) -> And[S, _impl.M_lt]:
         return And(self, other)
 
 
