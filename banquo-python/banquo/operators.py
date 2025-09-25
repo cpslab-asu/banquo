@@ -1,0 +1,20 @@
+from __future__ import annotations
+
+import typing
+
+from . import _banquo_impl as _impl
+
+if typing.TYPE_CHECKING:
+    from .core import Formula
+
+S = typing.TypeVar("S")
+M = typing.TypeVar("M")
+
+
+class OperatorMixin:
+    def __and__(self: Formula[S, _impl.M_lt], other: Formula[S, _impl.M_lt]) -> And[S, _impl.M_lt]:
+        return And(self, other)
+
+
+class And(_impl.And[S, _impl.M_lt], OperatorMixin):
+    ...
