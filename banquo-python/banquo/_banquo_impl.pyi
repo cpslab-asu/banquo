@@ -1,7 +1,7 @@
-from collections.abc import Mapping
-from typing import Generic, Protocol, TypeVar, override
+from collections.abc import Iterable, Mapping
+from typing import Generic, Protocol, TypeVar
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias, override
 
 from .core import Formula
 
