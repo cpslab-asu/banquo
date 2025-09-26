@@ -31,22 +31,42 @@ mod _banquo_impl {
         }
     }
 
-    fn convert_pytrace(pytrace: &Bound<'_, PyDict>) -> Trace<HashMap<String, f64>> {
-        todo!()
-    }
-
-    fn convert_trace<'py>(py: Python<'py>, trace: Trace<f64>) -> Bound<'py, PyDict> {
-        todo!()
-    }
-
     #[pyclass(name = "Trace")]
     struct PyTrace(Trace<Py<PyAny>>);
+
+    impl<'py> FromPyObject<'py> for PyTrace {
+        fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+            Self::new(obj.cast::<PyDict>()?)
+        }
+    }
+
+    impl PyTrace {
+        fn from_trace<'py, T>(py: Python<'py>, trace: Trace<T>) -> PyResult<Self>
+        where
+            T: IntoPyObject<'py>,
+        {
+            trace
+                .into_iter()
+                .map(|(time, state)| state.into_py_any(py).map(|obj| (time, obj)))
+                .collect::<PyResult<Trace<Py<PyAny>>>>()
+                .map(|t| Self(t))
+        }
+    }
 
     #[pymethods]
     impl PyTrace {
         #[new]
-        fn new() -> Self {
-            Self(Trace::default())
+        fn new(elements: &Bound<'_, PyDict>) -> PyResult<Self> {
+            elements
+                .iter()
+                .map(|(key, value)| key.extract::<f64>().map(|time| (time, value.unbind())))
+                .collect::<PyResult<Trace<_>>>()
+                .map(|trace| Self(trace))
+        }
+
+        #[classmethod]
+        fn from_timed_states(_: &Bound<'_, PyType>, times: Vec<f64>, states: Vec<Py<PyAny>>) -> Self {
+            Self(times.into_iter().zip(states.into_iter()).collect())
         }
     }
 
