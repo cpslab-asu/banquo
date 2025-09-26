@@ -1,11 +1,13 @@
+mod metric;
+
 #[pyo3::pymodule]
 mod _banquo_impl {
     use std::collections::HashMap;
 
-    use pyo3::PyErr;
     use pyo3::exceptions::PyRuntimeError;
-    use pyo3::prelude::*;
-    use pyo3::types::PyDict;
+    use pyo3::types::{PyDict, PyType};
+    use pyo3::{FromPyObject, IntoPyObjectExt, PyErr};
+    use pyo3::{IntoPyObject, prelude::*};
 
     use banquo_core::operators::{And, Not};
     use banquo_core::predicate::Predicate;
@@ -77,17 +79,21 @@ mod _banquo_impl {
 
     #[pymethods]
     impl PyPredicate {
-        pub fn evaluate<'py>(&self, pytrace: &Bound<'py, PyDict>) -> PyResult<Bound<'py, PyDict>> {
-            let trace = convert_pytrace(pytrace);
+        pub fn evaluate<'py>(&self, trace: &Bound<'py, PyTrace>) -> PyResult<PyTrace> {
+            let py = trace.py();
+            let converted = trace
+                .borrow()
+                .0
+                .iter()
+                .map(|(time, state)| state.extract::<HashMap<String, f64>>(py).map(|s| (time, s)))
+                .collect::<PyResult<Trace<_>>>()?;
+
             let evaluated = self
                 .inner
-                .evaluate(&trace)
-                .map_err(|err| PyRuntimeError::new_err(err.to_string()));
+                .evaluate(&converted)
+                .map_err(|err| PyRuntimeError::new_err(err.to_string()))?;
 
-            let python = pytrace.py();
-            let converted = convert_trace(python, evaluated?);
-
-            Ok(converted)
+            PyTrace::from_trace(py, evaluated)
         }
     }
 
