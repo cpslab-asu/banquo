@@ -5,33 +5,13 @@ mod _banquo_impl {
     use std::collections::HashMap;
 
     use pyo3::exceptions::PyRuntimeError;
+    use pyo3::prelude::*;
     use pyo3::types::{PyDict, PyType};
-    use pyo3::{FromPyObject, IntoPyObjectExt, PyErr};
-    use pyo3::{IntoPyObject, prelude::*};
+    use pyo3::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 
-    use banquo_core::operators::{And, Not};
+    use super::metric::PyMetric;
     use banquo_core::predicate::Predicate;
     use banquo_core::{Formula, Trace};
-
-    struct PyFormula {
-        inner: Py<PyAny>,
-    }
-
-    fn evaluate_py<'py>(py: Python<'py>, obj: &Py<PyAny>, trace: &Trace<HashMap<String, f64>>) {
-        if let Ok(pred) = obj.cast_bound::<PyPredicate>(py) {
-            pred.borrow().inner.evaluate(trace);
-        }
-    }
-
-    impl Formula<HashMap<String, f64>> for PyFormula {
-        type Metric = f64;
-        type Error = PyErr;
-
-        fn evaluate(&self, trace: &Trace<HashMap<String, f64>>) -> Result<Trace<Self::Metric>, Self::Error> {
-            Python::attach(|py| evaluate_py(py, &self.inner, trace));
-            todo!()
-        }
-    }
 
     #[pyclass(name = "Trace")]
     struct PyTrace(Trace<Py<PyAny>>);
@@ -70,16 +50,64 @@ mod _banquo_impl {
         fn from_timed_states(_: &Bound<'_, PyType>, times: Vec<f64>, states: Vec<Py<PyAny>>) -> Self {
             Self(times.into_iter().zip(states.into_iter()).collect())
         }
+
+        fn __eq__(&self, other: &Bound<'_, Self>) -> PyResult<bool> {
+            let py = other.py();
+            let other = &other.borrow().0;
+
+            if self.0.len() != other.len() {
+                return Ok(false); // Traces cannot be equal with different number of elements
+            }
+
+            for (time, state) in &self.0 {
+                let states_equal = other
+                    .at_time(time) // Try to retrieve state from other trace at the given time
+                    .map(|other_state| state.bind(py).eq(other_state)) // Compare states if they exist using python __eq__ method
+                    .transpose()? // Raise python error early if __eq__ method throws an error
+                    .unwrap_or(false); // Default to false if state does not exist for current time
+
+                if states_equal == false {
+                    return Ok(false);
+                }
+            }
+
+            Ok(true)
+        }
     }
 
-    #[pyclass(name = "Predicate")]
-    struct PyPredicate {
-        inner: Predicate,
+    #[pyclass(name = "Predicate", subclass)]
+    struct PyPredicate(Predicate);
+
+    struct PyMetricTrace(Trace<PyMetric>);
+
+    impl<'py> IntoPyObject<'py> for PyMetricTrace {
+        type Target = PyTrace;
+        type Output = Bound<'py, Self::Target>;
+        type Error = PyErr;
+
+        fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+            let trace = self
+                .0
+                .into_iter()
+                .map_states(|state| state.into())
+                .collect::<Trace<Py<PyAny>>>();
+
+            Bound::new(py, PyTrace(trace))
+        }
     }
 
     #[pymethods]
     impl PyPredicate {
-        pub fn evaluate<'py>(&self, trace: &Bound<'py, PyTrace>) -> PyResult<PyTrace> {
+        #[new]
+        pub fn new(coefficients: HashMap<String, f64>, constant: f64) -> Self {
+            Self(Predicate::new(coefficients, constant))
+        }
+
+        pub fn __eq__(&self, other: &Bound<'_, Self>) -> bool {
+            self.0 == other.borrow().0
+        }
+
+        pub fn evaluate<'py>(&self, trace: &Bound<'py, PyTrace>) -> PyResult<PyMetricTrace> {
             let py = trace.py();
             let converted = trace
                 .borrow()
@@ -89,31 +117,24 @@ mod _banquo_impl {
                 .collect::<PyResult<Trace<_>>>()?;
 
             let evaluated = self
-                .inner
+                .0
                 .evaluate(&converted)
                 .map_err(|err| PyRuntimeError::new_err(err.to_string()))?;
 
-            PyTrace::from_trace(py, evaluated)
+            evaluated
+                .into_iter()
+                .map(|(time, rho)| PyMetric::try_from_f64(rho, py).map(|m| (time, m)))
+                .collect::<PyResult<Trace<_>>>()
+                .map(PyMetricTrace)
         }
     }
 
     #[pyclass]
-    struct PyNot(Not<PyFormula>);
+    struct Not;
 
-    #[pymethods]
-    impl PyNot {
-        pub fn evaluate<'py>(&self, pytrace: &Bound<'py, PyDict>) -> PyResult<Bound<'py, PyDict>> {
-            todo!()
-        }
-    }
+    #[pyclass]
+    struct And;
 
-    #[pyclass(name = "And")]
-    struct PyAnd {
-        inner: And<PyFormula, PyFormula>,
-    }
-
-    #[pymethods]
-    impl PyAnd {
-        pub fn evaluate(&self) {}
-    }
+    #[pyclass]
+    struct Always;
 }
