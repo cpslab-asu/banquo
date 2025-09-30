@@ -12,9 +12,6 @@ class Trace(Generic[T]):
     @classmethod
     def from_timed_states(cls, times: Iterable[float], states: Iterable[T]) -> Trace[T]: ...
 
-class Polynomial:
-    def __init__(self, *, terms: dict[str, float], constant: float) -> None: ...
-
 class Predicate(Formula[dict[str, float], float]):
     def __new__(cls, coefficients: dict[str, float], constant: float) -> Self: ...
     @override
