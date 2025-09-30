@@ -4,6 +4,7 @@ from typing import Generic, TypeVar
 from typing_extensions import Self, TypeAlias, override
 
 from .core import Formula
+from .operators import M_neg, M_lt, M_min
 
 T = TypeVar("T", covariant=True)
 
@@ -19,20 +20,10 @@ class Predicate(Formula[dict[str, float], float]):
 
 S = TypeVar("S")
 
-class SupportsNeg(Protocol):
-    def __neg__(self) -> Self: ...
-
-M_neg = TypeVar("M_neg", bound=SupportsNeg, covariant=True)
-
 class Not(Formula[S, M_neg]):
     def __new__(cls, inner: Formula[S, M_neg]) -> Self: ...
     @override
     def evaluate(self, trace: Trace[S]) -> Trace[M_neg]: ...
-
-class SupportsLT(Protocol):
-    def __lt__(self, value: Self, /) -> bool: ...
-
-M_lt = TypeVar("M_lt", bound=SupportsLT, covariant=True)
 
 class And(Formula[S, M_lt]):
     def __new__(cls, lhs: Formula[S, M_lt], rhs: Formula[S, M_lt]) -> Self: ...
