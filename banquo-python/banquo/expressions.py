@@ -1,40 +1,14 @@
 from __future__ import annotations
 
-import functools
+import typing
 
-from ._banquo_impl import Polynomial as _Polynomial
+if typing.TYPE_CHECKING:
+    from collections.abc import Mapping
+
 from ._banquo_impl import Predicate as _Predicate
 from .operators import OperatorMixin
 
 
-class Polynomial(_Polynomial):
-    ...
-
-
-@functools.singledispatch
-def _to_polynomial(value: object) -> Polynomial:
-    raise TypeError(f"Cannot convert value of type {type(value)} to polynomial")
-
-
-@_to_polynomial.register
-def _(value: float) -> Polynomial:
-    return Polynomial(terms={}, constant=value)
-
-
-@_to_polynomial.register
-def _(value: dict[str, float]) -> Polynomial:
-    return Polynomial(terms=value, constant=0.0)
-
-
-@_to_polynomial.register
-def _(value: Polynomial) -> Polynomial:
-    return value
-
-
 class Predicate(_Predicate, OperatorMixin):
-    def __init__(
-        self,
-        lhs: Polynomial | dict[str, float] | float,
-        rhs: Polynomial | dict[str, float] | float,
-    ):
-        super().__init__(_to_polynomial(lhs), _to_polynomial(rhs))
+    def __new__(cls, coefficients: Mapping[str, float], constant: float):
+        return super().__new__(cls, dict(coefficients), constant)
