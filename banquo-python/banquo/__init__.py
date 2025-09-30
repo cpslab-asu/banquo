@@ -1,10 +1,9 @@
 from ._banquo_impl import Trace
 from .core import Formula
-from .expressions import Polynomial, Predicate
+from .expressions import Predicate
 
 __all__ = [
     "Formula",
-    "Polynomial",
     "Predicate",
     "Trace",
 ]
