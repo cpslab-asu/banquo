@@ -24,3 +24,6 @@ dev = [
 [tool.maturin]
 module-name = "banquo._banquo_impl"
 features = ["pyo3/extension-module"]
+
+[tool.ruff]
+line-length = 100
