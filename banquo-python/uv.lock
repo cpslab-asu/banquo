@@ -9,6 +9,10 @@ resolution-markers = [
 [[package]]
 name = "banquo"
 source = { editable = "." }
+dependencies = [
+    { name = "typing-extensions", version = "4.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "typing-extensions", version = "4.15.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -18,6 +22,7 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "typing-extensions", specifier = ">=4.13.2" }]
 
 [package.metadata.requires-dev]
 dev = [

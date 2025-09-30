@@ -11,6 +11,9 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+dependencies = [
+    "typing-extensions>=4.13.2",
+]
 
 [dependency-groups]
 dev = [
