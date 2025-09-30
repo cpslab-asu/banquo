@@ -1,10 +1,21 @@
-from banquo import Polynomial, Predicate
+from banquo import Predicate, Trace
 
 
-def test_predicate():
-    expected = Predicate(
-        Polynomial(terms={"x": 4.0, "y": 7.2, "z": -3.1}, constant=0.0),
-        Polynomial(terms={}, constant=34.8)
-    )
+def test_evaluation():
+    elements = {
+        0.0: {"x": 0.0, "y": 1.0},
+        1.0: {"x": 7.2, "y": 1.1},
+        2.0: {"x": 13.3, "y": 1.2},
+        3.0: {"x": 21.4, "y": 1.3},
+        4.0: {"x": 30.1, "y": 1.2},
+        5.0: {"x": 38.2, "y": 1.5},
+    }
+    input = Trace(elements)
 
-    assert Predicate({"x": 4.0, "y": 7.2, "z": -3.1}, 34.8) == expected
+    # x + y < 40
+    p = Predicate({"x": 1.0, "y": 1.0}, 40.0)
+    expected = Trace({
+        time: 40.0 - (state["x"] + state["y"]) for time, state in elements.items()
+    })
+
+    assert p.evaluate(input) == expected
