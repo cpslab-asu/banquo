@@ -39,6 +39,12 @@ impl PyMetric {
     }
 }
 
+impl From<Py<PyAny>> for PyMetric {
+    fn from(value: Py<PyAny>) -> Self {
+        Self(value)
+    }
+}
+
 impl From<Bound<'_, PyAny>> for PyMetric {
     fn from(value: Bound<'_, PyAny>) -> Self {
         Self(value.unbind())
