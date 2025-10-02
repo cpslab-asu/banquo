@@ -10,6 +10,7 @@ mod _banquo_impl {
     use pyo3::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 
     use super::metric::PyMetric;
+    use banquo_core::operators::{And, Not};
     use banquo_core::predicate::Predicate;
     use banquo_core::{Formula, Trace};
 
@@ -108,22 +109,9 @@ mod _banquo_impl {
         }
     }
 
-    #[pymethods]
     impl PyPredicate {
-        #[new]
-        pub fn new(coefficients: HashMap<String, f64>, constant: f64) -> Self {
-            Self(Predicate::new(coefficients, constant))
-        }
-
-        pub fn __eq__(&self, other: &Bound<'_, Self>) -> bool {
-            self.0 == other.borrow().0
-        }
-
-        pub fn evaluate<'py>(&self, trace: &Bound<'py, PyTrace>) -> PyResult<PyMetricTrace> {
-            let py = trace.py();
+        fn evaluate_inner(&self, py: Python<'_>, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
             let converted = trace
-                .borrow()
-                .0
                 .iter()
                 .map(|(time, state)| state.extract::<HashMap<String, f64>>(py).map(|s| (time, s)))
                 .collect::<PyResult<Trace<_>>>()?;
@@ -136,16 +124,67 @@ mod _banquo_impl {
             evaluated
                 .into_iter()
                 .map(|(time, rho)| PyMetric::try_from_f64(rho, py).map(|m| (time, m)))
-                .collect::<PyResult<Trace<_>>>()
-                .map(PyMetricTrace)
+                .collect()
         }
     }
 
-    #[pyclass]
-    struct Not;
+    #[pymethods]
+    impl PyPredicate {
+        #[new]
+        pub fn new(coefficients: HashMap<String, f64>, constant: f64) -> Self {
+            Self(Predicate::new(coefficients, constant))
+        }
 
-    #[pyclass]
-    struct And;
+        pub fn __eq__(&self, other: &Bound<'_, Self>) -> bool {
+            self.0 == other.borrow().0
+        }
+
+        pub fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
+            self.evaluate_inner(trace.py(), &trace.borrow().0).map(PyMetricTrace)
+        }
+    }
+
+    struct PyFormula(Py<PyAny>);
+
+    fn evaluate(obj: &Bound<'_, PyAny>, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
+        if let Ok(pred) = obj.cast::<PyPredicate>() {
+            return pred.borrow().evaluate_inner(obj.py(), trace);
+        }
+
+        obj.call_method1("evaluate", ())
+            .and_then(|result| result.extract::<PyTrace>())
+            .map(|result| PyMetricTrace::from(result).into_inner())
+    }
+
+    impl Formula<Py<PyAny>> for PyFormula {
+        type Metric = PyMetric;
+        type Error = PyErr;
+
+        fn evaluate(&self, trace: &Trace<Py<PyAny>>) -> Result<Trace<Self::Metric>, Self::Error> {
+            Python::attach(|py| evaluate(self.0.bind(py), trace))
+        }
+    }
+
+    #[pyclass(name = "Not")]
+    struct PyNot(Not<PyFormula>);
+
+    #[pymethods]
+    impl PyNot {
+        #[new]
+        fn new(subformula: Py<PyAny>) -> Self {
+            Self(Not::new(PyFormula(subformula)))
+        }
+
+        fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
+            self.0.evaluate(&trace.borrow().0).map(PyMetricTrace)
+        }
+    }
+
+    #[pyclass(name = "And")]
+    struct PyAnd(And<PyFormula, PyFormula>);
+
+    #[pymethods]
+    impl PyAnd {}
 
     #[pyclass]
     struct Always;
