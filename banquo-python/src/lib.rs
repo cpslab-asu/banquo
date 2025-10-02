@@ -80,6 +80,18 @@ mod _banquo_impl {
 
     struct PyMetricTrace(Trace<PyMetric>);
 
+    impl PyMetricTrace {
+        fn into_inner(self) -> Trace<PyMetric> {
+            self.0
+        }
+    }
+
+    impl From<PyTrace> for PyMetricTrace {
+        fn from(value: PyTrace) -> Self {
+            Self(value.0.into_iter().map_states(PyMetric::from).collect())
+        }
+    }
+
     impl<'py> IntoPyObject<'py> for PyMetricTrace {
         type Target = PyTrace;
         type Output = Bound<'py, Self::Target>;
