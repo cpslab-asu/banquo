@@ -61,7 +61,7 @@ impl Into<Py<PyAny>> for PyMetric {
 impl PartialEq for PyMetric {
     fn eq(&self, other: &Self) -> bool {
         // If equality is not defined, then the two objects are never equal
-        Python::attach(|py| self.0.bind(py).eq(&other.0).expect("Metric must support __eq__ method"))
+        Python::attach(|py| self.0.bind(py).eq(&other.0).expect("Metric must provide __eq__ method"))
     }
 }
 
