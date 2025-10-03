@@ -130,6 +130,12 @@ mod _banquo_impl {
 
     struct PyFormula(Py<PyAny>);
 
+    impl<'py> FromPyObject<'py> for PyFormula {
+        fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
+            Ok(Self(obj.clone().unbind()))
+        }
+    }
+
     fn evaluate(obj: &Bound<'_, PyAny>, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
         if let Ok(pred) = obj.cast::<PyPredicate>() {
             return pred.borrow().evaluate_inner(obj.py(), trace);
@@ -165,8 +171,8 @@ mod _banquo_impl {
     #[pymethods]
     impl PyNot {
         #[new]
-        fn new(subformula: Py<PyAny>) -> Self {
-            Self(Not::new(PyFormula(subformula)))
+        fn new(subformula: PyFormula) -> Self {
+            Self(Not::new(subformula))
         }
 
         fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
@@ -190,8 +196,8 @@ mod _banquo_impl {
     #[pymethods]
     impl PyAnd {
         #[new]
-        fn new(lhs: Py<PyAny>, rhs: Py<PyAny>) -> Self {
-            Self(And::new(PyFormula(lhs), PyFormula(rhs)))
+        fn new(lhs: PyFormula, rhs: PyFormula) -> Self {
+            Self(And::new(lhs, rhs))
         }
 
         fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
