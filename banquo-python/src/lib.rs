@@ -4,13 +4,13 @@ mod metric;
 mod _banquo_impl {
     use std::collections::HashMap;
 
-    use pyo3::exceptions::{PyKeyError, PyRuntimeError};
+    use pyo3::exceptions::{PyKeyError, PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
     use pyo3::types::PyDict;
     use pyo3::{FromPyObject, IntoPyObject};
 
     use super::metric::PyMetric;
-    use banquo_core::operators::{And, BinaryOperatorError, Not};
+    use banquo_core::operators::{Always, And, BinaryOperatorError, ForwardOperatorError, Not};
     use banquo_core::predicate::Predicate;
     use banquo_core::{Formula, Trace};
 
@@ -145,6 +145,10 @@ mod _banquo_impl {
             return not.borrow().evaluate_inner(trace);
         }
 
+        if let Ok(always) = obj.cast::<PyAlways>() {
+            return always.borrow().evaluate_inner(trace);
+        }
+
         obj.call_method1("evaluate", ())
             .and_then(|result| result.extract::<PyTrace>())
             .map(|result| PyMetricTrace::from(result).into_inner())
@@ -205,6 +209,36 @@ mod _banquo_impl {
         }
     }
 
-    #[pyclass]
-    struct Always;
+    #[pyclass(name = "Always")]
+    struct PyAlways(Always<PyFormula>);
+
+    impl PyAlways {
+        fn evaluate_inner(&self, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
+            self.0.evaluate(trace).map_err(|err| match err {
+                ForwardOperatorError::EmptyInterval => PyValueError::new_err("Bounds interval must not be empty."),
+                ForwardOperatorError::EmptySubtraceEvaluation(t) => {
+                    PyRuntimeError::new_err(format!("Subtrace at time {} is empty.", t))
+                }
+                ForwardOperatorError::FormulaError(err) => err,
+            })
+        }
+    }
+
+    #[pymethods]
+    impl PyAlways {
+        #[new]
+        fn new(bounds: Option<(f64, f64)>, subformula: PyFormula) -> Self {
+            let inner = if let Some((lo, hi)) = bounds {
+                Always::bounded(lo..=hi, subformula)
+            } else {
+                Always::unbounded(subformula)
+            };
+
+            Self(inner)
+        }
+
+        fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
+            self.evaluate_inner(&trace.borrow().0).map(PyMetricTrace)
+        }
+    }
 }
