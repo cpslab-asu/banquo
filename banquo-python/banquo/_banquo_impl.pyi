@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 from typing_extensions import Self, TypeAlias, override
 
 from .core import Formula
-from .operators import M_neg, M_lt, M_min
+from .operators import M_neg, M_le, M_min
 
 T = TypeVar("T", covariant=True)
 
@@ -21,11 +21,18 @@ class Predicate(Formula[dict[str, float], float]):
 S = TypeVar("S")
 
 class Not(Formula[S, M_neg]):
-    def __new__(cls, inner: Formula[S, M_neg]) -> Self: ...
+    def __new__(cls, subformula: Formula[S, M_neg]) -> Self: ...
     @override
     def evaluate(self, trace: Trace[S]) -> Trace[M_neg]: ...
 
-class And(Formula[S, M_lt]):
-    def __new__(cls, lhs: Formula[S, M_lt], rhs: Formula[S, M_lt]) -> Self: ...
+class And(Formula[S, M_le]):
+    def __new__(cls, lhs: Formula[S, M_le], rhs: Formula[S, M_le]) -> Self: ...
     @override
-    def evaluate(self, trace: Trace[S]) -> Trace[M_lt]: ...
+    def evaluate(self, trace: Trace[S]) -> Trace[M_le]: ...
+
+Bounds: TypeAlias = tuple[float, float]
+
+class Always(Formula[S, M_min]):
+    def __new__(cls, subformula: Formula[S, M_min], bounds: Bounds | None) -> Self: ...
+    @override
+    def evaluate(self, trace: Trace[S]) -> Trace[M_min]: ...

@@ -2,41 +2,23 @@ from __future__ import annotations
 
 import typing
 
-from typing_extensions import Self, override
+from typing_extensions import override
 
 from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
 from ._banquo_impl import Not as _Not
 from ._banquo_impl import Trace
-from .core import Formula
+from .core import Formula, SupportsNeg, SupportsLE, SupportsMeet
 
 S = typing.TypeVar("S")
 M = typing.TypeVar("M", covariant=True)
-
-
-class SupportsNeg(typing.Protocol):
-    def __neg__(self) -> Self: ...
-
-
 M_neg = typing.TypeVar("M_neg", bound=SupportsNeg, covariant=True)
-
-
-class SupportsLT(typing.Protocol):
-    def __lt__(self, value: Self, /) -> bool: ...
-
-
-M_lt = typing.TypeVar("M_lt", bound=SupportsLT, covariant=True)
-
-
-class SupportsMeet(SupportsLT, typing.Protocol):
-    def min(self, other: Self) -> Self: ...
-
-
+M_le = typing.TypeVar("M_le", bound=SupportsLE, covariant=True)
 M_min = typing.TypeVar("M_min", bound=SupportsMeet, covariant=True)
 
 
 class OperatorMixin:
-    def and_(self: Formula[S, M_lt], other: Formula[S, M_lt]) -> And[S, M_lt]:
+    def and_(self: Formula[S, M_le], other: Formula[S, M_le]) -> And[S, M_le]:
         return And(self, other)
 
 
@@ -57,8 +39,8 @@ class Not(Operator[S, M_neg]):
         super().__init__(_Not(formula))
 
 
-class And(Operator[S, M_lt]):
-    def __init__(self, lhs: Formula[S, M_lt], rhs: Formula[S, M_lt]):
+class And(Operator[S, M_le]):
+    def __init__(self, lhs: Formula[S, M_le], rhs: Formula[S, M_le]):
         if isinstance(lhs, Operator):
             lhs = lhs.inner
 
