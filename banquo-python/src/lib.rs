@@ -4,7 +4,7 @@ mod metric;
 mod _banquo_impl {
     use std::collections::HashMap;
 
-    use pyo3::exceptions::PyRuntimeError;
+    use pyo3::exceptions::{PyKeyError, PyRuntimeError};
     use pyo3::prelude::*;
     use pyo3::types::PyDict;
     use pyo3::{FromPyObject, IntoPyObject};
@@ -34,12 +34,21 @@ mod _banquo_impl {
                 .map(|trace| Self(trace))
         }
 
+        fn __getitem__(&self, py: Python<'_>, time: f64) -> PyResult<Py<PyAny>> {
+            self.at_time(py, time)
+                .ok_or_else(|| PyKeyError::new_err(format!("Time {} is not present in trace", time)))
+        }
+
         fn times(&self) -> Vec<f64> {
             self.0.times().collect()
         }
 
         fn states(&self, py: Python<'_>) -> Vec<Py<PyAny>> {
             self.0.states().map(|state| state.clone_ref(py)).collect()
+        }
+
+        fn at_time(&self, py: Python<'_>, time: f64) -> Option<Py<PyAny>> {
+            self.0.at_time(time).map(|state| state.clone_ref(py))
         }
     }
 
