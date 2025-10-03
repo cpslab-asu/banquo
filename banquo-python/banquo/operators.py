@@ -26,7 +26,7 @@ class Operator(TraceWrapper[S, M], OperatorMixin):
 
 class Not(Operator[S, M_neg]):
     def __init__(self, formula: Formula[S, M_neg]):
-        if isinstance(formula, Operator):
+        if isinstance(formula, TraceWrapper):
             formula = formula.inner
 
         super().__init__(_Not(formula))
@@ -34,10 +34,10 @@ class Not(Operator[S, M_neg]):
 
 class And(Operator[S, M_le]):
     def __init__(self, lhs: Formula[S, M_le], rhs: Formula[S, M_le]):
-        if isinstance(lhs, Operator):
+        if isinstance(lhs, TraceWrapper):
             lhs = lhs.inner
 
-        if isinstance(rhs, Operator):
+        if isinstance(rhs, TraceWrapper):
             rhs = rhs.inner
 
         super().__init__(_And(lhs, rhs))
