@@ -14,7 +14,7 @@ mod _banquo_impl {
     use banquo_core::predicate::Predicate;
     use banquo_core::{Formula, Trace};
 
-    #[pyclass(name = "Trace")]
+    #[pyclass(name = "Trace", subclass, generic)]
     struct PyTrace(Trace<Py<PyAny>>);
 
     impl<'py> FromPyObject<'py> for PyTrace {
