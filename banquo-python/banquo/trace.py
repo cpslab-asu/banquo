@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from typing import TypeVar
 
 from typing_extensions import override
@@ -18,7 +18,8 @@ class Trace(_Trace[T]):
     def __new__(cls, elements: Mapping[float, T]):
         return super().__new__(cls, dict(elements))
 
-    def __iter__(self) -> Iterable[tuple[float, T]]:
+    @override
+    def __iter__(self) -> Iterator[tuple[float, T]]:
         return zip(self.times(), self.states())
 
     @override
