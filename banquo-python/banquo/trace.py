@@ -14,9 +14,9 @@ def _iter_eq(lhs: Iterable[object], rhs: Iterable[object]) -> bool:
     return list(lhs) == list(rhs)
 
 
-class Trace(_Trace[T]):
-    def __new__(cls, elements: Mapping[float, T]):
-        return super().__new__(cls, dict(elements))
+class Trace(_Trace[T], Iterable[tuple[float, T]]):
+    def __new__(cls, elements: Mapping[float, T] | _Trace[T]):
+        return super().__new__(cls, elements if isinstance(elements, _Trace) else dict(elements))
 
     @override
     def __iter__(self) -> Iterator[tuple[float, T]]:
