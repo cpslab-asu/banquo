@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import typing
 
+from typing_extensions import TypeAlias
+
 from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
 from ._banquo_impl import Not as _Not
 from .core import Formula, SupportsNeg, SupportsLE, SupportsMeet
 from .trace import TraceWrapper
+
+Bounds: TypeAlias = tuple[float, float]
 
 S = typing.TypeVar("S")
 M = typing.TypeVar("M", covariant=True)
@@ -41,3 +45,19 @@ class And(Operator[S, M_le]):
             rhs = rhs.inner
 
         super().__init__(_And(lhs, rhs))
+
+
+class Always(Operator[S, M_min]):
+    def __init__(self, subformula: Formula[S, M_min]):
+        if isinstance(subformula, _Always):
+            inner = subformula
+        elif isinstance(subformula, TraceWrapper):
+            inner = _Always(None, subformula.inner)
+        else:
+            inner = _Always(None, subformula)
+
+        super().__init__(inner)
+
+    @classmethod
+    def with_bounds(cls, bounds: Bounds, subformula: Formula[S, M_min]) -> Always[S, M_min]:
+        return cls(_Always(bounds, subformula))

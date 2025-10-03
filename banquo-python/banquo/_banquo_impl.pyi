@@ -1,10 +1,10 @@
 from collections.abc import Iterable
 from typing import Generic, TypeVar
 
-from typing_extensions import Self, TypeAlias, override
+from typing_extensions import Self, override
 
 from .core import Formula
-from .operators import M_neg, M_le, M_min
+from .operators import Bounds, M_neg, M_le, M_min
 
 T = TypeVar("T", covariant=True)
 
@@ -32,9 +32,7 @@ class And(Formula[S, M_le]):
     @override
     def evaluate(self, trace: Trace[S]) -> Trace[M_le]: ...
 
-Bounds: TypeAlias = tuple[float, float]
-
 class Always(Formula[S, M_min]):
-    def __new__(cls, subformula: Formula[S, M_min], bounds: Bounds | None) -> Self: ...
+    def __new__(cls, bounds: Bounds | None, subformula: Formula[S, M_min]) -> Self: ...
     @override
     def evaluate(self, trace: Trace[S]) -> Trace[M_min]: ...
