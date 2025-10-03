@@ -151,6 +151,10 @@ mod _banquo_impl {
             return pred.borrow().evaluate_inner(obj.py(), trace);
         }
 
+        if let Ok(not) = obj.cast::<PyNot>() {
+            return not.borrow().evaluate_inner(trace);
+        }
+
         obj.call_method1("evaluate", ())
             .and_then(|result| result.extract::<PyTrace>())
             .map(|result| PyMetricTrace::from(result).into_inner())
@@ -168,6 +172,12 @@ mod _banquo_impl {
     #[pyclass(name = "Not")]
     struct PyNot(Not<PyFormula>);
 
+    impl PyNot {
+        fn evaluate_inner(&self, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
+            self.0.evaluate(trace)
+        }
+    }
+
     #[pymethods]
     impl PyNot {
         #[new]
@@ -176,7 +186,7 @@ mod _banquo_impl {
         }
 
         fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
-            self.0.evaluate(&trace.borrow().0).map(PyMetricTrace)
+            self.evaluate_inner(&trace.borrow().0).map(PyMetricTrace)
         }
     }
 
