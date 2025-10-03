@@ -24,7 +24,7 @@ class Trace(_Trace[T]):
 
     @override
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Trace):
+        if not isinstance(other, _Trace):
             return NotImplemented
 
         return _iter_eq(self.times(), other.times()) and _iter_eq(self.states(), other.states())
