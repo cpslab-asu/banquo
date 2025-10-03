@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import typing
 
-from typing_extensions import override
-
 from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
 from ._banquo_impl import Not as _Not
-from ._banquo_impl import Trace
 from .core import Formula, SupportsNeg, SupportsLE, SupportsMeet
+from .trace import TraceWrapper
 
 S = typing.TypeVar("S")
 M = typing.TypeVar("M", covariant=True)
@@ -22,13 +20,8 @@ class OperatorMixin:
         return And(self, other)
 
 
-class Operator(typing.Generic[S, M], Formula[S, M], OperatorMixin):
-    def __init__(self, formula: Formula[S, M]):
-        self.inner: Formula[S, M] = formula
-
-    @override
-    def evaluate(self, trace: Trace[S]) -> Trace[M]:
-        return self.inner.evaluate(trace)
+class Operator(TraceWrapper[S, M], OperatorMixin):
+    ...
 
 
 class Not(Operator[S, M_neg]):

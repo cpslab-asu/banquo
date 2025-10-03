@@ -6,6 +6,7 @@ from typing import TypeVar
 from typing_extensions import override
 
 from ._banquo_impl import Trace as _Trace
+from .core import Formula
 
 T = TypeVar("T", covariant=True)
 
@@ -32,3 +33,19 @@ class Trace(_Trace[T], Iterable[tuple[float, T]]):
     @classmethod
     def from_timed_states(cls, times: Iterable[float], states: Iterable[T]) -> Trace[T]:
         return cls({time: state for time, state in zip(times, states, strict=True)})
+
+
+S = TypeVar("S", contravariant=True)
+M = TypeVar("M", covariant=True)
+
+
+class TraceWrapper(Formula[S, M]):
+    """Wrapper to convert traces returned from rust-implemented operators into Trace values."""
+
+    def __init__(self, inner: Formula[S, M]):
+        self.inner: Formula[S, M] = inner
+
+    @override
+    def evaluate(self, trace: _Trace[S]) -> Trace[M]:
+        result = self.inner.evaluate(trace)
+        return result if isinstance(result, Trace) else Trace(result)
