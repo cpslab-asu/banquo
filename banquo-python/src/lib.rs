@@ -10,7 +10,7 @@ mod _banquo_impl {
     use pyo3::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 
     use super::metric::PyMetric;
-    use banquo_core::operators::{And, Not};
+    use banquo_core::operators::{And, BinaryOperatorError, Not};
     use banquo_core::predicate::Predicate;
     use banquo_core::{Formula, Trace};
 
@@ -193,8 +193,27 @@ mod _banquo_impl {
     #[pyclass(name = "And")]
     struct PyAnd(And<PyFormula, PyFormula>);
 
+    impl PyAnd {
+        fn evaluate_inner(&self, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
+            self.0.evaluate(trace).map_err(|err| match err {
+                BinaryOperatorError::LeftError(left) => left,
+                BinaryOperatorError::RightError(right) => right,
+                BinaryOperatorError::EvaluationError(err) => PyRuntimeError::new_err(err.to_string()),
+            })
+        }
+    }
+
     #[pymethods]
-    impl PyAnd {}
+    impl PyAnd {
+        #[new]
+        fn new(lhs: Py<PyAny>, rhs: Py<PyAny>) -> Self {
+            Self(And::new(PyFormula(lhs), PyFormula(rhs)))
+        }
+
+        fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
+            self.evaluate_inner(&trace.borrow().0).map(PyMetricTrace)
+        }
+    }
 
     #[pyclass]
     struct Always;
