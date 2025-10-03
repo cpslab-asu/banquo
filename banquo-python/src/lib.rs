@@ -26,8 +26,16 @@ mod _banquo_impl {
     #[pymethods]
     impl PyTrace {
         #[new]
-        fn new(elements: &Bound<'_, PyDict>) -> PyResult<Self> {
+        fn new(elements: &Bound<'_, PyAny>) -> PyResult<Self> {
+            // If we construct a pytrace from a pytrace, we can copy without converting to python objects
+            if let Ok(pytrace) = elements.cast::<PyTrace>() {
+                let py = elements.py();
+                let copied = pytrace.borrow().0.iter().map_states(|obj| obj.clone_ref(py)).collect();
+                return Ok(PyTrace(copied));
+            }
+
             elements
+                .cast::<PyDict>()?
                 .iter()
                 .map(|(key, value)| key.extract::<f64>().map(|time| (time, value.unbind())))
                 .collect::<PyResult<Trace<_>>>()
