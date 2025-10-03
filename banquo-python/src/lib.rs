@@ -6,8 +6,8 @@ mod _banquo_impl {
 
     use pyo3::exceptions::PyRuntimeError;
     use pyo3::prelude::*;
-    use pyo3::types::{PyDict, PyType};
-    use pyo3::{FromPyObject, IntoPyObject, IntoPyObjectExt};
+    use pyo3::types::PyDict;
+    use pyo3::{FromPyObject, IntoPyObject};
 
     use super::metric::PyMetric;
     use banquo_core::operators::{And, BinaryOperatorError, Not};
@@ -23,19 +23,6 @@ mod _banquo_impl {
         }
     }
 
-    impl PyTrace {
-        fn from_trace<'py, T>(py: Python<'py>, trace: Trace<T>) -> PyResult<Self>
-        where
-            T: IntoPyObject<'py>,
-        {
-            trace
-                .into_iter()
-                .map(|(time, state)| state.into_py_any(py).map(|obj| (time, obj)))
-                .collect::<PyResult<Trace<Py<PyAny>>>>()
-                .map(|t| Self(t))
-        }
-    }
-
     #[pymethods]
     impl PyTrace {
         #[new]
@@ -47,32 +34,12 @@ mod _banquo_impl {
                 .map(|trace| Self(trace))
         }
 
-        #[classmethod]
-        fn from_timed_states(_: &Bound<'_, PyType>, times: Vec<f64>, states: Vec<Py<PyAny>>) -> Self {
-            Self(times.into_iter().zip(states.into_iter()).collect())
+        fn times(&self) -> Vec<f64> {
+            self.0.times().collect()
         }
 
-        fn __eq__(&self, other: &Bound<'_, Self>) -> PyResult<bool> {
-            let py = other.py();
-            let other = &other.borrow().0;
-
-            if self.0.len() != other.len() {
-                return Ok(false); // Traces cannot be equal with different number of elements
-            }
-
-            for (time, state) in &self.0 {
-                let states_equal = other
-                    .at_time(time) // Try to retrieve state from other trace at the given time
-                    .map(|other_state| state.bind(py).eq(other_state)) // Compare states if they exist using python __eq__ method
-                    .transpose()? // Raise python error early if __eq__ method throws an error
-                    .unwrap_or(false); // Default to false if state does not exist for current time
-
-                if states_equal == false {
-                    return Ok(false);
-                }
-            }
-
-            Ok(true)
+        fn states(&self, py: Python<'_>) -> Vec<Py<PyAny>> {
+            self.0.states().map(|state| state.clone_ref(py)).collect()
         }
     }
 
