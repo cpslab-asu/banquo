@@ -1,6 +1,6 @@
-from ._banquo_impl import Trace
 from .core import Formula
 from .expressions import Predicate
+from .trace import Trace
 
 __all__ = [
     "Formula",
