@@ -4,14 +4,15 @@ from typing import Protocol, TypeVar
 
 from typing_extensions import Self, override
 
-from ._banquo_impl import Trace
+from ._banquo_impl import Trace as _Trace
+from .trace import Trace
 
 S = TypeVar("S", contravariant=True)
 M = TypeVar("M", covariant=True)
 
 
 class Formula(Protocol[S, M]):
-    def evaluate(self, trace: Trace[S]) -> Trace[M]: ...
+    def evaluate(self, trace: Trace[S]) -> _Trace[M]: ...
 
 
 class SupportsNeg(Protocol):
