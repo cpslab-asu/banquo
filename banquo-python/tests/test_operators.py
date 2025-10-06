@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from pytest import fixture
+from dataclasses import dataclass
+from typing import override
+
+from pytest import fixture, raises
 from typing_extensions import TypeAlias
 
 from banquo import Predicate, Trace, operators
+from banquo.core import Formula
 
 State: TypeAlias = dict[str, float]
 
@@ -55,6 +59,52 @@ def test_predicate_negation(trace: Trace[State], p1: Predicate, p1_expected: Tra
 
     assert isinstance(result, Trace)
     assert result == expected
+
+
+@dataclass()
+class BadMetric:
+    value: float
+
+
+@dataclass()
+class GoodMetric(BadMetric):
+    def __neg__(self) -> GoodMetric:
+        return GoodMetric(-self.value)
+
+
+@dataclass()
+class BadExpr(Formula[State, BadMetric]):
+    inner: Predicate
+
+    @override
+    def evaluate(self, trace: Trace[State]) -> Trace[BadMetric]:
+        result = self.inner.evaluate(trace)
+        return Trace({time: BadMetric(rho) for time, rho in result})
+
+
+@dataclass()
+class GoodExpr(Formula[State, GoodMetric]):
+    inner: Predicate
+
+    @override
+    def evaluate(self, trace: Trace[State]) -> Trace[GoodMetric]:
+        robustness = self.inner.evaluate(trace)
+        return Trace({time: GoodMetric(rho) for time, rho in robustness})
+
+
+def test_custom_negation(trace: Trace[State], p1: Predicate, p1_expected: Trace[float]):
+    # This formula will produce a metric that supports negation, and thus should evaluate successfully
+    good_formula = operators.Not(GoodExpr(p1))
+    expected = Trace({time: GoodMetric(-rho) for time, rho in p1_expected})
+
+    assert good_formula.evaluate(trace) == expected
+
+    # This formula will produce a metric that does not support negation, and thus should throw an error when evaluated
+    # We ignore the specific type checker errors here since we know this usage is non-conformant
+    bad_formula = operators.Not(BadExpr(p1))  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
+
+    with raises(operators.MetricOperationError):
+        _ = bad_formula.evaluate(trace)  # pyright: ignore[reportUnknownVariableType]
 
 
 def test_predicate_conjuction(
