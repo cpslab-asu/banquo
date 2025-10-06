@@ -22,7 +22,7 @@ class Predicate(Formula[dict[str, float], float]):
     @override
     def evaluate(self, trace: Trace[dict[str, float]]) -> Trace[float]: ...
 
-S = TypeVar("S")
+S = TypeVar("S", contravariant=True)
 
 class Not(Formula[S, M_neg]):
     def __new__(cls, subformula: Formula[S, M_neg]) -> Self: ...
