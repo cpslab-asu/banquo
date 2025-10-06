@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, TypeVar
 
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from ._banquo_impl import Trace
 
@@ -41,3 +41,15 @@ class SupportsJoin(SupportsGE, Protocol):
 
 class Metric(SupportsNeg, SupportsMeet, SupportsJoin, Protocol):
     ...
+
+
+class TraceWrapper(Formula[S, M]):
+    """Wrapper to convert traces returned from rust-implemented operators into Trace values."""
+
+    def __init__(self, inner: Formula[S, M]):
+        self.inner: Formula[S, M] = inner
+
+    @override
+    def evaluate(self, trace: Trace[S]) -> Trace[M]:
+        result: _Trace[M] = self.inner.evaluate(trace)
+        return result if isinstance(result, Trace) else Trace(result)
