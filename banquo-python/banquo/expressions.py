@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from ._banquo_impl import Predicate as _Predicate
 from .operators import OperatorMixin
-from .trace import TraceWrapper
+from .core import TraceWrapper
 
 
 class Predicate(TraceWrapper[dict[str, float], float], OperatorMixin):

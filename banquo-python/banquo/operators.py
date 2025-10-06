@@ -7,8 +7,7 @@ from typing_extensions import TypeAlias
 from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
 from ._banquo_impl import Not as _Not
-from .core import Formula, SupportsNeg, SupportsLE, SupportsMeet
-from .trace import TraceWrapper
+from .core import Formula, SupportsNeg, SupportsLE, SupportsMeet, TraceWrapper
 
 Bounds: TypeAlias = tuple[float, float]
 
