@@ -9,6 +9,7 @@ from ._banquo_impl import Trace as _Trace
 from .core import Formula
 
 T = TypeVar("T", covariant=True)
+U = TypeVar("U", covariant=True)
 
 
 def _iter_eq(lhs: Iterable[object], rhs: Iterable[object]) -> bool:
@@ -30,9 +31,9 @@ class Trace(_Trace[T], Iterable[tuple[float, T]]):
 
         return _iter_eq(self.times(), other.times()) and _iter_eq(self.states(), other.states())
 
-    @classmethod
-    def from_timed_states(cls, times: Iterable[float], states: Iterable[T]) -> Trace[T]:
-        return cls({time: state for time, state in zip(times, states, strict=True)})
+    @staticmethod
+    def from_timed_states(times: Iterable[float], states: Iterable[U]) -> Trace[U]:
+        return Trace({time: state for time, state in zip(times, states, strict=True)})
 
 
 S = TypeVar("S", contravariant=True)
