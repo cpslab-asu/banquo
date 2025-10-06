@@ -19,7 +19,7 @@ mod _banquo_impl {
 
     impl<'py> FromPyObject<'py> for PyTrace {
         fn extract_bound(obj: &Bound<'py, PyAny>) -> PyResult<Self> {
-            Self::new(obj.cast::<PyDict>()?)
+            Self::new(obj)
         }
     }
 
