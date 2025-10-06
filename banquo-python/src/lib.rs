@@ -98,7 +98,8 @@ mod _banquo_impl {
             let converted = trace
                 .iter()
                 .map(|(time, state)| state.extract::<HashMap<String, f64>>(py).map(|s| (time, s)))
-                .collect::<PyResult<Trace<_>>>()?;
+                .collect::<PyResult<Trace<_>>>()
+                .map_err(|_| PyValueError::new_err("Predicate only supports dict values as trace states."))?;
 
             let evaluated = self
                 .0
