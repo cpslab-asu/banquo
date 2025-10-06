@@ -150,7 +150,10 @@ mod _banquo_impl {
             return always.borrow().evaluate_inner(trace);
         }
 
-        obj.call_method1("evaluate", ())
+        let py = obj.py();
+        let new_trace = trace.iter().map_states(|obj| obj.clone_ref(py)).collect();
+
+        obj.call_method1("evaluate", (PyTrace(new_trace),))
             .and_then(|result| result.extract::<PyTrace>())
             .map(|result| PyMetricTrace::from(result).into_inner())
     }
