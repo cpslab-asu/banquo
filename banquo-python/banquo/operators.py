@@ -7,7 +7,9 @@ from typing_extensions import TypeAlias
 from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
 from ._banquo_impl import Not as _Not
+from ._banquo_impl import PanicException
 from .core import Formula, SupportsNeg, SupportsLE, SupportsMeet, TraceWrapper
+from .trace import Trace
 
 Bounds: TypeAlias = tuple[float, float]
 
@@ -23,8 +25,22 @@ class OperatorMixin:
         return And(self, other)
 
 
+class MetricAttributeError(AttributeError):
+    def __init__(self, missing_method: str):
+        super().__init__(f"Metric type {type} must implement {missing_method} method")
+
+
 class Operator(TraceWrapper[S, M], OperatorMixin):
-    ...
+    def __init__(self, subformula: Formula[S, M], required_method: str):
+        super().__init__(subformula)
+        self.required_method: str = required_method
+
+    @typing.override
+    def evaluate(self, trace: Trace[S]) -> Trace[M]:
+        try:
+            return super().evaluate(trace)
+        except PanicException:
+            raise MetricAttributeError(self.required_method)
 
 
 class Not(Operator[S, M_neg]):
@@ -32,7 +48,7 @@ class Not(Operator[S, M_neg]):
         if isinstance(formula, TraceWrapper):
             formula = formula.inner
 
-        super().__init__(_Not(formula))
+        super().__init__(_Not(formula), "__neg__")
 
 
 class And(Operator[S, M_le]):
@@ -43,7 +59,7 @@ class And(Operator[S, M_le]):
         if isinstance(rhs, TraceWrapper):
             rhs = rhs.inner
 
-        super().__init__(_And(lhs, rhs))
+        super().__init__(_And(lhs, rhs), "__le__")
 
 
 class Always(Operator[S, M_min]):
@@ -55,7 +71,7 @@ class Always(Operator[S, M_min]):
         else:
             inner = _Always(None, subformula)
 
-        super().__init__(inner)
+        super().__init__(inner, "__le__")
 
     @classmethod
     def with_bounds(cls, bounds: Bounds, subformula: Formula[S, M_min]) -> Always[S, M_min]:

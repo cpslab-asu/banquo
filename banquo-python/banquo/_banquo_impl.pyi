@@ -6,6 +6,8 @@ from typing_extensions import Self, override
 from .core import Formula
 from .operators import Bounds, M_neg, M_le, M_min
 
+class PanicException(Exception): ...
+
 T = TypeVar("T", covariant=True)
 
 class Trace(Generic[T]):
