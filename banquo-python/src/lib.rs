@@ -245,4 +245,7 @@ mod _banquo_impl {
             self.evaluate_inner(&trace.borrow().0).map(PyMetricTrace)
         }
     }
+
+    #[pymodule_export]
+    use pyo3::panic::PanicException;
 }
