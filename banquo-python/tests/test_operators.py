@@ -1,64 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import override
+from typing import TypeVar, override
 
 from pytest import fixture, raises
-from typing_extensions import TypeAlias
 
-from banquo import Predicate, Trace, operators
+from banquo import Trace, operators
 from banquo.core import Formula
 
-State: TypeAlias = dict[str, float]
-
-
-@fixture
-def trace() -> Trace[State]:
-    elements: dict[float, State] = {
-        0.0: {"x": 0.0, "y": 1.0},
-        1.0: {"x": 7.2, "y": 1.1},
-        2.0: {"x": 13.3, "y": 1.2},
-        3.0: {"x": 21.4, "y": 1.3},
-        4.0: {"x": 30.1, "y": 1.2},
-        5.0: {"x": 38.2, "y": 1.5},
-    }
-
-    return Trace(elements)
-
-
-@fixture
-def p1() -> Predicate:
-    # x + y <= 40.0
-    return Predicate({"x": 1.0, "y": 1.0}, 40.0)
-
-
-@fixture
-def p1_expected(trace: Trace[State]) -> Trace[float]:
-    return Trace({
-        time: 40.0 - (state["x"] + state["y"]) for time, state in trace
-    })
-
-
-@fixture
-def p2() -> Predicate:
-    # 3.0 * x - 0.5 * y <= -2.7
-    return Predicate({"x": 3.0, "y": -0.5}, -2.7)
-
-
-@fixture
-def p2_expected(trace: Trace[State]) -> Trace[float]:
-    return Trace({
-        time: -2.7 - (3.0 * state["x"] - 0.5 * state["y"]) for time, state in trace
-    })
-
-
-def test_predicate_negation(trace: Trace[State], p1: Predicate, p1_expected: Trace[float]):
-    formula = operators.Not(p1)
-    expected = Trace({time: -rho for time, rho in p1_expected})
-    result = formula.evaluate(trace)
-
-    assert isinstance(result, Trace)
-    assert result == expected
+T = TypeVar("T")
 
 
 @dataclass()
@@ -71,52 +21,105 @@ class GoodMetric(BadMetric):
     def __neg__(self) -> GoodMetric:
         return GoodMetric(-self.value)
 
+    def __le__(self, other: object, /) -> bool:
+        if not isinstance(other, GoodMetric):
+            return NotImplemented
 
-@dataclass()
-class BadExpr(Formula[State, BadMetric]):
-    inner: Predicate
+        return self.value <= other.value
 
+
+class Const(Formula[T, T]):
     @override
-    def evaluate(self, trace: Trace[State]) -> Trace[BadMetric]:
-        result = self.inner.evaluate(trace)
-        return Trace({time: BadMetric(rho) for time, rho in result})
+    def evaluate(self, trace: Trace[T]) -> Trace[T]:
+        return trace
 
 
-@dataclass()
-class GoodExpr(Formula[State, GoodMetric]):
-    inner: Predicate
+class UnaryTest:
+    @fixture
+    def input(self) -> Trace[float]:
+        return Trace({
+            0.0: 1.0,
+            1.0: 1.1,
+            2.0: 1.2,
+            3.0: 1.3,
+            4.0: 1.2,
+            5.0: 1.5,
+        })
 
+
+class TestNegation(UnaryTest):
+    def test_evaluation(self, input: Trace[float]):
+        formula = operators.Not(Const[float]())
+        expected = Trace({time: -state for time, state in input})
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_supported_metric(self, input: Trace[float]):
+        formula = operators.Not(Const[GoodMetric]())
+        good_trace = Trace({time: GoodMetric(value) for time, value in input})
+        expected = Trace({time: -state for time, state in good_trace})
+
+        assert formula.evaluate(good_trace) == expected
+
+    def test_unsupported_metric(self, input: Trace[float]):
+        formula = operators.Not(Const[BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
+        bad_trace = Trace({time: BadMetric(value) for time, value in input})
+
+        with raises(operators.MetricAttributeError):
+            _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
+
+
+L = TypeVar("L")
+R = TypeVar("R")
+
+
+class Left(Formula[tuple[L, R], L]):
     @override
-    def evaluate(self, trace: Trace[State]) -> Trace[GoodMetric]:
-        robustness = self.inner.evaluate(trace)
-        return Trace({time: GoodMetric(rho) for time, rho in robustness})
+    def evaluate(self, trace: Trace[tuple[L, R]]) -> Trace[L]:
+        assert isinstance(trace, Trace)
+        return Trace({time: state[0] for time, state in trace})
 
 
-def test_custom_negation(trace: Trace[State], p1: Predicate, p1_expected: Trace[float]):
-    # This formula will produce a metric that supports negation, and thus should evaluate successfully
-    good_formula = operators.Not(GoodExpr(p1))
-    expected = Trace({time: GoodMetric(-rho) for time, rho in p1_expected})
-
-    assert good_formula.evaluate(trace) == expected
-
-    # This formula will produce a metric that does not support negation, and thus should throw an error when evaluated
-    # We ignore the specific type checker errors here since we know this usage is non-conformant
-    bad_formula = operators.Not(BadExpr(p1))  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
-
-    with raises(operators.MetricOperationError):
-        _ = bad_formula.evaluate(trace)  # pyright: ignore[reportUnknownVariableType]
+class Right(Formula[tuple[L, R], R]):
+    @override
+    def evaluate(self, trace: Trace[tuple[L, R]]) -> Trace[R]:
+        return Trace({time: state[1] for time, state in trace})
 
 
-def test_predicate_conjuction(
-    trace: Trace[State],
-    p1: Predicate,
-    p1_expected: Trace[float],
-    p2: Predicate,
-    p2_expected: Trace[float],
-):
-    formula = operators.And(p1, p2)
-    expected = Trace({time: min(rho, p2_expected[time]) for time, rho in p1_expected})
-    result = formula.evaluate(trace)
+class BinaryTest:
+    @fixture
+    def input(self) -> Trace[tuple[float, float]]:
+        return Trace({
+            0.0: (0.0, 1.0),
+            1.0: (1.0, 0.0),
+            2.0: (2.0, 4.0),
+            3.0: (3.0, 6.0),
+        })
 
-    assert isinstance(result, Trace)
-    assert result == expected
+
+class TestConjunction(BinaryTest):
+    def test_evaluation(self, input: Trace[tuple[float, float]]):
+        formula = operators.And(Left[float, float](), Right[float, float]())
+        expected = Trace({time: min(state) for time, state in input})
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_supported_metric(self, input: Trace[tuple[float, float]]):
+        formula = operators.And(Left[GoodMetric, GoodMetric](), Right[GoodMetric, GoodMetric]())
+        good_trace = Trace({
+            time: (GoodMetric(value[0]), GoodMetric(value[1])) for time, value in input
+        })
+        expected = Trace({time: GoodMetric(min(state)) for time, state in input})
+
+        assert formula.evaluate(good_trace) == expected
+
+    def test_unsupported_metric(self, input: Trace[tuple[float, float]]):
+        formula = operators.And(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
+        bad_trace = Trace({time: (BadMetric(value[0]), BadMetric(value[1])) for time, value in input})
+
+        with raises(operators.MetricAttributeError):
+            _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
