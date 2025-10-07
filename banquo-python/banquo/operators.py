@@ -27,7 +27,7 @@ class OperatorMixin:
 
 class MetricAttributeError(AttributeError):
     def __init__(self, missing_method: str):
-        super().__init__(f"Metric type {type} must implement {missing_method} method")
+        super().__init__(f"Metric must implement {missing_method} method")
 
 
 class Operator(EnsureOutput[S, M], OperatorMixin):
@@ -39,8 +39,8 @@ class Operator(EnsureOutput[S, M], OperatorMixin):
     def evaluate(self, trace: Trace[S]) -> Trace[M]:
         try:
             return super().evaluate(trace)
-        except PanicException:
-            raise MetricAttributeError(self.required_method)
+        except PanicException as e:
+            raise MetricAttributeError(self.required_method) from e
 
 
 def _inner_or_wrap(formula: Formula[S, M]) -> Formula[S, M]:
