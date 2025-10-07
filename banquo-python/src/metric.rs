@@ -104,7 +104,7 @@ impl Join for PyMetric {
 
 impl Top for PyMetric {
     fn top() -> Self {
-        Python::attach(|py| PyMetric(PyBottom.into_py_any(py).unwrap()))
+        Python::attach(|py| PyMetric(PyTop.into_py_any(py).unwrap()))
     }
 }
 
