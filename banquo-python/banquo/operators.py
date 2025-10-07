@@ -60,8 +60,8 @@ class And(Operator[S, M_le]):
         super().__init__(_And(_inner_or_wrap(lhs), _inner_or_wrap(rhs)), "__le__")
 
 
-class Always(Operator[S, M_min]):
-    def __init__(self, subformula: Formula[S, M_min]):
+class Always(Operator[S, M_le]):
+    def __init__(self, subformula: Formula[S, M_le]):
         if isinstance(subformula, _Always):
             inner = subformula
         else:
