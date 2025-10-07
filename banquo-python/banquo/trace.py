@@ -20,6 +20,10 @@ class Trace(_Trace[T], Iterable[tuple[float, T]]):
         return super().__new__(cls, elements if isinstance(elements, _Trace) else dict(elements))
 
     @override
+    def __str__(self) -> str:
+        return str({time: state for time, state in self})
+
+    @override
     def __iter__(self) -> Iterator[tuple[float, T]]:
         return zip(self.times(), self.states())
 
