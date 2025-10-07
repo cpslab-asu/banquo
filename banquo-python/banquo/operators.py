@@ -8,7 +8,7 @@ from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
 from ._banquo_impl import Not as _Not
 from ._banquo_impl import PanicException
-from .core import Formula, SupportsNeg, SupportsLE, SupportsMeet, TraceWrapper
+from .core import Formula, EnsureInput, SupportsNeg, SupportsLE, SupportsMeet, EnsureOutput
 from .trace import Trace
 
 Bounds: TypeAlias = tuple[float, float]
@@ -30,7 +30,7 @@ class MetricAttributeError(AttributeError):
         super().__init__(f"Metric type {type} must implement {missing_method} method")
 
 
-class Operator(TraceWrapper[S, M], OperatorMixin):
+class Operator(EnsureOutput[S, M], OperatorMixin):
     def __init__(self, subformula: Formula[S, M], required_method: str):
         super().__init__(subformula)
         self.required_method: str = required_method
@@ -43,36 +43,32 @@ class Operator(TraceWrapper[S, M], OperatorMixin):
             raise MetricAttributeError(self.required_method)
 
 
+def _inner_or_wrap(formula: Formula[S, M]) -> Formula[S, M]:
+    if isinstance(formula, EnsureOutput):
+        return formula.inner
+
+    return EnsureInput(formula)
+
+
 class Not(Operator[S, M_neg]):
     def __init__(self, formula: Formula[S, M_neg]):
-        if isinstance(formula, TraceWrapper):
-            formula = formula.inner
-
-        super().__init__(_Not(formula), "__neg__")
+        super().__init__(_Not(_inner_or_wrap(formula)), "__neg__")
 
 
 class And(Operator[S, M_le]):
     def __init__(self, lhs: Formula[S, M_le], rhs: Formula[S, M_le]):
-        if isinstance(lhs, TraceWrapper):
-            lhs = lhs.inner
-
-        if isinstance(rhs, TraceWrapper):
-            rhs = rhs.inner
-
-        super().__init__(_And(lhs, rhs), "__le__")
+        super().__init__(_And(_inner_or_wrap(lhs), _inner_or_wrap(rhs)), "__le__")
 
 
 class Always(Operator[S, M_min]):
     def __init__(self, subformula: Formula[S, M_min]):
         if isinstance(subformula, _Always):
             inner = subformula
-        elif isinstance(subformula, TraceWrapper):
-            inner = _Always(None, subformula.inner)
         else:
-            inner = _Always(None, subformula)
+            inner = _Always(None, _inner_or_wrap(subformula))
 
         super().__init__(inner, "__le__")
 
     @classmethod
     def with_bounds(cls, bounds: Bounds, subformula: Formula[S, M_min]) -> Always[S, M_min]:
-        return cls(_Always(bounds, subformula))
+        return cls(_Always(bounds, _inner_or_wrap(subformula)))
