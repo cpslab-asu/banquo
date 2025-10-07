@@ -53,7 +53,7 @@ class EnsureInput(Formula[S, M]):
         return self.inner.evaluate(trace if isinstance(trace, Trace) else Trace(trace))
 
 
-class TraceWrapper(Formula[S, M]):
+class EnsureOutput(Formula[S, M]):
     """Wrapper to convert traces returned from rust-implemented operators into Trace values."""
 
     def __init__(self, inner: Formula[S, M]):
