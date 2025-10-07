@@ -60,6 +60,9 @@ class And(Operator[S, M_le]):
         super().__init__(_And(_inner_or_wrap(lhs), _inner_or_wrap(rhs)), "__le__")
 
 
+S_ = typing.TypeVar("S_")
+M_le_ = typing.TypeVar("M_le_", bound=SupportsLE, covariant=True)
+
 class Always(Operator[S, M_le]):
     def __init__(self, subformula: Formula[S, M_le]):
         if isinstance(subformula, _Always):
@@ -69,6 +72,6 @@ class Always(Operator[S, M_le]):
 
         super().__init__(inner, "__le__")
 
-    @classmethod
-    def with_bounds(cls, bounds: Bounds, subformula: Formula[S, M_min]) -> Always[S, M_min]:
-        return cls(_Always(bounds, _inner_or_wrap(subformula)))
+    @staticmethod
+    def with_bounds(bounds: Bounds, subformula: Formula[S_, M_le_]) -> Always[S_, M_le_]:
+        return Always(_Always(bounds, _inner_or_wrap(subformula)))
