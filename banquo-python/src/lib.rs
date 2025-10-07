@@ -104,7 +104,7 @@ mod _banquo_impl {
             let evaluated = self
                 .0
                 .evaluate(&converted)
-                .map_err(|err| PyRuntimeError::new_err(err.to_string()))?;
+                .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
             evaluated
                 .into_iter()
