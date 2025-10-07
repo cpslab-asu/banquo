@@ -76,7 +76,7 @@ impl Neg for PyMetric {
 // Required for Meet implementation
 impl PartialOrd for PyMetric {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Python::attach(|py| Some(self.0.bind(py).compare(other).unwrap()))
+        Python::attach(|py| Some(self.0.bind(py).compare(&other.0).unwrap()))
     }
 }
 
