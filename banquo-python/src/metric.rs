@@ -73,36 +73,15 @@ impl Neg for PyMetric {
     }
 }
 
-fn pycmp<'py>(lhs: &Bound<'py, PyAny>, rhs: &Bound<'py, PyAny>) -> Option<Ordering> {
-    if let Ok(true) = lhs.lt(rhs) {
-        return Some(std::cmp::Ordering::Less);
-    }
-
-    if let Ok(true) = lhs.eq(rhs) {
-        return Some(std::cmp::Ordering::Equal);
-    }
-
-    if let Ok(true) = lhs.gt(rhs) {
-        return Some(std::cmp::Ordering::Greater);
-    }
-
-    // Python values cannot be compared
-    None
-}
-
 // Required for Meet implementation
 impl PartialOrd for PyMetric {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Python::attach(|py| pycmp(self.0.bind(py), other.0.bind(py)).into())
+        Python::attach(|py| Some(self.0.bind(py).compare(other).unwrap()))
     }
 }
 
 fn pymeet<'py>(lhs: &Bound<'py, PyAny>, rhs: &Bound<'py, PyAny>) -> Bound<'py, PyAny> {
-    let ordering = pycmp(lhs, rhs).expect("Metric must support comparison");
-    match ordering {
-        Ordering::Less | Ordering::Equal => lhs.clone(),
-        Ordering::Greater => rhs.clone(),
-    }
+    if lhs.le(rhs).unwrap() { lhs.clone() } else { rhs.clone() }
 }
 
 // Required for operator implementations (And, Iff, etc.)
@@ -113,11 +92,7 @@ impl Meet for PyMetric {
 }
 
 fn pyjoin<'py>(lhs: &Bound<'py, PyAny>, rhs: &Bound<'py, PyAny>) -> Bound<'py, PyAny> {
-    let ordering = pycmp(lhs, rhs).expect("Metric must support comparison");
-    match ordering {
-        Ordering::Greater | Ordering::Equal => lhs.clone(),
-        Ordering::Less => rhs.clone(),
-    }
+    if lhs.ge(rhs).unwrap() { lhs.clone() } else { rhs.clone() }
 }
 
 // Required for operator implementations (Or, Implies, etc.)
