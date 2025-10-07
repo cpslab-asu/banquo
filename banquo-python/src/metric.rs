@@ -1,7 +1,8 @@
 use std::cmp::Ordering;
 use std::ops::Neg;
 
-use pyo3::types::{PyAny, PyAnyMethods};
+use pyo3::basic::CompareOp;
+use pyo3::types::{PyAny, PyAnyMethods, PyBool, PyNotImplemented};
 use pyo3::{Bound, IntoPyObject, IntoPyObjectExt, Py, PyResult, Python, pyclass, pymethods};
 
 use banquo_core::{Bottom, Join, Meet, Top};
@@ -13,8 +14,20 @@ pub struct PyTop;
 
 #[pymethods]
 impl PyTop {
-    fn __gt__(&self, _other: &Bound<'_, PyAny>) -> bool {
-        true
+    fn __richcmp__<'py>(&self, other: &Bound<'py, PyAny>, op: CompareOp) -> Bound<'py, PyAny> {
+        let py = other.py();
+        let result = match op {
+            CompareOp::Lt | CompareOp::Le => Some(false),
+            CompareOp::Eq | CompareOp::Ne => other
+                .cast::<Self>()
+                .map(|_| if let CompareOp::Eq = op { true } else { false })
+                .ok(),
+            CompareOp::Ge | CompareOp::Gt => Some(true),
+        };
+
+        result
+            .map(|v| PyBool::new(py, v).to_owned().into_any())
+            .unwrap_or_else(|| PyNotImplemented::get(py).to_owned().into_any())
     }
 }
 
@@ -25,8 +38,20 @@ pub struct PyBottom;
 
 #[pymethods]
 impl PyBottom {
-    fn __lt__(&self, _other: &Bound<'_, PyAny>) -> bool {
-        true
+    fn __richcmp__<'py>(&self, other: &Bound<'py, PyAny>, op: CompareOp) -> Bound<'py, PyAny> {
+        let py = other.py();
+        let result = match op {
+            CompareOp::Lt | CompareOp::Le => Some(true),
+            CompareOp::Eq | CompareOp::Ne => other
+                .cast::<Self>()
+                .map(|_| if let CompareOp::Eq = op { true } else { false }) // Op can only be Eq or Ne in this branch
+                .ok(),
+            CompareOp::Ge | CompareOp::Gt => Some(false),
+        };
+
+        result
+            .map(|v| PyBool::new(py, v).to_owned().into_any())
+            .unwrap_or_else(|| PyNotImplemented::get(py).to_owned().into_any())
     }
 }
 
