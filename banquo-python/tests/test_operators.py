@@ -123,3 +123,56 @@ class TestConjunction(BinaryTest):
 
         with raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
+
+
+class TestGlobally(UnaryTest):
+    def test_bounded_evaluation(self, input: Trace[float]):
+        formula = operators.Always(Const[float]())
+        expected = Trace({
+            0.0: 1.0,
+            1.0: 1.1,
+            2.0: 1.2,
+            3.0: 1.2,
+            4.0: 1.2,
+            5.0: 1.5,
+        })
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_unbounded_evaluation(self, input: Trace[float]):
+        formula = operators.Always.with_bounds((0.0, 2.0), Const[float]())
+        expected = Trace({
+            0.0: 1.0,
+            1.0: 1.1,
+            2.0: 1.2,
+            3.0: 1.2,
+            4.0: 1.2,
+            5.0: 1.5,
+        })
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_supported_metric(self, input: Trace[float]):
+        formula = operators.Always(Const[GoodMetric]())
+        good_trace = Trace({time: GoodMetric(value) for time, value in input})
+        expected = Trace({
+            0.0: GoodMetric(1.0),
+            1.0: GoodMetric(1.1),
+            2.0: GoodMetric(1.2),
+            3.0: GoodMetric(1.2),
+            4.0: GoodMetric(1.2),
+            5.0: GoodMetric(1.5),
+        })
+
+        assert formula.evaluate(good_trace) == expected
+
+    def test_unsupported_metric(self, input: Trace[float]):
+        formula = operators.Always(Const[BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
+        bad_trace = Trace({time: BadMetric(value) for time, value in input})
+
+        with raises(operators.MetricAttributeError):
+            _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
