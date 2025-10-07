@@ -247,3 +247,48 @@ class TestGlobally(UnaryTest):
 
         with raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
+
+
+class TestFinally(UnaryTest):
+    @fixture
+    def expected(self) -> Trace[float]:
+        return Trace({
+            0.0: 1.5,
+            1.0: 1.5,
+            2.0: 1.5,
+            3.0: 1.5,
+            4.0: 1.5,
+            5.0: 1.5,
+        })
+
+    def test_bounded_evaluation(self, input: Trace[float], expected: Trace[float]):
+        formula = operators.Eventually(Const[float]())
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_unbounded_evaluation(self, input: Trace[float]):
+        formula = operators.Eventually.with_bounds((0.0, 2.0), Const[float]())
+        expected = Trace({
+            0.0: 1.2,
+            1.0: 1.3,
+            2.0: 1.3,
+            3.0: 1.5,
+            4.0: 1.5,
+            5.0: 1.5,
+        })
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_supported_metric(self, good_trace: Trace[GoodMetric], expected: Trace[float]):
+        formula = operators.Eventually(Const[GoodMetric]())
+        assert formula.evaluate(good_trace) == expected
+
+    def test_unsupported_metric(self, bad_trace: Trace[BadMetric]):
+        formula = operators.Eventually(Const[BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
+
+        with raises(operators.MetricAttributeError):
+            _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]

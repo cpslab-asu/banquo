@@ -6,6 +6,7 @@ from typing_extensions import TypeAlias
 
 from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
+from ._banquo_impl import Eventually as _Eventually
 from ._banquo_impl import Implies as _Implies
 from ._banquo_impl import Not as _Not
 from ._banquo_impl import Or as _Or
@@ -87,3 +88,20 @@ class Always(Operator[S, M_le]):
     @staticmethod
     def with_bounds(bounds: Bounds, subformula: Formula[S_, M_le_]) -> Always[S_, M_le_]:
         return Always(_Always(bounds, _inner_or_wrap(subformula)))
+
+
+M_ge_ = typing.TypeVar("M_ge_", bound=SupportsGE, covariant=True)
+
+
+class Eventually(Operator[S, M_ge]):
+    def __init__(self, subformula: Formula[S, M_ge]):
+        if isinstance(subformula, _Eventually):
+            inner = subformula
+        else:
+            inner = _Eventually(None, _inner_or_wrap(subformula))
+
+        super().__init__(inner, "__le__")
+
+    @staticmethod
+    def with_bounds(bounds: Bounds, subformula: Formula[S_, M_ge_]) -> Eventually[S_, M_ge_]:
+        return Eventually(_Eventually(bounds, _inner_or_wrap(subformula)))

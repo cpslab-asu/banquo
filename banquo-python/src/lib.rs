@@ -10,7 +10,9 @@ mod _banquo_impl {
     use pyo3::{FromPyObject, IntoPyObject};
 
     use super::metric::PyMetric;
-    use banquo_core::operators::{Always, And, BinaryOperatorError, ForwardOperatorError, Implies, Not, Or};
+    use banquo_core::operators::{
+        Always, And, BinaryOperatorError, Eventually, ForwardOperatorError, Implies, Not, Or,
+    };
     use banquo_core::predicate::Predicate;
     use banquo_core::{Formula, Trace};
 
@@ -162,6 +164,10 @@ mod _banquo_impl {
             return always.borrow().evaluate_inner(trace);
         }
 
+        if let Ok(eventually) = obj.cast::<PyEventually>() {
+            return eventually.borrow().evaluate_inner(trace);
+        }
+
         let py = obj.py();
         let new_trace = trace.iter().map_states(|obj| obj.clone_ref(py)).collect();
 
@@ -298,6 +304,39 @@ mod _banquo_impl {
                 Always::bounded(lo..=hi, subformula)
             } else {
                 Always::unbounded(subformula)
+            };
+
+            Self(inner)
+        }
+
+        fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
+            self.evaluate_inner(&trace.borrow().0).map(PyMetricTrace)
+        }
+    }
+
+    #[pyclass(name = "Eventually")]
+    struct PyEventually(Eventually<PyFormula>);
+
+    impl PyEventually {
+        fn evaluate_inner(&self, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
+            self.0.evaluate(trace).map_err(|err| match err {
+                ForwardOperatorError::EmptyInterval => PyValueError::new_err("Bounds interval must not be empty."),
+                ForwardOperatorError::EmptySubtraceEvaluation(t) => {
+                    PyRuntimeError::new_err(format!("Subtrace at time {} is empty.", t))
+                }
+                ForwardOperatorError::FormulaError(err) => err,
+            })
+        }
+    }
+
+    #[pymethods]
+    impl PyEventually {
+        #[new]
+        fn new(bounds: Option<(f64, f64)>, subformula: PyFormula) -> Self {
+            let inner = if let Some((lo, hi)) = bounds {
+                Eventually::bounded(lo..=hi, subformula)
+            } else {
+                Eventually::unbounded(subformula)
             };
 
             Self(inner)
