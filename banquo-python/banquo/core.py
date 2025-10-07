@@ -44,6 +44,15 @@ class Metric(SupportsNeg, SupportsMeet, SupportsJoin, Protocol):
     ...
 
 
+class EnsureInput(Formula[S, M]):
+    def __init__(self, inner: Formula[S, M]):
+        self.inner: Formula[S, M] = inner
+
+    @override
+    def evaluate(self, trace: _Trace[S]) -> _Trace[M]:
+        return self.inner.evaluate(trace if isinstance(trace, Trace) else Trace(trace))
+
+
 class TraceWrapper(Formula[S, M]):
     """Wrapper to convert traces returned from rust-implemented operators into Trace values."""
 
