@@ -27,6 +27,12 @@ class GoodMetric(BadMetric):
 
         return self.value <= other.value
 
+    def __ge__(self, other: object, /) -> bool:
+        if not isinstance(other, GoodMetric):
+            return NotImplemented
+
+        return self.value >= other.value
+
 
 class Const(Formula[T, T]):
     @override
@@ -119,6 +125,32 @@ class TestConjunction(BinaryTest):
 
     def test_unsupported_metric(self, input: Trace[tuple[float, float]]):
         formula = operators.And(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
+        bad_trace = Trace({time: (BadMetric(value[0]), BadMetric(value[1])) for time, value in input})
+
+        with raises(operators.MetricAttributeError):
+            _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
+
+
+class TestDisjunction(BinaryTest):
+    def test_evaluation(self, input: Trace[tuple[float, float]]):
+        formula = operators.Or(Left[float, float](), Right[float, float]())
+        expected = Trace({time: max(state) for time, state in input})
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_supported_metric(self, input: Trace[tuple[float, float]]):
+        formula = operators.Or(Left[GoodMetric, GoodMetric](), Right[GoodMetric, GoodMetric]())
+        good_trace = Trace({
+            time: (GoodMetric(value[0]), GoodMetric(value[1])) for time, value in input
+        })
+        expected = Trace({time: GoodMetric(max(state)) for time, state in input})
+
+        assert formula.evaluate(good_trace) == expected
+
+    def test_unsupported_metric(self, input: Trace[tuple[float, float]]):
+        formula = operators.Or(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
         bad_trace = Trace({time: (BadMetric(value[0]), BadMetric(value[1])) for time, value in input})
 
         with raises(operators.MetricAttributeError):
