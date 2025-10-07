@@ -13,7 +13,7 @@ pub struct PyTop;
 
 #[pymethods]
 impl PyTop {
-    fn __gt__(&self, other: &Bound<'_, PyAny>) -> bool {
+    fn __gt__(&self, _other: &Bound<'_, PyAny>) -> bool {
         true
     }
 }
@@ -25,7 +25,7 @@ pub struct PyBottom;
 
 #[pymethods]
 impl PyBottom {
-    fn __lt__(&self, other: &Bound<'_, PyAny>) -> bool {
+    fn __lt__(&self, _other: &Bound<'_, PyAny>) -> bool {
         true
     }
 }
