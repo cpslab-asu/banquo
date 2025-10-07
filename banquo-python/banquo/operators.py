@@ -6,10 +6,11 @@ from typing_extensions import TypeAlias
 
 from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
+from ._banquo_impl import Implies as _Implies
 from ._banquo_impl import Not as _Not
 from ._banquo_impl import Or as _Or
 from ._banquo_impl import PanicException
-from .core import Formula, EnsureInput, SupportsNeg, SupportsLE, SupportsGE, EnsureOutput
+from .core import Formula, EnsureInput, SupportsNeg, SupportsLE, SupportsGE, EnsureOutput, SupportsNegGE
 from .trace import Trace
 
 Bounds: TypeAlias = tuple[float, float]
@@ -19,6 +20,7 @@ M = typing.TypeVar("M", covariant=True)
 M_neg = typing.TypeVar("M_neg", bound=SupportsNeg, covariant=True)
 M_le = typing.TypeVar("M_le", bound=SupportsLE, covariant=True)
 M_ge = typing.TypeVar("M_ge", bound=SupportsGE, covariant=True)
+M_neg_ge = typing.TypeVar("M_neg_ge", bound=SupportsNegGE, covariant=True)
 
 
 class OperatorMixin:
@@ -64,6 +66,10 @@ class And(Operator[S, M_le]):
 class Or(Operator[S, M_ge]):
     def __init__(self, lhs: Formula[S, M_ge], rhs: Formula[S, M_ge]):
         super().__init__(_Or(_inner_or_wrap(lhs), _inner_or_wrap(rhs)), "__ge__")
+
+class Implies(Operator[S, M_neg_ge]):
+    def __init__(self, lhs: Formula[S, M_neg_ge], rhs: Formula[S, M_neg_ge]):
+        super().__init__(_Implies(_inner_or_wrap(lhs), _inner_or_wrap(rhs)), "__neg__ and __ge__")
 
 
 S_ = typing.TypeVar("S_")

@@ -18,6 +18,16 @@ class BadMetric:
 
 @dataclass()
 class GoodMetric(BadMetric):
+    @override
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, GoodMetric):
+            return self.value == other.value
+
+        if isinstance(other, float):
+            return self.value == other
+
+        return NotImplemented
+
     def __neg__(self) -> GoodMetric:
         return GoodMetric(-self.value)
 
@@ -52,26 +62,33 @@ class UnaryTest:
             5.0: 1.5,
         })
 
+    @fixture
+    def good_trace(self, input: Trace[float]) -> Trace[GoodMetric]:
+        return Trace({time: GoodMetric(state) for time, state in input})
+
+    @fixture
+    def bad_trace(self, input: Trace[float]) -> Trace[BadMetric]:
+        return Trace({time: BadMetric(state) for time, state in input})
+
 
 class TestNegation(UnaryTest):
-    def test_evaluation(self, input: Trace[float]):
+    @fixture
+    def expected(self, input: Trace[float]) -> Trace[float]:
+        return Trace({time: -state for time, state in input})
+
+    def test_evaluation(self, input: Trace[float], expected: Trace[float]):
         formula = operators.Not(Const[float]())
-        expected = Trace({time: -state for time, state in input})
         result = formula.evaluate(input)
 
         assert isinstance(result, Trace)
         assert result == expected
 
-    def test_supported_metric(self, input: Trace[float]):
+    def test_supported_metric(self, good_trace: Trace[GoodMetric], expected: Trace[float]):
         formula = operators.Not(Const[GoodMetric]())
-        good_trace = Trace({time: GoodMetric(value) for time, value in input})
-        expected = Trace({time: -state for time, state in good_trace})
-
         assert formula.evaluate(good_trace) == expected
 
-    def test_unsupported_metric(self, input: Trace[float]):
+    def test_unsupported_metric(self, bad_trace: Trace[BadMetric]):
         formula = operators.Not(Const[BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
-        bad_trace = Trace({time: BadMetric(value) for time, value in input})
 
         with raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
@@ -104,63 +121,93 @@ class BinaryTest:
             3.0: (3.0, 6.0),
         })
 
+    @fixture
+    def good_trace(self, input: Trace[tuple[float, float]]) -> Trace[tuple[GoodMetric, GoodMetric]]:
+        return Trace({
+            time: (GoodMetric(state[0]), GoodMetric(state[1])) for time, state in input
+        })
+
+    @fixture
+    def bad_trace(sefl, input: Trace[tuple[float, float]]) -> Trace[tuple[BadMetric, BadMetric]]:
+        return Trace({
+            time: (BadMetric(state[0]), BadMetric(state[1])) for time, state in input
+        })
+
 
 class TestConjunction(BinaryTest):
-    def test_evaluation(self, input: Trace[tuple[float, float]]):
+    @fixture
+    def expected(self, input: Trace[tuple[float, float]]) -> Trace[float]:
+        return Trace({time: min(state) for time, state in input})
+
+    def test_evaluation(self, input: Trace[tuple[float, float]], expected: Trace[float]):
         formula = operators.And(Left[float, float](), Right[float, float]())
-        expected = Trace({time: min(state) for time, state in input})
         result = formula.evaluate(input)
 
         assert isinstance(result, Trace)
         assert result == expected
 
-    def test_supported_metric(self, input: Trace[tuple[float, float]]):
+    def test_supported_metric(self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]):
         formula = operators.And(Left[GoodMetric, GoodMetric](), Right[GoodMetric, GoodMetric]())
-        good_trace = Trace({
-            time: (GoodMetric(value[0]), GoodMetric(value[1])) for time, value in input
-        })
-        expected = Trace({time: GoodMetric(min(state)) for time, state in input})
-
         assert formula.evaluate(good_trace) == expected
 
-    def test_unsupported_metric(self, input: Trace[tuple[float, float]]):
+    def test_unsupported_metric(self, bad_trace: Trace[tuple[BadMetric, BadMetric]]):
         formula = operators.And(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
-        bad_trace = Trace({time: (BadMetric(value[0]), BadMetric(value[1])) for time, value in input})
 
         with raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
 
 
 class TestDisjunction(BinaryTest):
-    def test_evaluation(self, input: Trace[tuple[float, float]]):
+    @fixture
+    def expected(self, input: Trace[tuple[float, float]]) -> Trace[float]:
+        return Trace({time: max(state) for time, state in input})
+
+    def test_evaluation(self, input: Trace[tuple[float, float]], expected: Trace[float]):
         formula = operators.Or(Left[float, float](), Right[float, float]())
-        expected = Trace({time: max(state) for time, state in input})
         result = formula.evaluate(input)
 
         assert isinstance(result, Trace)
         assert result == expected
 
-    def test_supported_metric(self, input: Trace[tuple[float, float]]):
+    def test_supported_metric(self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]):
         formula = operators.Or(Left[GoodMetric, GoodMetric](), Right[GoodMetric, GoodMetric]())
-        good_trace = Trace({
-            time: (GoodMetric(value[0]), GoodMetric(value[1])) for time, value in input
-        })
-        expected = Trace({time: GoodMetric(max(state)) for time, state in input})
-
         assert formula.evaluate(good_trace) == expected
 
-    def test_unsupported_metric(self, input: Trace[tuple[float, float]]):
+    def test_unsupported_metric(self, bad_trace: Trace[tuple[BadMetric, BadMetric]]):
         formula = operators.Or(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
-        bad_trace = Trace({time: (BadMetric(value[0]), BadMetric(value[1])) for time, value in input})
+
+        with raises(operators.MetricAttributeError):
+            _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
+
+
+class TestImplication(BinaryTest):
+    @fixture
+    def expected(self, input: Trace[tuple[float, float]]) -> Trace[float]:
+        return Trace({time: max(-state[0], state[1]) for time, state in input})
+
+    def test_evaluation(self, input: Trace[tuple[float, float]], expected: Trace[float]):
+        formula = operators.Implies(Left[float, float](), Right[float, float]())
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_supported_metric(self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]):
+        formula = operators.Implies(Left[GoodMetric, GoodMetric](), Right[GoodMetric, GoodMetric]())
+        result = formula.evaluate(good_trace)
+        assert result  == expected
+
+    def test_unsupported_metric(self, bad_trace: Trace[tuple[BadMetric, BadMetric]]):
+        formula = operators.Implies(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
         with raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
 
 
 class TestGlobally(UnaryTest):
-    def test_bounded_evaluation(self, input: Trace[float]):
-        formula = operators.Always(Const[float]())
-        expected = Trace({
+    @fixture
+    def expected(self) -> Trace[float]:
+        return Trace({
             0.0: 1.0,
             1.0: 1.1,
             2.0: 1.2,
@@ -168,6 +215,9 @@ class TestGlobally(UnaryTest):
             4.0: 1.2,
             5.0: 1.5,
         })
+
+    def test_bounded_evaluation(self, input: Trace[float], expected: Trace[float]):
+        formula = operators.Always(Const[float]())
         result = formula.evaluate(input)
 
         assert isinstance(result, Trace)
@@ -188,23 +238,12 @@ class TestGlobally(UnaryTest):
         assert isinstance(result, Trace)
         assert result == expected
 
-    def test_supported_metric(self, input: Trace[float]):
+    def test_supported_metric(self, good_trace: Trace[GoodMetric], expected: Trace[float]):
         formula = operators.Always(Const[GoodMetric]())
-        good_trace = Trace({time: GoodMetric(value) for time, value in input})
-        expected = Trace({
-            0.0: GoodMetric(1.0),
-            1.0: GoodMetric(1.1),
-            2.0: GoodMetric(1.2),
-            3.0: GoodMetric(1.2),
-            4.0: GoodMetric(1.2),
-            5.0: GoodMetric(1.5),
-        })
-
         assert formula.evaluate(good_trace) == expected
 
-    def test_unsupported_metric(self, input: Trace[float]):
+    def test_unsupported_metric(self, bad_trace: Trace[BadMetric]):
         formula = operators.Always(Const[BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
-        bad_trace = Trace({time: BadMetric(value) for time, value in input})
 
         with raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]

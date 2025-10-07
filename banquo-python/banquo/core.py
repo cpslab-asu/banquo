@@ -25,22 +25,11 @@ class SupportsLE(Protocol):
         ...
 
 
-class SupportsMeet(SupportsLE, Protocol):
-    def min(self, other: Self) -> Self:
-        ...
-
-
 class SupportsGE(Protocol):
     def __ge__(self, value: Self, /) -> bool:
         ...
 
-
-class SupportsJoin(SupportsGE, Protocol):
-    def max(self, other: Self) -> Self:
-        ...
-
-
-class Metric(SupportsNeg, SupportsMeet, SupportsJoin, Protocol):
+class SupportsNegGE(SupportsNeg, SupportsGE, Protocol):
     ...
 
 

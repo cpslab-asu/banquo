@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 from typing_extensions import Self, override
 
 from .core import Formula
-from .operators import Bounds, M_neg, M_le, M_ge
+from .operators import Bounds, M_neg, M_le, M_ge, M_neg_ge
 
 class PanicException(Exception): ...
 
@@ -38,6 +38,11 @@ class Or(Formula[S, M_ge]):
     def __new__(cls, lhs: Formula[S, M_ge], rhs: Formula[S, M_ge]) -> Self: ...
     @override
     def evaluate(self, trace: Trace[S]) -> Trace[M_ge]: ...
+
+class Implies(Formula[S, M_neg_ge]):
+    def __new__(cls, lhs: Formula[S, M_neg_ge], rhs: Formula[S, M_neg_ge]) -> Self: ...
+    @override
+    def evaluate(self, trace: Trace[S]) -> Trace[M_neg_ge]: ...
 
 class Always(Formula[S, M_le]):
     def __new__(cls, bounds: Bounds | None, subformula: Formula[S, M_le]) -> Self: ...

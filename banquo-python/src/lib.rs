@@ -10,7 +10,7 @@ mod _banquo_impl {
     use pyo3::{FromPyObject, IntoPyObject};
 
     use super::metric::PyMetric;
-    use banquo_core::operators::{Always, And, BinaryOperatorError, ForwardOperatorError, Not, Or};
+    use banquo_core::operators::{Always, And, BinaryOperatorError, ForwardOperatorError, Implies, Not, Or};
     use banquo_core::predicate::Predicate;
     use banquo_core::{Formula, Trace};
 
@@ -154,6 +154,10 @@ mod _banquo_impl {
             return or.borrow().evaluate_inner(trace);
         }
 
+        if let Ok(implies) = obj.cast::<PyImplies>() {
+            return implies.borrow().evaluate_inner(trace);
+        }
+
         if let Ok(always) = obj.cast::<PyAlways>() {
             return always.borrow().evaluate_inner(trace);
         }
@@ -239,6 +243,31 @@ mod _banquo_impl {
         #[new]
         fn new(lhs: PyFormula, rhs: PyFormula) -> Self {
             Self(Or::new(lhs, rhs))
+        }
+
+        fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
+            self.evaluate_inner(&trace.borrow().0).map(PyMetricTrace)
+        }
+    }
+
+    #[pyclass(name = "Implies")]
+    struct PyImplies(Implies<PyFormula, PyFormula>);
+
+    impl PyImplies {
+        fn evaluate_inner(&self, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
+            self.0.evaluate(trace).map_err(|err| match err {
+                BinaryOperatorError::LeftError(left) => left,
+                BinaryOperatorError::RightError(right) => right,
+                BinaryOperatorError::EvaluationError(err) => PyRuntimeError::new_err(err.to_string()),
+            })
+        }
+    }
+
+    #[pymethods]
+    impl PyImplies {
+        #[new]
+        fn new(lhs: PyFormula, rhs: PyFormula) -> Self {
+            Self(Implies::new(lhs, rhs))
         }
 
         fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
