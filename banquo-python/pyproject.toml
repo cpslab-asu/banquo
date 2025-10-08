@@ -31,3 +31,8 @@ line-length = 100
 [tool.pyright]
 include = ["banquo"]
 pythonVersion = "3.9"
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests"
+]
