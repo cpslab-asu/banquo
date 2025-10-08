@@ -14,6 +14,11 @@ pub struct PyTop;
 
 #[pymethods]
 impl PyTop {
+    #[new]
+    fn new() -> Self {
+        Self
+    }
+
     fn __richcmp__<'py>(&self, other: &Bound<'py, PyAny>, op: CompareOp) -> Bound<'py, PyAny> {
         let py = other.py();
         let result = match op {
@@ -38,6 +43,11 @@ pub struct PyBottom;
 
 #[pymethods]
 impl PyBottom {
+    #[new]
+    fn new() -> Self {
+        Self
+    }
+
     fn __richcmp__<'py>(&self, other: &Bound<'py, PyAny>, op: CompareOp) -> Bound<'py, PyAny> {
         let py = other.py();
         let result = match op {

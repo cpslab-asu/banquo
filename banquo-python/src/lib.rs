@@ -349,4 +349,10 @@ mod _banquo_impl {
 
     #[pymodule_export]
     use pyo3::panic::PanicException;
+
+    #[pymodule_export]
+    use crate::metric::PyTop;
+
+    #[pymodule_export]
+    use crate::metric::PyBottom;
 }
