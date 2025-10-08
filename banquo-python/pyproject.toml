@@ -37,3 +37,7 @@ pythonVersion = "3.9"
 testpaths = [
     "tests"
 ]
+markers = [
+    "conformance: Tests to verify correct behavior of formulas",
+    "unit: Tests to verify correct behavior of operators",
+]
