@@ -42,7 +42,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ matris.python-version }}
+          python-version: ${{ matrix.python-version }}
           working-directory: banquo-python
       - run: uv run --frozen pytest -v -m unit
       - run: uv run --frozen pytest -v -m conformance
