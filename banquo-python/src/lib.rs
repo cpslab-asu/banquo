@@ -119,7 +119,10 @@ mod _banquo_impl {
     impl PyPredicate {
         #[new]
         pub fn new(coefficients: HashMap<String, f64>, constant: f64) -> Self {
-            Self(Predicate::new(coefficients, constant))
+            let mut p = Predicate::from_iter(coefficients);
+            p += constant;
+
+            Self(p)
         }
 
         pub fn __eq__(&self, other: &Bound<'_, Self>) -> bool {
