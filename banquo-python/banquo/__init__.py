@@ -1,6 +1,6 @@
 from typing import Final
 
-from .core import Formula
+from .core import Formula, evaluate
 from .expressions import Predicate
 from .trace import Trace
 from ._banquo_impl import Top as _Top
@@ -15,4 +15,5 @@ __all__ = [
     "Predicate",
     "Top",
     "Trace",
+    "evaluate",
 ]

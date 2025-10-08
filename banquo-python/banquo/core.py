@@ -49,3 +49,12 @@ class EnsureOutput(Formula[S, M]):
     def evaluate(self, trace: Trace[S]) -> Trace[M]:
         result: _Trace[M] = self.inner.evaluate(trace)
         return result if isinstance(result, Trace) else Trace(result)
+
+
+def evaluate(formula: Formula[S, M], trace: Trace[S]) -> M:
+    result = formula.evaluate(trace)
+
+    try:
+        return next(iter(result.states()))
+    except StopIteration:
+        raise ValueError("Provided formula evaluated to an empty trace.")
