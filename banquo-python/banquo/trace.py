@@ -15,6 +15,11 @@ def _iter_eq(lhs: Iterable[object], rhs: Iterable[object]) -> bool:
     return list(lhs) == list(rhs)
 
 
+class MismatchedTimesStates(Exception):
+    def __init__(self):
+        super().__init__("Times and states iterables must contain equal number of elements")
+
+
 class Trace(_Trace[T], Iterable[tuple[float, T]]):
     def __new__(cls, elements: Mapping[float, T] | _Trace[T]):
         return super().__new__(cls, elements if isinstance(elements, _Trace) else dict(elements))
@@ -36,4 +41,10 @@ class Trace(_Trace[T], Iterable[tuple[float, T]]):
 
     @staticmethod
     def from_timed_states(times: Iterable[float], states: Iterable[U]) -> Trace[U]:
-        return Trace({time: state for time, state in zip(times, states, strict=True)})
+        times_ = list(times)
+        states_ = list(states)
+
+        if len(times_) != len(states_):
+            raise MismatchedTimesStates()
+
+        return Trace({time: state for time, state in zip(times_, states_)})

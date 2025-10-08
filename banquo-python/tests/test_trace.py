@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import itertools
+
 import pytest
 
 from banquo import Trace
+from banquo.trace import MismatchedTimesStates
 
 pytestmark = pytest.mark.unit
 
@@ -22,3 +25,8 @@ def test_trace():
 
     assert Trace(elements) == Trace.from_timed_states(times, states)  # Ensure constructor parity
     assert Trace(Trace(elements)) == Trace(elements)  # Ensure conversion is lossless
+
+    short_states = itertools.islice(elements.values(), 4)  # Only produce 4 states
+
+    with pytest.raises(MismatchedTimesStates):
+        _ = Trace.from_timed_states(elements.keys(), short_states)
