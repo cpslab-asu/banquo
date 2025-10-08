@@ -54,14 +54,16 @@ class Const(Formula[T, T]):
 class UnaryTest:
     @fixture
     def input(self) -> Trace[float]:
-        return Trace({
-            0.0: 1.0,
-            1.0: 1.1,
-            2.0: 1.2,
-            3.0: 1.3,
-            4.0: 1.2,
-            5.0: 1.5,
-        })
+        return Trace(
+            {
+                0.0: 1.0,
+                1.0: 1.1,
+                2.0: 1.2,
+                3.0: 1.3,
+                4.0: 1.2,
+                5.0: 1.5,
+            }
+        )
 
     @fixture
     def good_trace(self, input: Trace[float]) -> Trace[GoodMetric]:
@@ -115,24 +117,22 @@ class Right(Formula[tuple[L, R], R]):
 class BinaryTest:
     @fixture
     def input(self) -> Trace[tuple[float, float]]:
-        return Trace({
-            0.0: (0.0, 1.0),
-            1.0: (1.0, 0.0),
-            2.0: (2.0, 4.0),
-            3.0: (3.0, 6.0),
-        })
+        return Trace(
+            {
+                0.0: (0.0, 1.0),
+                1.0: (1.0, 0.0),
+                2.0: (2.0, 4.0),
+                3.0: (3.0, 6.0),
+            }
+        )
 
     @fixture
     def good_trace(self, input: Trace[tuple[float, float]]) -> Trace[tuple[GoodMetric, GoodMetric]]:
-        return Trace({
-            time: (GoodMetric(state[0]), GoodMetric(state[1])) for time, state in input
-        })
+        return Trace({time: (GoodMetric(state[0]), GoodMetric(state[1])) for time, state in input})
 
     @fixture
     def bad_trace(sefl, input: Trace[tuple[float, float]]) -> Trace[tuple[BadMetric, BadMetric]]:
-        return Trace({
-            time: (BadMetric(state[0]), BadMetric(state[1])) for time, state in input
-        })
+        return Trace({time: (BadMetric(state[0]), BadMetric(state[1])) for time, state in input})
 
 
 class TestConjunction(BinaryTest):
@@ -147,7 +147,9 @@ class TestConjunction(BinaryTest):
         assert isinstance(result, Trace)
         assert result == expected
 
-    def test_supported_metric(self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]):
+    def test_supported_metric(
+        self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]
+    ):
         formula = operators.And(Left[GoodMetric, GoodMetric](), Right[GoodMetric, GoodMetric]())
         assert formula.evaluate(good_trace) == expected
 
@@ -170,7 +172,9 @@ class TestDisjunction(BinaryTest):
         assert isinstance(result, Trace)
         assert result == expected
 
-    def test_supported_metric(self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]):
+    def test_supported_metric(
+        self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]
+    ):
         formula = operators.Or(Left[GoodMetric, GoodMetric](), Right[GoodMetric, GoodMetric]())
         assert formula.evaluate(good_trace) == expected
 
@@ -193,10 +197,12 @@ class TestImplication(BinaryTest):
         assert isinstance(result, Trace)
         assert result == expected
 
-    def test_supported_metric(self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]):
+    def test_supported_metric(
+        self, good_trace: Trace[tuple[GoodMetric, GoodMetric]], expected: Trace[float]
+    ):
         formula = operators.Implies(Left[GoodMetric, GoodMetric](), Right[GoodMetric, GoodMetric]())
         result = formula.evaluate(good_trace)
-        assert result  == expected
+        assert result == expected
 
     def test_unsupported_metric(self, bad_trace: Trace[tuple[BadMetric, BadMetric]]):
         formula = operators.Implies(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
@@ -208,14 +214,16 @@ class TestImplication(BinaryTest):
 class TestNext(UnaryTest):
     @fixture
     def expected(self) -> Trace[float]:
-        return Trace({
-            0.0: 1.1,
-            1.0: 1.2,
-            2.0: 1.3,
-            3.0: 1.2,
-            4.0: 1.5,
-            5.0: Bottom,
-        })
+        return Trace(
+            {
+                0.0: 1.1,
+                1.0: 1.2,
+                2.0: 1.3,
+                3.0: 1.2,
+                4.0: 1.5,
+                5.0: Bottom,
+            }
+        )
 
     def test_evaluation(self, input: Trace[float], expected: Trace[float]):
         formula = operators.Next(Const[float]())
@@ -232,14 +240,16 @@ class TestNext(UnaryTest):
 class TestGlobally(UnaryTest):
     @fixture
     def expected(self) -> Trace[float]:
-        return Trace({
-            0.0: 1.0,
-            1.0: 1.1,
-            2.0: 1.2,
-            3.0: 1.2,
-            4.0: 1.2,
-            5.0: 1.5,
-        })
+        return Trace(
+            {
+                0.0: 1.0,
+                1.0: 1.1,
+                2.0: 1.2,
+                3.0: 1.2,
+                4.0: 1.2,
+                5.0: 1.5,
+            }
+        )
 
     def test_bounded_evaluation(self, input: Trace[float], expected: Trace[float]):
         formula = operators.Always(Const[float]())
@@ -250,14 +260,16 @@ class TestGlobally(UnaryTest):
 
     def test_unbounded_evaluation(self, input: Trace[float]):
         formula = operators.Always.with_bounds((0.0, 2.0), Const[float]())
-        expected = Trace({
-            0.0: 1.0,
-            1.0: 1.1,
-            2.0: 1.2,
-            3.0: 1.2,
-            4.0: 1.2,
-            5.0: 1.5,
-        })
+        expected = Trace(
+            {
+                0.0: 1.0,
+                1.0: 1.1,
+                2.0: 1.2,
+                3.0: 1.2,
+                4.0: 1.2,
+                5.0: 1.5,
+            }
+        )
         result = formula.evaluate(input)
 
         assert isinstance(result, Trace)
@@ -277,14 +289,16 @@ class TestGlobally(UnaryTest):
 class TestFinally(UnaryTest):
     @fixture
     def expected(self) -> Trace[float]:
-        return Trace({
-            0.0: 1.5,
-            1.0: 1.5,
-            2.0: 1.5,
-            3.0: 1.5,
-            4.0: 1.5,
-            5.0: 1.5,
-        })
+        return Trace(
+            {
+                0.0: 1.5,
+                1.0: 1.5,
+                2.0: 1.5,
+                3.0: 1.5,
+                4.0: 1.5,
+                5.0: 1.5,
+            }
+        )
 
     def test_bounded_evaluation(self, input: Trace[float], expected: Trace[float]):
         formula = operators.Eventually(Const[float]())
@@ -295,14 +309,16 @@ class TestFinally(UnaryTest):
 
     def test_unbounded_evaluation(self, input: Trace[float]):
         formula = operators.Eventually.with_bounds((0.0, 2.0), Const[float]())
-        expected = Trace({
-            0.0: 1.2,
-            1.0: 1.3,
-            2.0: 1.3,
-            3.0: 1.5,
-            4.0: 1.5,
-            5.0: 1.5,
-        })
+        expected = Trace(
+            {
+                0.0: 1.2,
+                1.0: 1.3,
+                2.0: 1.3,
+                3.0: 1.5,
+                4.0: 1.5,
+                5.0: 1.5,
+            }
+        )
         result = formula.evaluate(input)
 
         assert isinstance(result, Trace)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from banquo import Trace
 
+
 def test_trace():
     elements = {
         0.0: {"x": 0.0, "y": 1.0},
