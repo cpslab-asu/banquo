@@ -44,5 +44,5 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           working-directory: banquo-python
-      - run: uv run --frozen pytest -v -m unit
-      - run: uv run --frozen pytest -v -m conformance
+      - run: uv run --directory banquo-python --frozen pytest -v -m unit
+      - run: uv run --directory banquo-python --frozen pytest -v -m conformance
