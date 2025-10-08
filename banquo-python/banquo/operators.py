@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, override
 
 from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
@@ -40,7 +40,7 @@ class Operator(EnsureOutput[S, M], OperatorMixin):
         super().__init__(subformula)
         self.required_method: str = required_method
 
-    @typing.override
+    @override
     def evaluate(self, trace: Trace[S]) -> Trace[M]:
         try:
             return super().evaluate(trace)

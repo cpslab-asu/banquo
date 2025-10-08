@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeVar, override
+from typing import TypeVar
 
 from pytest import fixture, raises
+from typing_extensions import override
 
 from banquo import Bottom, Trace, operators
 from banquo.core import Formula
