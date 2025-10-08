@@ -12,7 +12,15 @@ from ._banquo_impl import Next as _Next
 from ._banquo_impl import Not as _Not
 from ._banquo_impl import Or as _Or
 from ._banquo_impl import PanicException
-from .core import Formula, EnsureInput, SupportsNeg, SupportsLE, SupportsGE, EnsureOutput, SupportsNegGE
+from .core import (
+    Formula,
+    EnsureInput,
+    SupportsNeg,
+    SupportsLE,
+    SupportsGE,
+    EnsureOutput,
+    SupportsNegGE,
+)
 from .trace import Trace
 
 Bounds: TypeAlias = tuple[float, float]
@@ -69,6 +77,7 @@ class Or(Operator[S, M_ge]):
     def __init__(self, lhs: Formula[S, M_ge], rhs: Formula[S, M_ge]):
         super().__init__(_Or(_inner_or_wrap(lhs), _inner_or_wrap(rhs)), "__ge__")
 
+
 class Implies(Operator[S, M_neg_ge]):
     def __init__(self, lhs: Formula[S, M_neg_ge], rhs: Formula[S, M_neg_ge]):
         super().__init__(_Implies(_inner_or_wrap(lhs), _inner_or_wrap(rhs)), "__neg__ and __ge__")
@@ -81,6 +90,7 @@ class Next(Operator[S, M]):
 
 S_ = typing.TypeVar("S_")
 M_le_ = typing.TypeVar("M_le_", bound=SupportsLE, covariant=True)
+
 
 class Always(Operator[S, M_le]):
     def __init__(self, subformula: Formula[S, M_le]):

@@ -16,21 +16,18 @@ class Formula(Protocol[S, M]):
 
 
 class SupportsNeg(Protocol):
-    def __neg__(self) -> Self:
-        ...
+    def __neg__(self) -> Self: ...
 
 
 class SupportsLE(Protocol):
-    def __le__(self, value: Self, /) -> bool:
-        ...
+    def __le__(self, value: Self, /) -> bool: ...
 
 
 class SupportsGE(Protocol):
-    def __ge__(self, value: Self, /) -> bool:
-        ...
+    def __ge__(self, value: Self, /) -> bool: ...
 
-class SupportsNegGE(SupportsNeg, SupportsGE, Protocol):
-    ...
+
+class SupportsNegGE(SupportsNeg, SupportsGE, Protocol): ...
 
 
 class EnsureInput(Formula[S, M]):
