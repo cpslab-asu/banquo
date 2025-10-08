@@ -3,12 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypeVar
 
-from pytest import fixture, raises
-from typing_extensions import override
+import pytest
+import typing_extensions
 
 from banquo import Bottom, Trace, operators
 from banquo.core import Formula
 
+pytestmark = pytest.mark.unit
 T = TypeVar("T")
 
 
@@ -19,7 +20,7 @@ class BadMetric:
 
 @dataclass()
 class GoodMetric(BadMetric):
-    @override
+    @typing_extensions.override
     def __eq__(self, other: object) -> bool:
         if isinstance(other, GoodMetric):
             return self.value == other.value
@@ -46,13 +47,13 @@ class GoodMetric(BadMetric):
 
 
 class Const(Formula[T, T]):
-    @override
+    @typing_extensions.override
     def evaluate(self, trace: Trace[T]) -> Trace[T]:
         return trace
 
 
 class UnaryTest:
-    @fixture
+    @pytest.fixture
     def input(self) -> Trace[float]:
         return Trace(
             {
@@ -65,17 +66,17 @@ class UnaryTest:
             }
         )
 
-    @fixture
+    @pytest.fixture
     def good_trace(self, input: Trace[float]) -> Trace[GoodMetric]:
         return Trace({time: GoodMetric(state) for time, state in input})
 
-    @fixture
+    @pytest.fixture
     def bad_trace(self, input: Trace[float]) -> Trace[BadMetric]:
         return Trace({time: BadMetric(state) for time, state in input})
 
 
 class TestNegation(UnaryTest):
-    @fixture
+    @pytest.fixture
     def expected(self, input: Trace[float]) -> Trace[float]:
         return Trace({time: -state for time, state in input})
 
@@ -93,7 +94,7 @@ class TestNegation(UnaryTest):
     def test_unsupported_metric(self, bad_trace: Trace[BadMetric]):
         formula = operators.Not(Const[BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
-        with raises(operators.MetricAttributeError):
+        with pytest.raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
 
 
@@ -102,20 +103,20 @@ R = TypeVar("R")
 
 
 class Left(Formula[tuple[L, R], L]):
-    @override
+    @typing_extensions.override
     def evaluate(self, trace: Trace[tuple[L, R]]) -> Trace[L]:
         assert isinstance(trace, Trace)
         return Trace({time: state[0] for time, state in trace})
 
 
 class Right(Formula[tuple[L, R], R]):
-    @override
+    @typing_extensions.override
     def evaluate(self, trace: Trace[tuple[L, R]]) -> Trace[R]:
         return Trace({time: state[1] for time, state in trace})
 
 
 class BinaryTest:
-    @fixture
+    @pytest.fixture
     def input(self) -> Trace[tuple[float, float]]:
         return Trace(
             {
@@ -126,17 +127,17 @@ class BinaryTest:
             }
         )
 
-    @fixture
+    @pytest.fixture
     def good_trace(self, input: Trace[tuple[float, float]]) -> Trace[tuple[GoodMetric, GoodMetric]]:
         return Trace({time: (GoodMetric(state[0]), GoodMetric(state[1])) for time, state in input})
 
-    @fixture
+    @pytest.fixture
     def bad_trace(sefl, input: Trace[tuple[float, float]]) -> Trace[tuple[BadMetric, BadMetric]]:
         return Trace({time: (BadMetric(state[0]), BadMetric(state[1])) for time, state in input})
 
 
 class TestConjunction(BinaryTest):
-    @fixture
+    @pytest.fixture
     def expected(self, input: Trace[tuple[float, float]]) -> Trace[float]:
         return Trace({time: min(state) for time, state in input})
 
@@ -156,12 +157,12 @@ class TestConjunction(BinaryTest):
     def test_unsupported_metric(self, bad_trace: Trace[tuple[BadMetric, BadMetric]]):
         formula = operators.And(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
-        with raises(operators.MetricAttributeError):
+        with pytest.raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
 
 
 class TestDisjunction(BinaryTest):
-    @fixture
+    @pytest.fixture
     def expected(self, input: Trace[tuple[float, float]]) -> Trace[float]:
         return Trace({time: max(state) for time, state in input})
 
@@ -181,12 +182,12 @@ class TestDisjunction(BinaryTest):
     def test_unsupported_metric(self, bad_trace: Trace[tuple[BadMetric, BadMetric]]):
         formula = operators.Or(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
-        with raises(operators.MetricAttributeError):
+        with pytest.raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
 
 
 class TestImplication(BinaryTest):
-    @fixture
+    @pytest.fixture
     def expected(self, input: Trace[tuple[float, float]]) -> Trace[float]:
         return Trace({time: max(-state[0], state[1]) for time, state in input})
 
@@ -207,12 +208,12 @@ class TestImplication(BinaryTest):
     def test_unsupported_metric(self, bad_trace: Trace[tuple[BadMetric, BadMetric]]):
         formula = operators.Implies(Left[BadMetric, BadMetric](), Right[BadMetric, BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
-        with raises(operators.MetricAttributeError):
+        with pytest.raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
 
 
 class TestNext(UnaryTest):
-    @fixture
+    @pytest.fixture
     def expected(self) -> Trace[float]:
         return Trace(
             {
@@ -238,7 +239,7 @@ class TestNext(UnaryTest):
 
 
 class TestGlobally(UnaryTest):
-    @fixture
+    @pytest.fixture
     def expected(self) -> Trace[float]:
         return Trace(
             {
@@ -282,12 +283,12 @@ class TestGlobally(UnaryTest):
     def test_unsupported_metric(self, bad_trace: Trace[BadMetric]):
         formula = operators.Always(Const[BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
-        with raises(operators.MetricAttributeError):
+        with pytest.raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
 
 
 class TestFinally(UnaryTest):
-    @fixture
+    @pytest.fixture
     def expected(self) -> Trace[float]:
         return Trace(
             {
@@ -331,5 +332,5 @@ class TestFinally(UnaryTest):
     def test_unsupported_metric(self, bad_trace: Trace[BadMetric]):
         formula = operators.Eventually(Const[BadMetric]())  # pyright: ignore[reportArgumentType, reportUnknownVariableType]
 
-        with raises(operators.MetricAttributeError):
+        with pytest.raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]

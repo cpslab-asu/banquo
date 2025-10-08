@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import pytest
+
 from banquo import Trace
+
+pytestmark = pytest.mark.unit
 
 
 def test_trace():

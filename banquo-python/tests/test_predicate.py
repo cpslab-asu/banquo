@@ -6,6 +6,8 @@ import pytest
 
 from banquo import Predicate, Trace
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 def p() -> Predicate:
