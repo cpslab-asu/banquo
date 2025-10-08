@@ -11,7 +11,7 @@ mod _banquo_impl {
 
     use super::metric::PyMetric;
     use banquo_core::operators::{
-        Always, And, BinaryOperatorError, Eventually, ForwardOperatorError, Implies, Not, Or,
+        Always, And, BinaryOperatorError, Eventually, ForwardOperatorError, Implies, Next, Not, Or,
     };
     use banquo_core::predicate::Predicate;
     use banquo_core::{Formula, Trace};
@@ -274,6 +274,27 @@ mod _banquo_impl {
         #[new]
         fn new(lhs: PyFormula, rhs: PyFormula) -> Self {
             Self(Implies::new(lhs, rhs))
+        }
+
+        fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {
+            self.evaluate_inner(&trace.borrow().0).map(PyMetricTrace)
+        }
+    }
+
+    #[pyclass(name = "Next")]
+    struct PyNext(Next<PyFormula>);
+
+    impl PyNext {
+        fn evaluate_inner(&self, trace: &Trace<Py<PyAny>>) -> PyResult<Trace<PyMetric>> {
+            self.0.evaluate(trace)
+        }
+    }
+
+    #[pymethods]
+    impl PyNext {
+        #[new]
+        fn new(subformula: PyFormula) -> Self {
+            Self(Next::new(subformula))
         }
 
         fn evaluate(&self, trace: &Bound<'_, PyTrace>) -> PyResult<PyMetricTrace> {

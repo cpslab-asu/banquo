@@ -8,6 +8,7 @@ from ._banquo_impl import And as _And
 from ._banquo_impl import Always as _Always
 from ._banquo_impl import Eventually as _Eventually
 from ._banquo_impl import Implies as _Implies
+from ._banquo_impl import Next as _Next
 from ._banquo_impl import Not as _Not
 from ._banquo_impl import Or as _Or
 from ._banquo_impl import PanicException
@@ -71,6 +72,11 @@ class Or(Operator[S, M_ge]):
 class Implies(Operator[S, M_neg_ge]):
     def __init__(self, lhs: Formula[S, M_neg_ge], rhs: Formula[S, M_neg_ge]):
         super().__init__(_Implies(_inner_or_wrap(lhs), _inner_or_wrap(rhs)), "__neg__ and __ge__")
+
+
+class Next(Operator[S, M]):
+    def __init__(self, subformula: Formula[S, M]):
+        super().__init__(_Next(subformula), "")
 
 
 S_ = typing.TypeVar("S_")

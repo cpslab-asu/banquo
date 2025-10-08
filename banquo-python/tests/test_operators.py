@@ -5,7 +5,7 @@ from typing import TypeVar, override
 
 from pytest import fixture, raises
 
-from banquo import Trace, operators
+from banquo import Bottom, Trace, operators
 from banquo.core import Formula
 
 T = TypeVar("T")
@@ -202,6 +202,30 @@ class TestImplication(BinaryTest):
 
         with raises(operators.MetricAttributeError):
             _ = formula.evaluate(bad_trace)  # pyright: ignore[reportUnknownVariableType]
+
+
+class TestNext(UnaryTest):
+    @fixture
+    def expected(self) -> Trace[float]:
+        return Trace({
+            0.0: 1.1,
+            1.0: 1.2,
+            2.0: 1.3,
+            3.0: 1.2,
+            4.0: 1.5,
+            5.0: Bottom,
+        })
+
+    def test_evaluation(self, input: Trace[float], expected: Trace[float]):
+        formula = operators.Next(Const[float]())
+        result = formula.evaluate(input)
+
+        assert isinstance(result, Trace)
+        assert result == expected
+
+    def test_userdefined_metric(self, good_trace: Trace[GoodMetric], expected: Trace[float]):
+        formula = operators.Next(Const[GoodMetric]())
+        assert formula.evaluate(good_trace) == expected
 
 
 class TestGlobally(UnaryTest):
