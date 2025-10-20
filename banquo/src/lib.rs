@@ -38,8 +38,8 @@
 //! use banquo::predicate;
 //! use banquo::operators::{And, Always, Eventually, Implies};
 //!
-//! let mut is_gear_3 = predicate! { gear = 3.0 };
-//! let mut is_gear_4 = predicate! { gear = 4.0 };
+//! let is_gear_3 = predicate! { gear = 3.0 };
+//! let is_gear_4 = predicate! { gear = 4.0 };
 //! let rpm_above_limit = predicate! { -1.0 * rpm <= -4000.0 };
 //! let phi = Always::unbounded(
 //!     Implies::new(
