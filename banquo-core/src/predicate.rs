@@ -784,7 +784,7 @@ macro_rules! predicate {
 mod tests {
     use std::collections::{BTreeMap, HashMap};
 
-    use super::{EvaluationError, Predicate};
+    use super::{Comparison, EvaluationError, Predicate};
     use crate::predicate;
 
     #[test]
@@ -816,6 +816,13 @@ mod tests {
         assert_eq!(p.evaluate_state(&missing), Err(EvaluationError::missing("x")));
         assert_eq!(p.evaluate_state(&nan_value), Err(EvaluationError::nan_value("y")));
 
+        let true_input = HashMap::from([("x", 2.0), ("y", 4.0)]);
+        p.comparison = Comparison::EQ;
+
+        assert_eq!(p.evaluate_state(&true_input), Ok(f64::INFINITY));
+        assert_eq!(p.evaluate_state(&hash_map), Ok(f64::NEG_INFINITY));
+
+        p.comparison = Comparison::LTE;
         p += ("z", f64::NAN);
 
         assert_eq!(p.evaluate_state(&hash_map), Err(EvaluationError::nan_coefficient("z")));
