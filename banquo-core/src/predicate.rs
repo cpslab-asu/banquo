@@ -130,12 +130,20 @@ use thiserror::Error;
 use crate::trace::Trace;
 use crate::Formula;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Comparison {
+    #[default]
+    LTE,
+    EQ,
+}
+
 /// System requirements expressed as the inequality **`ax`**`≤ b`.
 ///
 /// See the [`predicate`](predicate) module for more information on the semantics of this data type.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Predicate {
     coefficients: HashMap<String, f64>,
+    pub comparison: Comparison,
     constant: f64,
 }
 
@@ -270,6 +278,7 @@ impl Neg for Predicate {
     fn neg(self) -> Self::Output {
         Self {
             constant: -self.constant,
+            comparison: self.comparison,
             coefficients: self
                 .coefficients
                 .into_iter()
@@ -614,7 +623,18 @@ impl Predicate {
             sum += coeff * value;
         }
 
-        Ok(self.constant - sum)
+        let metric = match &self.comparison {
+            Comparison::LTE => self.constant - sum,
+            Comparison::EQ => {
+                if sum == self.constant {
+                    f64::INFINITY
+                } else {
+                    f64::NEG_INFINITY
+                }
+            }
+        };
+
+        Ok(metric)
     }
 }
 
