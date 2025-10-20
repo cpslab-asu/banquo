@@ -772,6 +772,13 @@ macro_rules! predicate {
             std::ops::Neg::neg(pred)
         }
     };
+    (= $($rest:tt)+) => {
+        {
+            let mut pred = $crate::predicate!(@rhs $($rest)*);
+            pred.comparison = $crate::predicate::Comparison::EQ;
+            std::ops::Neg::neg(pred)
+        }
+    };
     (<=) => {
         compile_error!("Missing right hand side of predicate")
     };
