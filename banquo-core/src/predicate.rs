@@ -802,7 +802,12 @@ mod tests {
         assert_eq!(p.get("x"), Some(3.0));
         assert_eq!(p.get("y"), Some(-4.1));
         assert_eq!(p.get("z"), Some(-1.0));
+        assert_eq!(p.comparison, Comparison::LTE);
         assert_eq!(p.constant(), 2.2);
+
+        let p2 = predicate! { x * 3.0 + 1.0 = y * 4.1 + 3.2 + z };
+
+        assert_eq!(p2.comparison, Comparison::EQ);
     }
 
     #[test]
