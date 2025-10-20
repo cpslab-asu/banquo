@@ -31,7 +31,22 @@
 //! This formula reads _At every time, if the gear is equal to 3 and the rpm is greater than
 //! or equal to 4000, then within the next 3 time-steps the gear should be equal to 4_. With a
 //! requirement like this, we could attempt to find some combination of system inputs in which the
-//! system does not behave properly.
+//! system does not behave properly. To construct this formula, we can use the primitives provided
+//! by this library like so:
+//!
+//! ```rust
+//! use banquo::predicate;
+//! use banquo::operators::{And, Always, Eventually, Implies};
+//!
+//! let mut is_gear_3 = predicate! { gear = 3.0 };
+//! let mut is_gear_4 = predicate! { gear = 4.0 };
+//! let rpm_above_limit = predicate! { -1.0 * rpm <= -4000.0 };
+//! let phi = Always::unbounded(
+//!     Implies::new(
+//!         And::new(is_gear_3, rpm_above_limit), Eventually::bounded(0..=3, is_gear_4),
+//!     )
+//! );
+//! ```
 //!
 //! [polytope]: https://en.wikipedia.org/wiki/Polytope
 //! [robustness]: https://link.springer.com/chapter/10.1007/11940197_12
