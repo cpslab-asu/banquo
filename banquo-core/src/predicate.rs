@@ -130,12 +130,20 @@ use thiserror::Error;
 use crate::trace::Trace;
 use crate::Formula;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Comparison {
+    #[default]
+    LTE,
+    EQ,
+}
+
 /// System requirements expressed as the inequality **`ax`**`≤ b`.
 ///
 /// See the [`predicate`](predicate) module for more information on the semantics of this data type.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Predicate {
     coefficients: HashMap<String, f64>,
+    pub comparison: Comparison,
     constant: f64,
 }
 
@@ -270,6 +278,7 @@ impl Neg for Predicate {
     fn neg(self) -> Self::Output {
         Self {
             constant: -self.constant,
+            comparison: self.comparison,
             coefficients: self
                 .coefficients
                 .into_iter()
@@ -614,7 +623,18 @@ impl Predicate {
             sum += coeff * value;
         }
 
-        Ok(self.constant - sum)
+        let metric = match &self.comparison {
+            Comparison::LTE => self.constant - sum,
+            Comparison::EQ => {
+                if sum == self.constant {
+                    f64::INFINITY
+                } else {
+                    f64::NEG_INFINITY
+                }
+            }
+        };
+
+        Ok(metric)
     }
 }
 
@@ -752,6 +772,13 @@ macro_rules! predicate {
             std::ops::Neg::neg(pred)
         }
     };
+    (= $($rest:tt)+) => {
+        {
+            let mut pred = $crate::predicate!(@rhs $($rest)*);
+            pred.comparison = $crate::predicate::Comparison::EQ;
+            std::ops::Neg::neg(pred)
+        }
+    };
     (<=) => {
         compile_error!("Missing right hand side of predicate")
     };
@@ -764,7 +791,7 @@ macro_rules! predicate {
 mod tests {
     use std::collections::{BTreeMap, HashMap};
 
-    use super::{EvaluationError, Predicate};
+    use super::{Comparison, EvaluationError, Predicate};
     use crate::predicate;
 
     #[test]
@@ -775,7 +802,12 @@ mod tests {
         assert_eq!(p.get("x"), Some(3.0));
         assert_eq!(p.get("y"), Some(-4.1));
         assert_eq!(p.get("z"), Some(-1.0));
+        assert_eq!(p.comparison, Comparison::LTE);
         assert_eq!(p.constant(), 2.2);
+
+        let p2 = predicate! { x * 3.0 + 1.0 = y * 4.1 + 3.2 + z };
+
+        assert_eq!(p2.comparison, Comparison::EQ);
     }
 
     #[test]
@@ -796,6 +828,13 @@ mod tests {
         assert_eq!(p.evaluate_state(&missing), Err(EvaluationError::missing("x")));
         assert_eq!(p.evaluate_state(&nan_value), Err(EvaluationError::nan_value("y")));
 
+        let true_input = HashMap::from([("x", 2.0), ("y", 4.0)]);
+        p.comparison = Comparison::EQ;
+
+        assert_eq!(p.evaluate_state(&true_input), Ok(f64::INFINITY));
+        assert_eq!(p.evaluate_state(&hash_map), Ok(f64::NEG_INFINITY));
+
+        p.comparison = Comparison::LTE;
         p += ("z", f64::NAN);
 
         assert_eq!(p.evaluate_state(&hash_map), Err(EvaluationError::nan_coefficient("z")));
