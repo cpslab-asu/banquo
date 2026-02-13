@@ -327,6 +327,21 @@ impl Join for HybridDistance {
     }
 }
 
+impl std::ops::Neg for HybridDistance {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Self::Robustness(r) => Self::Robustness(-r),
+            Self::StateDistance { hops, dist } => Self::StateDistance {
+                hops,
+                dist: -dist,
+            },
+            Self::Unreachable => Self::Unreachable,
+        }
+    }
+}
+
 /// System requirements associated with specific discrete system modes.
 ///
 /// For more information, see the [module-level](crate::predicate) documentation.

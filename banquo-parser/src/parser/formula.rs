@@ -12,8 +12,8 @@ use super::common::{op0, pos_num, var_name, FormulaWrapper};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate, Term, Variables};
-use crate::formulas::Formula;
-use crate::trace::Trace;
+use crate::Formula;
+use crate::Trace;
 
 pub struct ParsedFormula {
     inner: Box<dyn Formula<Variables, Metric = f64, Error = ParsedFormulaError>>,
@@ -36,8 +36,8 @@ impl Formula<Variables> for ParsedFormula {
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn evaluate_trace(&self, trace: &Trace<Variables>) -> Result<Trace<Self::Metric>, Self::Error> {
-        self.inner.evaluate_trace(trace)
+    fn evaluate(&self, trace: &Trace<Variables>) -> Result<Trace<Self::Metric>, Self::Error> {
+        self.inner.evaluate(trace)
     }
 }
 
@@ -115,6 +115,11 @@ fn right_operand(input: &str) -> IResult<&str, ParsedFormula> {
     parser(input)
 }
 
+/// Parse a full subformula, allowing optional surrounding whitespace.
+fn formula_operand(input: &str) -> IResult<&str, ParsedFormula> {
+    delimited(space0, formula, space0)(input)
+}
+
 fn not(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = operators::not(right_operand);
     let (rest, formula) = parser(input)?;
@@ -144,21 +149,29 @@ fn implies(input: &str) -> IResult<&str, ParsedFormula> {
 }
 
 fn next(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::next(right_operand);
+    // `next` should apply to an arbitrary subformula, not just a single
+    // predicate. Use `formula_operand` (which wraps `formula` with optional
+    // whitespace) so expressions like `next (phi and psi)` are supported.
+    let mut parser = operators::next(formula_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn always(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::always(right_operand);
+    // `always` should apply to an arbitrary subformula, not just a single
+    // predicate. Using `formula_operand` here allows expressions like
+    // `always -0.785 <= roll and roll <= 0.785` to be parsed as
+    // `always ( (-0.785 <= roll) and (roll <= 0.785) )`.
+    let mut parser = operators::always(formula_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::eventually(right_operand);
+    // Same reasoning as `always`: allow compound subformulas after `eventually`.
+    let mut parser = operators::eventually(formula_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
@@ -266,10 +279,11 @@ mod tests {
     #[test]
     fn parse_polynomial() -> Result<(), Box<dyn Error>> {
         let (rest, value) = polynomial("12.0 + 3.1*x + 22.4*y")?;
+        // Parser produces terms in parse order: first term, then each preceded by "+"
         let expected = Polynomial::from([
+            Term::constant(12.0),
             Term::variable("x", 3.1),
             Term::variable("y", 22.4),
-            Term::constant(12.0),
         ]);
 
         assert_eq!(rest, "");
@@ -297,7 +311,7 @@ mod tests {
             Term::variable("y", 22.4f64),
             Term::constant(12.0),
         ]);
-        let right = Term::variable("z", 4.8f64);
+        let right = Polynomial::from(Term::variable("z", 4.8f64));
         let expected = Predicate::new(left, right);
         let (rest, actual) = predicate("12.0 + 3.1*x + 22.4*y <= 4.8*z")?;
 
