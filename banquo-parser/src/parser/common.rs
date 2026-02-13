@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::str::FromStr;
 
-use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, digit0, digit1, space0};
+use nom::bytes::complete::{tag, take_while1};
+use nom::character::complete::{digit0, digit1, space0};
 use nom::combinator::{map_res, opt, recognize};
 use nom::sequence::{delimited, pair};
 use nom::IResult;
@@ -39,11 +39,22 @@ where
 }
 
 pub fn var_name(input: &str) -> IResult<&str, String> {
-    let mut parser = pair(alpha1, digit0);
-    let (rest, (s1, s2)) = parser(input)?;
-    let name = s1.to_string() + s2;
+    // Identifiers: start with ASCII letter or '_', followed by any combination
+    // of ASCII letters, digits, or '_' (e.g., `x`, `y1`, `roll_rate`).
+    fn is_ident_start(c: char) -> bool {
+        c.is_ascii_alphabetic() || c == '_'
+    }
+    fn is_ident_char(c: char) -> bool {
+        c.is_ascii_alphanumeric() || c == '_'
+    }
 
-    Ok((rest, name))
+    let mut ident = recognize(pair(
+        take_while1(is_ident_start),
+        opt(take_while1(is_ident_char)),
+    ));
+    let (rest, name) = ident(input)?;
+
+    Ok((rest, name.to_string()))
 }
 
 pub fn pos_num(input: &str) -> IResult<&str, f64> {
@@ -83,6 +94,11 @@ mod tests {
 
         assert_eq!(rest, "");
         assert_eq!(value, "x1");
+
+        let (rest, value) = var_name("roll_rate2")?;
+
+        assert_eq!(rest, "");
+        assert_eq!(value, "roll_rate2");
 
         Ok(())
     }

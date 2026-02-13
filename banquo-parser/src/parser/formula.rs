@@ -115,6 +115,11 @@ fn right_operand(input: &str) -> IResult<&str, ParsedFormula> {
     parser(input)
 }
 
+/// Parse a full subformula, allowing optional surrounding whitespace.
+fn formula_operand(input: &str) -> IResult<&str, ParsedFormula> {
+    delimited(space0, formula, space0)(input)
+}
+
 fn not(input: &str) -> IResult<&str, ParsedFormula> {
     let mut parser = operators::not(right_operand);
     let (rest, formula) = parser(input)?;
@@ -144,21 +149,29 @@ fn implies(input: &str) -> IResult<&str, ParsedFormula> {
 }
 
 fn next(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::next(right_operand);
+    // `next` should apply to an arbitrary subformula, not just a single
+    // predicate. Use `formula_operand` (which wraps `formula` with optional
+    // whitespace) so expressions like `next (phi and psi)` are supported.
+    let mut parser = operators::next(formula_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn always(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::always(right_operand);
+    // `always` should apply to an arbitrary subformula, not just a single
+    // predicate. Using `formula_operand` here allows expressions like
+    // `always -0.785 <= roll and roll <= 0.785` to be parsed as
+    // `always ( (-0.785 <= roll) and (roll <= 0.785) )`.
+    let mut parser = operators::always(formula_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
-    let mut parser = operators::eventually(right_operand);
+    // Same reasoning as `always`: allow compound subformulas after `eventually`.
+    let mut parser = operators::eventually(formula_operand);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
