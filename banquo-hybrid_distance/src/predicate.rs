@@ -333,10 +333,7 @@ impl std::ops::Neg for HybridDistance {
     fn neg(self) -> Self::Output {
         match self {
             Self::Robustness(r) => Self::Robustness(-r),
-            Self::StateDistance { hops, dist } => Self::StateDistance {
-                hops,
-                dist: -dist,
-            },
+            Self::StateDistance { hops, dist } => Self::StateDistance { hops, dist: -dist },
             Self::Unreachable => Self::Unreachable,
         }
     }
