@@ -25,10 +25,7 @@ use banquo_hybrid_distance::{HybridDistance, HybridPredicate, HybridState};
 pub type HybridVars = HashMap<String, f64>;
 
 pub struct ParsedFormula<'a, L> {
-    formula: Box<
-        dyn Formula<HybridState<HybridVars, L>, Metric = HybridDistance, Error = ParsedFormulaError>
-            + 'a,
-    >,
+    formula: Box<dyn Formula<HybridState<HybridVars, L>, Metric = HybridDistance, Error = ParsedFormulaError> + 'a>,
 }
 
 impl<'a, L> ParsedFormula<'a, L> {
@@ -48,10 +45,7 @@ impl<'a, L> Formula<HybridState<HybridVars, L>> for ParsedFormula<'a, L> {
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn evaluate(
-        &self,
-        trace: &Trace<HybridState<HybridVars, L>>,
-    ) -> Result<Trace<HybridDistance>, Self::Error> {
+    fn evaluate(&self, trace: &Trace<HybridState<HybridVars, L>>) -> Result<Trace<HybridDistance>, Self::Error> {
         self.formula.evaluate(trace)
     }
 }

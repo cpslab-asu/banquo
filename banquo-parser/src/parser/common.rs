@@ -48,10 +48,7 @@ pub fn var_name(input: &str) -> IResult<&str, String> {
         c.is_ascii_alphanumeric() || c == '_'
     }
 
-    let mut ident = recognize(pair(
-        take_while1(is_ident_start),
-        opt(take_while1(is_ident_char)),
-    ));
+    let mut ident = recognize(pair(take_while1(is_ident_start), opt(take_while1(is_ident_char))));
     let (rest, name) = ident(input)?;
 
     Ok((rest, name.to_string()))

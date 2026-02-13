@@ -14,10 +14,7 @@ fn state(x: f64, y: f64) -> HashMap<String, f64> {
 fn parse_predicate_string() {
     // Parse a single inequality (predicate) from a string.
     let p = parse_predicate("3.1*x + 22.4*y <= 12.0").expect("parse predicate");
-    let trace = Trace::from([
-        (0.0, state(1.0, 0.0)),
-        (1.0, state(0.0, 0.5)),
-    ]);
+    let trace = Trace::from([(0.0, state(1.0, 0.0)), (1.0, state(0.0, 0.5))]);
     let result = p.evaluate(&trace).expect("evaluate");
     assert_eq!(result.len(), 2);
 }
@@ -26,10 +23,7 @@ fn parse_predicate_string() {
 fn parse_formula_string_and_evaluate() {
     // Parse a full temporal formula from a string and evaluate on a trace.
     let formula: ParsedFormula = parse_formula("always 3.1*x <= 0.5*y").expect("parse formula");
-    let trace = Trace::from([
-        (0.0, state(0.1, 1.0)),
-        (1.0, state(0.2, 2.0)),
-    ]);
+    let trace = Trace::from([(0.0, state(0.1, 1.0)), (1.0, state(0.2, 2.0))]);
     let metrics = formula.evaluate(&trace).expect("evaluate");
     assert_eq!(metrics.len(), 2);
 }

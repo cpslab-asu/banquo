@@ -20,11 +20,11 @@ pub mod expressions;
 mod parser;
 
 // Re-export core types so the parser can use them.
-pub use banquo_core::{Formula, Trace};
 pub use banquo_core::operators;
+pub use banquo_core::{Formula, Trace};
 
 pub use parser::{
-    parse_formula, parse_hybrid_formula, parse_predicate, IncompleteParseError, MissingPredicateError,
-    ParsedFormulaError, ParsedFormula,
+    parse_formula, parse_hybrid_formula, parse_predicate, IncompleteParseError, MissingPredicateError, ParsedFormula,
+    ParsedFormulaError,
 };
 pub use parser::{HybridVars, IntoPredicateMap, ParsedHybridFormula};
