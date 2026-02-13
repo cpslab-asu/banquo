@@ -133,7 +133,7 @@ where
 {
     let ctor = |subformula, opt_t_bounds| -> Always<T> {
         match opt_t_bounds {
-            Some((lower, upper)) => Always::bounded(lower, upper, subformula),
+            Some((lower, upper)) => Always::bounded(lower..=upper, subformula),
             None => Always::unbounded(subformula),
         }
     };
@@ -147,7 +147,7 @@ where
 {
     let ctor = |subformula, opt_t_bounds| -> Eventually<T> {
         match opt_t_bounds {
-            Some((lower, upper)) => Eventually::bounded(lower, upper, subformula),
+            Some((lower, upper)) => Eventually::bounded(lower..=upper, subformula),
             None => Eventually::unbounded(subformula),
         }
     };

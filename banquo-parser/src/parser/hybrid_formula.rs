@@ -1,3 +1,5 @@
+//! Parser for hybrid formulas: formulas over named hybrid predicates (mode + continuous state).
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
@@ -15,19 +17,24 @@ use nom::Parser;
 use super::common::{var_name, FormulaWrapper};
 use super::errors::{IncompleteParseError, MissingPredicateError, ParsedFormulaError};
 use super::operators;
-use crate::expressions::{HybridPredicate, HybridState};
-use crate::formulas::Formula;
-use crate::metric::HybridDistance;
-use crate::trace::Trace;
+use crate::Formula;
+use crate::Trace;
+use banquo_hybrid_distance::{HybridDistance, HybridPredicate, HybridState};
+
+/// Continuous state type for hybrid formula evaluation (variable names → values).
+pub type HybridVars = HashMap<String, f64>;
 
 pub struct ParsedFormula<'a, L> {
-    formula: Box<dyn Formula<HybridState<L>, Metric = HybridDistance, Error = ParsedFormulaError> + 'a>,
+    formula: Box<
+        dyn Formula<HybridState<HybridVars, L>, Metric = HybridDistance, Error = ParsedFormulaError>
+            + 'a,
+    >,
 }
 
 impl<'a, L> ParsedFormula<'a, L> {
     fn new<F, E>(formula: F) -> Self
     where
-        F: Formula<HybridState<L>, Metric = HybridDistance, Error = E> + 'a,
+        F: Formula<HybridState<HybridVars, L>, Metric = HybridDistance, Error = E> + 'a,
         E: Error + 'static,
     {
         Self {
@@ -36,25 +43,28 @@ impl<'a, L> ParsedFormula<'a, L> {
     }
 }
 
-impl<'a, L> Formula<HybridState<L>> for ParsedFormula<'a, L> {
+impl<'a, L> Formula<HybridState<HybridVars, L>> for ParsedFormula<'a, L> {
     type Metric = HybridDistance;
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn evaluate_trace(&self, trace: &Trace<HybridState<L>>) -> Result<Trace<HybridDistance>, Self::Error> {
-        self.formula.evaluate_trace(trace)
+    fn evaluate(
+        &self,
+        trace: &Trace<HybridState<HybridVars, L>>,
+    ) -> Result<Trace<HybridDistance>, Self::Error> {
+        self.formula.evaluate(trace)
     }
 }
 
-pub struct PredicateMap<L>(HashMap<Cow<'static, str>, Rc<HybridPredicate<L>>>)
+pub struct PredicateMap<'a, L>(HashMap<Cow<'static, str>, Rc<HybridPredicate<'a, L>>>)
 where
     L: Copy + Ord + Hash;
 
-impl<L> PredicateMap<L>
+impl<'a, L> PredicateMap<'a, L>
 where
     L: Copy + Ord + Hash,
 {
-    fn get(&self, name: &str) -> Option<Rc<HybridPredicate<L>>> {
+    fn get(&self, name: &str) -> Option<Rc<HybridPredicate<'a, L>>> {
         self.0.get(name).cloned()
     }
 }
@@ -64,7 +74,7 @@ mod predicate_map {
 
     pub trait IntoPredicateMapSealed {}
 
-    impl<T, L> IntoPredicateMapSealed for HashMap<T, HybridPredicate<L>>
+    impl<'a, T, L> IntoPredicateMapSealed for HashMap<T, HybridPredicate<'a, L>>
     where
         T: Into<Cow<'static, str>>,
         L: Copy + Ord + Hash,
@@ -72,19 +82,19 @@ mod predicate_map {
     }
 }
 
-pub trait IntoPredicateMap<L>: predicate_map::IntoPredicateMapSealed
+pub trait IntoPredicateMap<'a, L>: predicate_map::IntoPredicateMapSealed
 where
     L: Copy + Ord + Hash,
 {
-    fn into_predicate_map(self) -> PredicateMap<L>;
+    fn into_predicate_map(self) -> PredicateMap<'a, L>;
 }
 
-impl<T, L> IntoPredicateMap<L> for HashMap<T, HybridPredicate<L>>
+impl<'a, T, L> IntoPredicateMap<'a, L> for HashMap<T, HybridPredicate<'a, L>>
 where
     T: Into<Cow<'static, str>>,
     L: Copy + Ord + Hash,
 {
-    fn into_predicate_map(self) -> PredicateMap<L> {
+    fn into_predicate_map(self) -> PredicateMap<'a, L> {
         let predicates = self
             .into_iter()
             .map(|(name, predicate)| (name.into(), Rc::new(predicate)))
@@ -94,15 +104,15 @@ where
     }
 }
 
-struct PredicateParser<L>(Rc<PredicateMap<L>>)
+struct PredicateParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, Rc<HybridPredicate<L>>, NomError<&'a str>> for PredicateParser<L>
+impl<'i, 'a, L> Parser<&'i str, Rc<HybridPredicate<'a, L>>, NomError<&'i str>> for PredicateParser<'a, L>
 where
-    L: Copy + Ord + Hash + 'a,
+    L: Copy + Ord + Hash,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, Rc<HybridPredicate<L>>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, Rc<HybridPredicate<'a, L>>> {
         let get_predicate = |name: String| {
             self.0
                 .get(name.as_str())
@@ -115,15 +125,16 @@ where
     }
 }
 
-struct SubformulaParser<L>(Rc<PredicateMap<L>>)
+struct SubformulaParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for SubformulaParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for SubformulaParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let inner = delimited(space0, HybridFormulaParser(self.0.clone()), space0);
         let mut parser = delimited(tag("("), inner, tag(")"));
 
@@ -131,15 +142,16 @@ where
     }
 }
 
-struct LoperandParser<L>(Rc<PredicateMap<L>>)
+struct LoperandParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for LoperandParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for LoperandParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let mut p1 = terminated(PredicateParser(self.0.clone()), space1);
         let mut p2 = terminated(SubformulaParser(self.0.clone()), space0);
 
@@ -150,15 +162,16 @@ where
     }
 }
 
-struct RoperandParser<L>(Rc<PredicateMap<L>>)
+struct RoperandParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for RoperandParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for RoperandParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let mut p1 = preceded(space1, PredicateParser(self.0.clone()));
         let mut p2 = preceded(space0, SubformulaParser(self.0.clone()));
 
@@ -169,15 +182,16 @@ where
     }
 }
 
-struct NotParser<L>(Rc<PredicateMap<L>>)
+struct NotParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for NotParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for NotParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let mut parser = operators::not(RoperandParser(self.0.clone()));
         let (rest, formula) = parser.parse(input)?;
 
@@ -185,15 +199,16 @@ where
     }
 }
 
-struct AndParser<L>(Rc<PredicateMap<L>>)
+struct AndParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for AndParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for AndParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let lop_parser = LoperandParser(self.0.clone());
         let rop_parser = RoperandParser(self.0.clone());
 
@@ -204,15 +219,16 @@ where
     }
 }
 
-struct OrParser<L>(Rc<PredicateMap<L>>)
+struct OrParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for OrParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for OrParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let lop_parser = LoperandParser(self.0.clone());
         let rop_parser = RoperandParser(self.0.clone());
 
@@ -223,15 +239,16 @@ where
     }
 }
 
-struct ImpliesParser<L>(Rc<PredicateMap<L>>)
+struct ImpliesParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for ImpliesParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for ImpliesParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let lop_parser = LoperandParser(self.0.clone());
         let rop_parser = RoperandParser(self.0.clone());
 
@@ -242,15 +259,16 @@ where
     }
 }
 
-struct NextParser<L>(Rc<PredicateMap<L>>)
+struct NextParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for NextParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for NextParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let mut parser = operators::next(RoperandParser(self.0.clone()));
         let (rest, formula) = parser.parse(input)?;
 
@@ -258,15 +276,16 @@ where
     }
 }
 
-struct AlwaysParser<L>(Rc<PredicateMap<L>>)
+struct AlwaysParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for AlwaysParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for AlwaysParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let mut parser = operators::always(RoperandParser(self.0.clone()));
         let (rest, formula) = parser.parse(input)?;
 
@@ -274,15 +293,16 @@ where
     }
 }
 
-struct EventuallyParser<L>(Rc<PredicateMap<L>>)
+struct EventuallyParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for EventuallyParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for EventuallyParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let mut parser = operators::eventually(RoperandParser(self.0.clone()));
         let (rest, formula) = parser.parse(input)?;
 
@@ -290,15 +310,16 @@ where
     }
 }
 
-struct HybridFormulaParser<L>(Rc<PredicateMap<L>>)
+struct HybridFormulaParser<'a, L>(Rc<PredicateMap<'a, L>>)
 where
     L: Copy + Ord + Hash;
 
-impl<'a, L> Parser<&'a str, ParsedFormula<'a, L>, NomError<&'a str>> for HybridFormulaParser<L>
+impl<'i, 'a, L> Parser<&'i str, ParsedFormula<'a, L>, NomError<&'i str>> for HybridFormulaParser<'a, L>
 where
     L: Copy + Ord + Hash + 'a,
+    'a: 'i,
 {
-    fn parse(&mut self, input: &'a str) -> nom::IResult<&'a str, ParsedFormula<'a, L>> {
+    fn parse(&mut self, input: &'i str) -> nom::IResult<&'i str, ParsedFormula<'a, L>> {
         let mut parser = alt((
             NotParser(self.0.clone()),
             NextParser(self.0.clone()),
@@ -315,9 +336,12 @@ where
     }
 }
 
-pub fn parse_hybrid_formula<'a, P, L>(input: &'a str, predicates: P) -> Result<ParsedFormula<L>, Box<dyn Error + 'a>>
+pub fn parse_hybrid_formula<'a, P, L>(
+    input: &'a str,
+    predicates: P,
+) -> Result<ParsedFormula<'a, L>, Box<dyn Error + 'a>>
 where
-    P: IntoPredicateMap<L>,
+    P: IntoPredicateMap<'a, L>,
     L: Copy + Ord + Hash + 'a,
 {
     let map = predicates.into_predicate_map();
@@ -337,118 +361,102 @@ mod tests {
     use std::error::Error;
     use std::rc::Rc;
 
+    use banquo_core::predicate::{Predicate, Term};
     use nom::Parser;
 
-    use super::{
-        AlwaysParser, AndParser, EventuallyParser, ImpliesParser, IntoPredicateMap, NextParser, NotParser, OrParser,
-        ParsedFormula, PredicateMap, PredicateParser,
-    };
-    use crate::expressions::{Automaton, HybridPredicate};
+    use super::{IntoPredicateMap, PredicateMap, PredicateParser};
+    use banquo_hybrid_distance::automaton::{Automaton, Guard};
+    use banquo_hybrid_distance::HybridPredicate;
 
-    fn get_predicates() -> Rc<PredicateMap<i32>> {
-        let automaton = Automaton::default();
-        let predicate = HybridPredicate::new(None, 1, &automaton);
+    /// Build a minimal automaton and predicate map for mode label 1.
+    fn make_predicate_map(automaton: &Automaton<i32>) -> PredicateMap<'_, i32> {
+        let p1 = HybridPredicate::new(None, [1], automaton);
+        let predicates = HashMap::from([("p1", p1)]);
+        predicates.into_predicate_map()
+    }
 
-        let mut predicates = HashMap::with_capacity(1);
-        predicates.insert("p1", predicate);
-
-        Rc::new(predicates.into_predicate_map())
+    fn assert_parses(formulas: &[&'static str], map: Rc<PredicateMap<'_, i32>>) {
+        for formula in formulas {
+            let mut parser = super::HybridFormulaParser(map.clone());
+            let (rest, _) = parser.parse(formula).expect("parse");
+            assert!(rest.is_empty(), "remaining input for {:?}: {:?}", formula, rest);
+        }
     }
 
     #[test]
     fn parse_predicate() -> Result<(), Box<dyn Error>> {
-        let predicates = get_predicates();
-        let mut parser = PredicateParser(predicates);
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = make_predicate_map(&automaton);
+        let mut parser = PredicateParser(Rc::new(map));
         let (rest, _) = parser.parse("p1")?;
-
         assert!(rest.is_empty());
-
         Ok(())
     }
 
     #[test]
     fn parse_missing_predicate() {
-        let predicates = get_predicates();
-        let mut parser = PredicateParser(predicates);
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = make_predicate_map(&automaton);
+        let mut parser = PredicateParser(Rc::new(map));
         let result = parser.parse("p2");
-
-        assert!(result.is_err())
-    }
-
-    type TestResult<'a> = Result<(), Box<dyn Error + 'a>>;
-
-    fn parser_test_case<P, const N: usize>(mut parser: P, formulas: [&'static str; N]) -> TestResult<'static>
-    where
-        P: Parser<&'static str, ParsedFormula<'static, i32>, nom::error::Error<&'static str>>,
-    {
-        for formula in formulas {
-            let (rest, _) = parser.parse(formula)?;
-            assert!(rest.is_empty());
-        }
-
-        Ok(())
+        assert!(result.is_err());
     }
 
     #[test]
-    fn parse_not() -> TestResult<'static> {
-        let predicates = get_predicates();
-        let parser = NotParser(predicates);
-        let formulas = ["! p1", "not p1", "not (p1)"];
-
-        parser_test_case(parser, formulas)
+    fn parse_not() {
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = Rc::new(make_predicate_map(&automaton));
+        assert_parses(&["! p1", "not p1", "not (p1)"], map);
     }
 
     #[test]
-    fn parse_and() -> TestResult<'static> {
-        let predicates = get_predicates();
-        let parser = AndParser(predicates);
-        let formulas = [r"(p1)/\(p1)", "p1 and p1", r"p1 and (p1 /\ p1)"];
-
-        parser_test_case(parser, formulas)
+    fn parse_and() {
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = Rc::new(make_predicate_map(&automaton));
+        assert_parses(&[r"(p1)/\(p1)", "p1 and p1", r"p1 and (p1 /\ p1)"], map);
     }
 
     #[test]
-    fn parse_or() -> TestResult<'static> {
-        let predicates = get_predicates();
-        let parser = OrParser(predicates);
-        let formulas = [r"(p1) \/ (p1)", "p1 or p1", r"(p1 or p1) \/ p1"];
-
-        parser_test_case(parser, formulas)
+    fn parse_or() {
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = Rc::new(make_predicate_map(&automaton));
+        assert_parses(&[r"(p1) \/ (p1)", "p1 or p1", r"(p1 or p1) \/ p1"], map);
     }
 
     #[test]
-    fn parse_implies() -> TestResult<'static> {
-        let predicates = get_predicates();
-        let parser = ImpliesParser(predicates);
-        let formulas = ["(p1) -> (p1)", "p1 implies p1"];
-
-        parser_test_case(parser, formulas)
+    fn parse_implies() {
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = Rc::new(make_predicate_map(&automaton));
+        assert_parses(&["(p1) -> (p1)", "p1 implies p1"], map);
     }
 
     #[test]
-    fn parse_next() -> TestResult<'static> {
-        let predicates = get_predicates();
-        let parser = NextParser(predicates);
-        let formulas = ["X p1", "() (p1)", "next (p1)"];
-
-        parser_test_case(parser, formulas)
+    fn parse_next() {
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = Rc::new(make_predicate_map(&automaton));
+        assert_parses(&["X p1", "() (p1)", "next (p1)"], map);
     }
 
     #[test]
-    fn parse_always() -> TestResult<'static> {
-        let predicates = get_predicates();
-        let parser = AlwaysParser(predicates);
-        let formulas = ["always p1", "[]{0,10} p1", "G{1,2} (p1)"];
-
-        parser_test_case(parser, formulas)
+    fn parse_always() {
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = Rc::new(make_predicate_map(&automaton));
+        assert_parses(&["always p1", "[]{0,10} p1", "G{1,2} (p1)"], map);
     }
 
     #[test]
-    fn parse_eventually() -> TestResult<'static> {
-        let predicates = get_predicates();
-        let parser = EventuallyParser(predicates);
-        let formulas = ["eventually p1", "<>{0,10} p1", "F{1,2} (p1)"];
-
-        parser_test_case(parser, formulas)
+    fn parse_eventually() {
+        let guard = Guard::from(Predicate::from([Term::Constant(0.0)]));
+        let automaton = Automaton::from([(1i32, 1i32, guard)]);
+        let map = Rc::new(make_predicate_map(&automaton));
+        assert_parses(&["eventually p1", "<>{0,10} p1", "F{1,2} (p1)"], map);
     }
 }

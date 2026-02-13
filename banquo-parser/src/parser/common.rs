@@ -8,8 +8,8 @@ use nom::sequence::{delimited, pair};
 use nom::IResult;
 
 use super::errors::ParsedFormulaError;
-use crate::formulas::Formula;
-use crate::trace::Trace;
+use crate::Formula;
+use crate::Trace;
 
 pub struct FormulaWrapper<F> {
     inner: F,
@@ -33,8 +33,8 @@ where
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn evaluate_trace(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        self.inner.evaluate_trace(trace).map_err(ParsedFormulaError::from_err)
+    fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
+        self.inner.evaluate(trace).map_err(ParsedFormulaError::from_err)
     }
 }
 

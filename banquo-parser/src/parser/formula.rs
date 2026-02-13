@@ -12,8 +12,8 @@ use super::common::{op0, pos_num, var_name, FormulaWrapper};
 use super::errors::{IncompleteParseError, ParsedFormulaError};
 use super::operators;
 use crate::expressions::{Polynomial, Predicate, Term, Variables};
-use crate::formulas::Formula;
-use crate::trace::Trace;
+use crate::Formula;
+use crate::Trace;
 
 pub struct ParsedFormula {
     inner: Box<dyn Formula<Variables, Metric = f64, Error = ParsedFormulaError>>,
@@ -36,8 +36,8 @@ impl Formula<Variables> for ParsedFormula {
     type Error = ParsedFormulaError;
 
     #[inline]
-    fn evaluate_trace(&self, trace: &Trace<Variables>) -> Result<Trace<Self::Metric>, Self::Error> {
-        self.inner.evaluate_trace(trace)
+    fn evaluate(&self, trace: &Trace<Variables>) -> Result<Trace<Self::Metric>, Self::Error> {
+        self.inner.evaluate(trace)
     }
 }
 
@@ -266,10 +266,11 @@ mod tests {
     #[test]
     fn parse_polynomial() -> Result<(), Box<dyn Error>> {
         let (rest, value) = polynomial("12.0 + 3.1*x + 22.4*y")?;
+        // Parser produces terms in parse order: first term, then each preceded by "+"
         let expected = Polynomial::from([
+            Term::constant(12.0),
             Term::variable("x", 3.1),
             Term::variable("y", 22.4),
-            Term::constant(12.0),
         ]);
 
         assert_eq!(rest, "");
@@ -297,7 +298,7 @@ mod tests {
             Term::variable("y", 22.4f64),
             Term::constant(12.0),
         ]);
-        let right = Term::variable("z", 4.8f64);
+        let right = Polynomial::from(Term::variable("z", 4.8f64));
         let expected = Predicate::new(left, right);
         let (rest, actual) = predicate("12.0 + 3.1*x + 22.4*y <= 4.8*z")?;
 
