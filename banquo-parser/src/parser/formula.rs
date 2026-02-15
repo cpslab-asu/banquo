@@ -63,10 +63,7 @@ impl ParsedFormula {
 impl fmt::Debug for ParsedFormula {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ParsedFormula")
-            .field(
-                "source",
-                &self.source.as_deref().unwrap_or("<not recorded>"),
-            )
+            .field("source", &self.source.as_deref().unwrap_or("<not recorded>"))
             .field("inner", &"<dyn Formula>")
             .finish()
     }
