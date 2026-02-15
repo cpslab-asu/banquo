@@ -64,13 +64,15 @@ impl Polynomial {
 pub struct Predicate(CorePredicate);
 
 impl Predicate {
+    /// Build a predicate for "left <= right". Robustness is (right - left) so that
+    /// it is non-negative when the constraint holds and negative when violated.
     pub fn new(left: Polynomial, right: Polynomial) -> Self {
         let mut p = CorePredicate::new();
         for t in left.0 {
-            p += CoreTerm::from(t);
+            p -= CoreTerm::from(t);
         }
         for t in right.0 {
-            p -= CoreTerm::from(t);
+            p += CoreTerm::from(t);
         }
         Self(p)
     }

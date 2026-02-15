@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fmt;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -17,6 +18,8 @@ use crate::Trace;
 
 pub struct ParsedFormula {
     inner: Box<dyn Formula<Variables, Metric = f64, Error = ParsedFormulaError>>,
+    /// Original source string, when set by `parse_formula`; used for debug output.
+    source: Option<String>,
 }
 
 impl ParsedFormula {
@@ -27,7 +30,45 @@ impl ParsedFormula {
     {
         Self {
             inner: Box::new(FormulaWrapper::wrap(formula)),
+            source: None,
         }
+    }
+
+    /// Same as `new`, but stores the source string for debug so you can verify
+    /// which input produced this formula (e.g. via `Debug` or `debug_source()`).
+    pub fn new_with_source<F, E>(formula: F, source: impl Into<String>) -> Self
+    where
+        F: Formula<Variables, Metric = f64, Error = E> + 'static,
+        E: Error + 'static,
+    {
+        Self {
+            inner: Box::new(FormulaWrapper::wrap(formula)),
+            source: Some(source.into()),
+        }
+    }
+
+    /// Returns the original formula string if this `ParsedFormula` was created
+    /// from `parse_formula` (with debug source stored). Otherwise `None`.
+    pub fn debug_source(&self) -> Option<&str> {
+        self.source.as_deref()
+    }
+
+    /// Attach the given source string for debug (e.g. the original input to `parse_formula`).
+    /// Used internally so that `Debug` and `debug_source()` show what was parsed.
+    pub fn set_debug_source(&mut self, source: impl Into<String>) {
+        self.source = Some(source.into());
+    }
+}
+
+impl fmt::Debug for ParsedFormula {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ParsedFormula")
+            .field(
+                "source",
+                &self.source.as_deref().unwrap_or("<not recorded>"),
+            )
+            .field("inner", &"<dyn Formula>")
+            .finish()
     }
 }
 
@@ -203,11 +244,17 @@ fn formula(input: &str) -> IResult<&str, ParsedFormula> {
 }
 
 pub fn parse_formula<'a>(input: &'a str) -> Result<ParsedFormula, Box<dyn Error + 'a>> {
-    let (rest, parsed) = formula(input)?;
+    let (rest, mut parsed) = formula(input)?;
 
     if !rest.is_empty() {
         Err(Box::new(IncompleteParseError::from(rest)))
     } else {
+        parsed.set_debug_source(input);
+        #[cfg(debug_assertions)]
+        eprintln!(
+            "[banquo_parser] parsed formula -> ParsedFormula {{ source: {:?} }}",
+            input
+        );
         Ok(parsed)
     }
 }
