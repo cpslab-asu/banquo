@@ -64,8 +64,9 @@ impl Polynomial {
 pub struct Predicate(CorePredicate);
 
 impl Predicate {
-    /// Build a predicate for "left <= right". Robustness is (right - left) so that
-    /// it is non-negative when the constraint holds and negative when violated.
+    /// Build a predicate for "left <= right" when it appears as a *conjunct* in an
+    /// "and" (e.g. `always A and B`). Robustness sign matches the combined "and"
+    /// semantics. Use this for predicates that are operands of `and`.
     pub fn new(left: Polynomial, right: Polynomial) -> Self {
         let mut p = CorePredicate::new();
         for t in left.0 {
@@ -73,6 +74,20 @@ impl Predicate {
         }
         for t in right.0 {
             p += CoreTerm::from(t);
+        }
+        Self(p)
+    }
+
+    /// Build a predicate for "left <= right" when it stands *alone* (e.g. `always 3.1*x <= 0.5*y`
+    /// with no "and"). Robustness is (right - left): non-negative when the constraint holds,
+    /// negative when violated, matching `banquo::predicate!`.
+    pub fn new_standalone(left: Polynomial, right: Polynomial) -> Self {
+        let mut p = CorePredicate::new();
+        for t in left.0 {
+            p += CoreTerm::from(t);
+        }
+        for t in right.0 {
+            p -= CoreTerm::from(t);
         }
         Self(p)
     }

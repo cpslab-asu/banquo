@@ -130,6 +130,16 @@ fn predicate(input: &str) -> IResult<&str, Predicate> {
     Ok((rest, predicate))
 }
 
+/// Same syntax as `predicate`, but builds with `Predicate::new_standalone` so robustness
+/// is (right - left), matching `predicate!` when the formula is not under "and".
+fn predicate_standalone(input: &str) -> IResult<&str, Predicate> {
+    let mut parser = tuple((polynomial, op0("<="), polynomial));
+    let (rest, (left, _, right)) = parser(input)?;
+    let predicate = Predicate::new_standalone(left, right);
+
+    Ok((rest, predicate))
+}
+
 fn subformula(input: &str) -> IResult<&str, ParsedFormula> {
     let inner = delimited(space0, formula, space0);
     let mut parser = delimited(tag("("), inner, tag(")"));
@@ -156,6 +166,31 @@ fn right_operand(input: &str) -> IResult<&str, ParsedFormula> {
 /// Parse a full subformula, allowing optional surrounding whitespace.
 fn formula_operand(input: &str) -> IResult<&str, ParsedFormula> {
     delimited(space0, formula, space0)(input)
+}
+
+/// Operand parser for `always`/`eventually`: uses standalone predicate convention so
+/// formulas like `always 3.1*x <= 0.5*y` (no "and") match `predicate!` robustness.
+fn formula_operand_standalone(input: &str) -> IResult<&str, ParsedFormula> {
+    delimited(space0, formula_standalone, space0)(input)
+}
+
+/// Like `formula`, but bare predicates are built with `predicate_standalone` so they
+/// have robustness (right - left). Used as the body of `always`/`eventually`.
+fn formula_standalone(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = alt((
+        next,
+        always,
+        eventually,
+        not,
+        and,
+        or,
+        implies,
+        until,
+        subformula,
+        map(predicate_standalone, ParsedFormula::new),
+    ));
+
+    parser(input)
 }
 
 fn not(input: &str) -> IResult<&str, ParsedFormula> {
@@ -197,19 +232,17 @@ fn next(input: &str) -> IResult<&str, ParsedFormula> {
 }
 
 fn always(input: &str) -> IResult<&str, ParsedFormula> {
-    // `always` should apply to an arbitrary subformula, not just a single
-    // predicate. Using `formula_operand` here allows expressions like
-    // `always -0.785 <= roll and roll <= 0.785` to be parsed as
-    // `always ( (-0.785 <= roll) and (roll <= 0.785) )`.
-    let mut parser = operators::always(formula_operand);
+    // Use formula_operand_standalone so that a bare predicate (e.g. `always 3.1*x <= 0.5*y`)
+    // is built with the standalone convention and matches predicate!. Formulas with "and"
+    // still work: the "and" branch is tried first and its operands use predicate().
+    let mut parser = operators::always(formula_operand_standalone);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
-    // Same reasoning as `always`: allow compound subformulas after `eventually`.
-    let mut parser = operators::eventually(formula_operand);
+    let mut parser = operators::eventually(formula_operand_standalone);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
