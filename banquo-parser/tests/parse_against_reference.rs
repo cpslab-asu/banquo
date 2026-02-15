@@ -73,22 +73,16 @@ fn parsed_formulas_match_reference_on_traces() {
 
     // Each entry: (formula string, index into reference formula)
     let formulas: [(&str, usize); 4] = [
-        (
-            "always -0.78539816339 <= roll and roll <= 0.78539816339",
-            0,
-        ),
+        ("always -0.78539816339 <= roll and roll <= 0.78539816339", 0),
         ("always -0.3 <= roll and roll <= 0.3", 1),
         ("always -0.5 <= roll_rate and roll_rate <= 0.5", 2),
         ("always 3.1*x <= 0.5*y", 3),
     ];
 
-    let trace_in_bounds: Trace<State> = Trace::from([
-        (0.0, state(0.0, 0.0, 0.0, 0.0)),
-        (1.0, state(0.2, 0.0, 0.2, 0.0)),
-    ]);
+    let trace_in_bounds: Trace<State> =
+        Trace::from([(0.0, state(0.0, 0.0, 0.0, 0.0)), (1.0, state(0.2, 0.0, 0.2, 0.0))]);
 
-    let trace_xy_ok: Trace<State> =
-        Trace::from([(0.0, xy_state(0.1, 1.0)), (1.0, xy_state(0.2, 2.0))]);
+    let trace_xy_ok: Trace<State> = Trace::from([(0.0, xy_state(0.1, 1.0)), (1.0, xy_state(0.2, 2.0))]);
     let trace_xy_violate: Trace<State> = Trace::from([(0.0, xy_state(1.0, 0.1))]);
 
     let trace_violations: [Trace<State>; 4] = [
