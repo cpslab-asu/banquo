@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fmt;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -17,6 +18,8 @@ use crate::Trace;
 
 pub struct ParsedFormula {
     inner: Box<dyn Formula<Variables, Metric = f64, Error = ParsedFormulaError>>,
+    /// Original source string, when set by `parse_formula`; used for debug output.
+    source: Option<String>,
 }
 
 impl ParsedFormula {
@@ -27,7 +30,42 @@ impl ParsedFormula {
     {
         Self {
             inner: Box::new(FormulaWrapper::wrap(formula)),
+            source: None,
         }
+    }
+
+    /// Same as `new`, but stores the source string for debug so you can verify
+    /// which input produced this formula (e.g. via `Debug` or `debug_source()`).
+    pub fn new_with_source<F, E>(formula: F, source: impl Into<String>) -> Self
+    where
+        F: Formula<Variables, Metric = f64, Error = E> + 'static,
+        E: Error + 'static,
+    {
+        Self {
+            inner: Box::new(FormulaWrapper::wrap(formula)),
+            source: Some(source.into()),
+        }
+    }
+
+    /// Returns the original formula string if this `ParsedFormula` was created
+    /// from `parse_formula` (with debug source stored). Otherwise `None`.
+    pub fn debug_source(&self) -> Option<&str> {
+        self.source.as_deref()
+    }
+
+    /// Attach the given source string for debug (e.g. the original input to `parse_formula`).
+    /// Used internally so that `Debug` and `debug_source()` show what was parsed.
+    pub fn set_debug_source(&mut self, source: impl Into<String>) {
+        self.source = Some(source.into());
+    }
+}
+
+impl fmt::Debug for ParsedFormula {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ParsedFormula")
+            .field("source", &self.source.as_deref().unwrap_or("<not recorded>"))
+            .field("inner", &"<dyn Formula>")
+            .finish()
     }
 }
 
@@ -92,6 +130,16 @@ fn predicate(input: &str) -> IResult<&str, Predicate> {
     Ok((rest, predicate))
 }
 
+/// Same syntax as `predicate`, but builds with `Predicate::new_standalone` so robustness
+/// is (right - left), matching `predicate!` when the formula is not under "and".
+fn predicate_standalone(input: &str) -> IResult<&str, Predicate> {
+    let mut parser = tuple((polynomial, op0("<="), polynomial));
+    let (rest, (left, _, right)) = parser(input)?;
+    let predicate = Predicate::new_standalone(left, right);
+
+    Ok((rest, predicate))
+}
+
 fn subformula(input: &str) -> IResult<&str, ParsedFormula> {
     let inner = delimited(space0, formula, space0);
     let mut parser = delimited(tag("("), inner, tag(")"));
@@ -118,6 +166,31 @@ fn right_operand(input: &str) -> IResult<&str, ParsedFormula> {
 /// Parse a full subformula, allowing optional surrounding whitespace.
 fn formula_operand(input: &str) -> IResult<&str, ParsedFormula> {
     delimited(space0, formula, space0)(input)
+}
+
+/// Operand parser for `always`/`eventually`: uses standalone predicate convention so
+/// formulas like `always 3.1*x <= 0.5*y` (no "and") match `predicate!` robustness.
+fn formula_operand_standalone(input: &str) -> IResult<&str, ParsedFormula> {
+    delimited(space0, formula_standalone, space0)(input)
+}
+
+/// Like `formula`, but bare predicates are built with `predicate_standalone` so they
+/// have robustness (right - left). Used as the body of `always`/`eventually`.
+fn formula_standalone(input: &str) -> IResult<&str, ParsedFormula> {
+    let mut parser = alt((
+        next,
+        always,
+        eventually,
+        not,
+        and,
+        or,
+        implies,
+        until,
+        subformula,
+        map(predicate_standalone, ParsedFormula::new),
+    ));
+
+    parser(input)
 }
 
 fn not(input: &str) -> IResult<&str, ParsedFormula> {
@@ -159,19 +232,17 @@ fn next(input: &str) -> IResult<&str, ParsedFormula> {
 }
 
 fn always(input: &str) -> IResult<&str, ParsedFormula> {
-    // `always` should apply to an arbitrary subformula, not just a single
-    // predicate. Using `formula_operand` here allows expressions like
-    // `always -0.785 <= roll and roll <= 0.785` to be parsed as
-    // `always ( (-0.785 <= roll) and (roll <= 0.785) )`.
-    let mut parser = operators::always(formula_operand);
+    // Use formula_operand_standalone so that a bare predicate (e.g. `always 3.1*x <= 0.5*y`)
+    // is built with the standalone convention and matches predicate!. Formulas with "and"
+    // still work: the "and" branch is tried first and its operands use predicate().
+    let mut parser = operators::always(formula_operand_standalone);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
 }
 
 fn eventually(input: &str) -> IResult<&str, ParsedFormula> {
-    // Same reasoning as `always`: allow compound subformulas after `eventually`.
-    let mut parser = operators::eventually(formula_operand);
+    let mut parser = operators::eventually(formula_operand_standalone);
     let (rest, formula) = parser(input)?;
 
     Ok((rest, ParsedFormula::new(formula)))
@@ -203,11 +274,17 @@ fn formula(input: &str) -> IResult<&str, ParsedFormula> {
 }
 
 pub fn parse_formula<'a>(input: &'a str) -> Result<ParsedFormula, Box<dyn Error + 'a>> {
-    let (rest, parsed) = formula(input)?;
+    let (rest, mut parsed) = formula(input)?;
 
     if !rest.is_empty() {
         Err(Box::new(IncompleteParseError::from(rest)))
     } else {
+        parsed.set_debug_source(input);
+        #[cfg(debug_assertions)]
+        eprintln!(
+            "[banquo_parser] parsed formula -> ParsedFormula {{ source: {:?} }}",
+            input
+        );
         Ok(parsed)
     }
 }
