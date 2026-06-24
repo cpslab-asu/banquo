@@ -36,6 +36,13 @@ impl<F> Not<F> {
     pub fn new(subformula: F) -> Self {
         Self { subformula }
     }
+
+    pub fn apply<T>(trace: Trace<T>) -> Trace<T::Output>
+    where
+        T: Neg,
+    {
+        trace.into_iter().map_states(Neg::neg).collect()
+    }
 }
 
 impl<T, F, M> Formula<T> for Not<F>
@@ -47,9 +54,7 @@ where
     type Error = F::Error;
 
     fn evaluate(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
-        self.subformula
-            .evaluate(trace)
-            .map(|result| result.into_iter().map_states(|state| state.neg()).collect())
+        self.subformula.evaluate(trace).map(Self::apply)
     }
 }
 
