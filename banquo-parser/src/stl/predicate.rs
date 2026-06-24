@@ -3,6 +3,8 @@ use std::ops::Add;
 use banquo_core::predicate::{Predicate, Term};
 use chumsky::prelude::*;
 
+use crate::num;
+
 struct Terms(std::vec::IntoIter<Term>);
 
 impl Iterator for Terms {
@@ -55,24 +57,13 @@ impl Add<Term> for Sum {
     }
 }
 
-fn constant<'src>() -> impl Parser<'src, &'src str, f64> + Clone {
-    let frac = just(".").then(text::int(10));
-
-    just("-")
-        .or_not()
-        .then(text::int(10))
-        .then(frac.or_not())
-        .to_slice()
-        .map(|s: &str| s.parse().unwrap())
-}
-
 fn variable<'src>() -> impl Parser<'src, &'src str, (String, f64)> + Clone {
     let mul = just("*").padded();
     let name = text::ascii::ident().map(|name: &'src str| name.to_string());
 
     choice((
-        constant().then_ignore(mul).then(name).map(|(val, var)| (var, val)),
-        name.then_ignore(mul).then(constant()),
+        num().then_ignore(mul).then(name).map(|(val, var)| (var, val)),
+        name.then_ignore(mul).then(num()),
         just("-")
             .to(-1.0)
             .or_not()
@@ -84,7 +75,7 @@ fn variable<'src>() -> impl Parser<'src, &'src str, (String, f64)> + Clone {
 fn term<'src>() -> impl Parser<'src, &'src str, Term> + Clone {
     choice((
         variable().map(|(name, val)| Term::Variable(name, val)),
-        constant().map(Term::Constant),
+        num().map(Term::Constant),
     ))
 }
 
@@ -149,29 +140,6 @@ mod tests {
     {
         fn run(self) {
             assert_eq!(self.actual.into_result(), Ok(self.expected))
-        }
-    }
-
-    #[test]
-    fn test_constant() {
-        let parser = super::constant();
-        let cases = [
-            Case {
-                actual: parser.parse("1"),
-                expected: 1.0,
-            },
-            Case {
-                actual: parser.parse("0.4"),
-                expected: 0.4,
-            },
-            Case {
-                actual: parser.parse("-3.2"),
-                expected: -3.2,
-            },
-        ];
-
-        for case in cases {
-            case.run()
         }
     }
 
