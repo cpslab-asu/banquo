@@ -229,6 +229,13 @@ impl<Left, Right> And<Left, Right> {
     pub fn new(left: Left, right: Right) -> Self {
         Self(Binop { left, right })
     }
+
+    pub fn apply<T>(lhs: Trace<T>, rhs: Trace<T>) -> Result<Trace<T>, BinaryEvaluationError>
+    where
+        T: Meet,
+    {
+        binop(lhs.into_iter(), rhs.into_iter(), T::min)
+    }
 }
 
 impl<Left, Right, State, Metric> Formula<State> for And<Left, Right>
@@ -243,7 +250,7 @@ where
     fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         let left = self.0.evaluate_left(trace)?;
         let right = self.0.evaluate_right(trace)?;
-        let result = binop(left.into_iter(), right.into_iter(), Metric::min)?;
+        let result = Self::apply(left, right)?;
 
         Ok(result)
     }
