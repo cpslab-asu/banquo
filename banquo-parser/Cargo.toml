@@ -14,7 +14,8 @@ readme = "README.md"
 [dependencies]
 banquo-core = { path = "../banquo-core", version = "0.1.0" }
 banquo-hybrid_distance = { path = "../banquo-hybrid_distance", version = "0.1.0" }
-nom = "7"
+chumsky = "0.13.0"
+thiserror = "2.0.18"
 
 [dev-dependencies]
 banquo = { path = "../banquo", version = "0.1.0" }
