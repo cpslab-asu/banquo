@@ -1,0 +1,25 @@
+use chumsky::prelude::*;
+
+pub fn neg<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
+    choice((just("not").padded(), just("!")))
+}
+
+pub fn always<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
+    choice((just("always"), just("[]"), just("G"))).padded()
+}
+
+pub fn eventually<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
+    choice((just("eventually"), just("<>"), just("F"))).padded()
+}
+
+pub fn and<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
+    choice((just("and"), just("&&"), just(r"/\"))).padded()
+}
+
+pub fn or<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
+    choice((just("or"), just("||"), just(r"\/"))).padded()
+}
+
+pub fn implies<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
+    choice((just("->"), just("implies"))).padded()
+}
