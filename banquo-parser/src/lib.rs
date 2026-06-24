@@ -17,4 +17,32 @@
 //! See the documentation for each function and the tests in `src/parser/` for supported syntax.
 
 pub mod ltl;
+pub mod mtl;
+pub mod stl;
 
+use chumsky::Parser;
+
+fn num<'src>() -> impl Parser<'src, &'src str, f64> + Clone {
+    let frac = chumsky::primitive::just(".").then(chumsky::text::int(10));
+
+    chumsky::primitive::just("-")
+        .or_not()
+        .then(chumsky::text::int(10))
+        .then(frac.or_not())
+        .to_slice()
+        .map(|s: &str| s.parse().unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    use chumsky::Parser;
+
+    #[test]
+    fn test_num() {
+        let parser = super::num();
+
+        assert_eq!(parser.parse("1").unwrap(), 1.0);
+        assert_eq!(parser.parse("0.4").unwrap(), 0.4);
+        assert_eq!(parser.parse("-3.2").unwrap(), 0.4);
+    }
+}
