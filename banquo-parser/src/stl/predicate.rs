@@ -114,7 +114,7 @@ enum CmpOp {
 }
 
 pub fn predicate<'src>() -> impl Parser<'src, &'src str, Predicate> + Clone {
-    let cmp_ops = choice((just("<=").to(CmpOp::LTE), just(">=").to(CmpOp::GTE)));
+    let cmp_ops = choice((just("<=").to(CmpOp::LTE), just(">=").to(CmpOp::GTE))).padded();
 
     sum().then(cmp_ops).then(sum()).map(|((lhs, op), rhs)| -> Predicate {
         match op {
