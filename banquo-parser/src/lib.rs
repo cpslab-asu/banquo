@@ -43,6 +43,6 @@ mod tests {
 
         assert_eq!(parser.parse("1").unwrap(), 1.0);
         assert_eq!(parser.parse("0.4").unwrap(), 0.4);
-        assert_eq!(parser.parse("-3.2").unwrap(), 0.4);
+        assert_eq!(parser.parse("-3.2").unwrap(), -3.2);
     }
 }
