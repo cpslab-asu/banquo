@@ -1,22 +1,21 @@
-use std::ops::RangeInclusive;
-
+use banquo_core::operators::Interval;
 use chumsky::prelude::*;
 
 use crate::ltl;
 use crate::num;
 
-pub fn bounds<'src>() -> impl Parser<'src, &'src str, RangeInclusive<f64>> + Clone {
+pub fn bounds<'src>() -> impl Parser<'src, &'src str, Interval> + Clone {
     num()
         .then_ignore(just(","))
         .then(num())
         .delimited_by(just("{"), just("}"))
-        .map(|(start, end)| start..=end)
+        .map(|(start, end)| Interval::from(start..=end))
 }
 
-pub fn always<'src>() -> impl Parser<'src, &'src str, Option<RangeInclusive<f64>>> + Clone {
+pub fn always<'src>() -> impl Parser<'src, &'src str, Option<Interval>> + Clone {
     ltl::always().ignore_then(bounds().or_not())
 }
 
-pub fn eventually<'src>() -> impl Parser<'src, &'src str, Option<RangeInclusive<f64>>> + Clone {
+pub fn eventually<'src>() -> impl Parser<'src, &'src str, Option<Interval>> + Clone {
     ltl::eventually().ignore_then(bounds().or_not())
 }
