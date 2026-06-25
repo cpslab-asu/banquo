@@ -149,7 +149,7 @@ mod first_order;
 mod forward;
 
 pub use first_order::{And, BinaryEvaluationError, BinaryOperatorError, Implies, Not, Or};
-pub use forward::{Always, Eventually, ForwardOperatorError, Next, Until};
+pub use forward::{Always, Eventually, ForwardOperatorError, Interval, Next, Until};
 
 mod test {
     use thiserror::Error;
