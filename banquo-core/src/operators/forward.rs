@@ -130,6 +130,12 @@ where
     }
 }
 
+impl From<&std::ops::RangeInclusive<f64>> for Interval {
+    fn from(range: &std::ops::RangeInclusive<f64>) -> Self {
+        Self::from(range.clone())
+    }
+}
+
 impl RangeBounds<f64> for Interval {
     fn contains<U>(&self, item: &U) -> bool
     where
@@ -169,6 +175,15 @@ struct UnaryOperator<F> {
     bounds: Option<Interval>,
 }
 
+#[derive(Debug, Clone, Error)]
+pub enum ForwardEvaluationError {
+    #[error("Subtrace evaluation for interval {0} is empty")]
+    EmptySubtraceEvaluation(Interval),
+
+    #[error("Empty interval")]
+    EmptyInterval,
+}
+
 /// Error produced during the evaluation of a forward operator.
 ///
 /// This error represents the following error conditions while evaluating a forward operator:
@@ -182,11 +197,8 @@ pub enum ForwardOperatorError<F> {
     #[error("Bounded formula error: {0}")]
     FormulaError(F),
 
-    #[error("Subtrace evaluation for interval {0} is empty")]
-    EmptySubtraceEvaluation(Interval),
-
-    #[error("Empty interval")]
-    EmptyInterval,
+    #[error(transparent)]
+    EvaluationError(#[from] ForwardEvaluationError),
 }
 
 type ForwardResult<T, Err> = Result<Trace<T>, ForwardOperatorError<Err>>;
@@ -194,6 +206,40 @@ type ForwardResult<T, Err> = Result<Trace<T>, ForwardOperatorError<Err>>;
 impl<F> UnaryOperator<F> {
     fn new(bounds: Option<Interval>, subformula: F) -> Self {
         Self { bounds, subformula }
+    }
+
+    fn apply<T, I, C>(
+        bounds: Option<&Interval>,
+        trace: Trace<T>,
+        init: I,
+        combine: C,
+    ) -> Result<Trace<T>, ForwardEvaluationError>
+    where
+        I: Fn() -> T,
+        C: Fn(&T, &T) -> T,
+    {
+        match bounds {
+            None => {
+                let first = init();
+                let range = trace.range(..);
+                let result = ForwardIter::new(range, first, combine).collect();
+
+                Ok(result)
+            }
+            Some(interval) => {
+                let evaluate_time = |time: f64| -> Result<(f64, T), ForwardEvaluationError> {
+                    let shifted = interval.shift(time);
+                    let range = trace.range((shifted.start_bound(), shifted.end_bound()));
+                    let iter = ForwardIter::new(range, init(), &combine);
+
+                    iter.last()
+                        .ok_or(ForwardEvaluationError::EmptySubtraceEvaluation(shifted))
+                        .map(|(_, value)| (time, value))
+                };
+
+                trace.times().map(evaluate_time).collect()
+            }
+        }
     }
 
     fn evaluate<T, I, C, Metric>(&self, trace: &Trace<T>, init: I, combine: C) -> ForwardResult<Metric, F::Error>
@@ -211,28 +257,7 @@ impl<F> UnaryOperator<F> {
             .evaluate(trace)
             .map_err(ForwardOperatorError::FormulaError)?;
 
-        match &self.bounds {
-            None => {
-                let first = init();
-                let range = inner.range(..);
-                let result = ForwardIter::new(range, first, combine).collect();
-
-                Ok(result)
-            }
-            Some(interval) => {
-                let evaluate_time = |time: f64| -> Result<(f64, Metric), ForwardOperatorError<F::Error>> {
-                    let shifted = interval.shift(time);
-                    let range = inner.range((shifted.start_bound(), shifted.end_bound()));
-                    let iter = ForwardIter::new(range, init(), &combine);
-
-                    iter.last()
-                        .ok_or(ForwardOperatorError::EmptySubtraceEvaluation(shifted))
-                        .map(|(_, value)| (time, value))
-                };
-
-                inner.times().map(evaluate_time).collect()
-            }
-        }
+        Self::apply(self.bounds.as_ref(), inner, init, combine).map_err(ForwardOperatorError::from)
     }
 }
 
@@ -302,6 +327,14 @@ impl<F> Always<F> {
         I: Into<Interval>,
     {
         Self(UnaryOperator::new(Some(interval.into()), formula))
+    }
+
+    pub fn apply<I, T>(bounds: Option<I>, trace: Trace<T>) -> Result<Trace<T>, ForwardEvaluationError>
+    where
+        I: Into<Interval>,
+        T: Top + Meet,
+    {
+        UnaryOperator::<F>::apply(bounds.map(|value| value.into()).as_ref(), trace, T::top, T::min)
     }
 }
 
@@ -384,6 +417,14 @@ impl<F> Eventually<F> {
         I: Into<Interval>,
     {
         Self(UnaryOperator::new(Some(interval.into()), formula))
+    }
+
+    pub fn apply<I, T>(bounds: Option<I>, trace: Trace<T>) -> Result<Trace<T>, ForwardEvaluationError>
+    where
+        I: Into<Interval>,
+        T: Bottom + Join,
+    {
+        UnaryOperator::<F>::apply(bounds.map(|val| val.into()).as_ref(), trace, T::bottom, T::max)
     }
 }
 
