@@ -9,6 +9,7 @@ use thiserror::Error;
 pub mod metrics;
 pub mod operators;
 pub mod predicate;
+pub mod stl;
 pub mod trace;
 
 pub use crate::metrics::{Bottom, Join, Meet, Top};
