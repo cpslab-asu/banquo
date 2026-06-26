@@ -1,6 +1,6 @@
 [package]
 name = "banquo-parser"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
 description = "Formula parsing functionality for Banquo monitor"
@@ -18,4 +18,4 @@ chumsky = "0.13.0"
 thiserror = "2.0.18"
 
 [dev-dependencies]
-banquo = { path = "../banquo", version = "0.1.0" }
+banquo = { path = "../banquo" }
