@@ -247,11 +247,20 @@ where
     }
 }
 
-impl<T> From<&T> for Formula
+impl<T> ToSTL for &T
 where
     T: ToSTL,
 {
-    fn from(value: &T) -> Self {
+    fn to_stl(&self) -> Formula {
+        (*self).to_stl()
+    }
+}
+
+impl<T> From<T> for Formula
+where
+    T: ToSTL,
+{
+    fn from(value: T) -> Self {
         value.to_stl()
     }
 }
