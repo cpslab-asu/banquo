@@ -5,11 +5,11 @@ pub fn neg<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
 }
 
 pub fn always<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
-    choice((just("always"), just("[]"), just("G"))).padded()
+    choice((just("always"), just("[]"), just("G")))
 }
 
 pub fn eventually<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {
-    choice((just("eventually"), just("<>"), just("F"))).padded()
+    choice((just("eventually"), just("<>"), just("F")))
 }
 
 pub fn and<'src>() -> impl Parser<'src, &'src str, &'src str> + Clone {

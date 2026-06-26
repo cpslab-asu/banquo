@@ -13,9 +13,9 @@ pub fn bounds<'src>() -> impl Parser<'src, &'src str, Interval> + Clone {
 }
 
 pub fn always<'src>() -> impl Parser<'src, &'src str, Option<Interval>> + Clone {
-    ltl::always().ignore_then(bounds().or_not())
+    ltl::always().ignore_then(bounds().or_not()).padded()
 }
 
 pub fn eventually<'src>() -> impl Parser<'src, &'src str, Option<Interval>> + Clone {
-    ltl::eventually().ignore_then(bounds().or_not())
+    ltl::eventually().ignore_then(bounds().or_not()).padded()
 }
