@@ -17,6 +17,7 @@ fn formula<'src>() -> impl Parser<'src, &'src str, stl::Formula> {
 
         let unary_op = choice((
             ltl::neg().to(stl::Symbol::Not),
+            ltl::next().to(stl::Symbol::Next),
             mtl::always().map(|bounds| stl::Symbol::Always(bounds)),
             mtl::eventually().map(|bounds| stl::Symbol::Eventually(bounds)),
         ));
@@ -28,6 +29,7 @@ fn formula<'src>() -> impl Parser<'src, &'src str, stl::Formula> {
             ltl::and().to(stl::Symbol::And),
             ltl::or().to(stl::Symbol::Or),
             ltl::implies().to(stl::Symbol::Implies),
+            ltl::until().to(stl::Symbol::Until),
         ));
         let binary = unary.clone().foldl(binary_op.then(unary).repeated(), |lhs, (op, rhs)| {
             stl::Formula::from_iter(std::iter::once(op).chain(lhs).chain(rhs))
