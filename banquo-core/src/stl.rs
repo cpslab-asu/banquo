@@ -7,21 +7,25 @@ use crate::predicate::Predicate;
 use crate::trace::Trace;
 
 type Not = operators::Not<()>;
+type Next = operators::Next<()>;
 type Always = operators::Always<()>;
 type Eventually = operators::Eventually<()>;
 type And = operators::And<(), ()>;
 type Or = operators::Or<(), ()>;
 type Implies = operators::Implies<(), ()>;
+type Until = operators::Until<(), ()>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Symbol {
     Predicate(Predicate),
     Not,
+    Next,
     Always(Option<operators::Interval>),
     Eventually(Option<operators::Interval>),
     And,
     Or,
     Implies,
+    Until,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -118,14 +122,20 @@ where
                 Symbol::Predicate(p) => p
                     .evaluate(trace)
                     .map_err(|e| EvaluationErrorKind::OperatorError(Box::new(e))),
-                Symbol::Not => unary_op(&mut stack, |value| -> Result<Trace<f64>, EvaluationErrorKind> {
-                    Ok(Not::apply(value))
+                Symbol::Not => unary_op(&mut stack, |trace| -> Result<Trace<f64>, EvaluationErrorKind> {
+                    Ok(Not::apply(trace))
+                }),
+                Symbol::Next => unary_op(&mut stack, |trace| -> Result<Trace<f64>, EvaluationErrorKind> {
+                    Ok(Next::apply(trace))
                 }),
                 Symbol::Always(bounds) => unary_op(&mut stack, |value| Always::apply(bounds.clone(), value)),
                 Symbol::Eventually(bounds) => unary_op(&mut stack, |value| Eventually::apply(bounds.clone(), value)),
                 Symbol::And => binary_op(&mut stack, And::apply),
                 Symbol::Or => binary_op(&mut stack, Or::apply),
                 Symbol::Implies => binary_op(&mut stack, Implies::apply),
+                Symbol::Until => binary_op(&mut stack, |lhs, rhs| -> Result<Trace<f64>, EvaluationErrorKind> {
+                    Ok(Until::apply(lhs, rhs))
+                }),
             };
 
             stack.push_front(new_value?);
