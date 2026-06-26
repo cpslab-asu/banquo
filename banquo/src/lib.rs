@@ -152,6 +152,15 @@ pub use core::predicate;
 #[doc(inline)]
 pub use core::predicate::Predicate;
 
+pub mod stl {
+    #[doc(inline)]
+    pub use banquo_core::stl::*;
+
+    #[cfg(feature = "parser")]
+    #[doc(inline)]
+    pub use banquo_parser::stl::{parse, ParseError};
+}
+
 #[cfg(feature = "hybrid-distance")]
 #[doc(inline)]
 pub use banquo_hybrid_distance::{
