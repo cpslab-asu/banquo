@@ -270,7 +270,6 @@ mod tests {
     use std::collections::HashMap;
 
     use super::Symbol;
-    use super::ToSTL;
     use crate::operators;
     use crate::predicate;
     use crate::Formula;
@@ -290,8 +289,9 @@ mod tests {
         let p1 = predicate! { x <= 5.0 };
         let formula = operators::Not::new(p1.clone());
         let expected = super::Formula::from([Symbol::Not, Symbol::Predicate(p1)]);
+        let converted = super::Formula::from(&formula);
 
-        assert_eq!(expected, formula.to_stl());
+        assert_eq!(expected, converted);
 
         let trace = make_trace();
 
@@ -303,8 +303,9 @@ mod tests {
         let p1 = predicate! { x <= 5.0 };
         let formula = operators::Always::unbounded(p1.clone());
         let expected = super::Formula::from([Symbol::Always(None), Symbol::Predicate(p1)]);
+        let converted = super::Formula::from(&formula);
 
-        assert_eq!(expected, formula.to_stl());
+        assert_eq!(expected, converted);
 
         let trace = make_trace();
 
@@ -316,8 +317,9 @@ mod tests {
         let p1 = predicate! { x <= 5.0 };
         let formula = operators::Eventually::unbounded(p1.clone());
         let expected = super::Formula::from([Symbol::Eventually(None), Symbol::Predicate(p1)]);
+        let converted = super::Formula::from(&formula);
 
-        assert_eq!(expected, formula.to_stl());
+        assert_eq!(expected, converted);
 
         let trace = make_trace();
 
@@ -330,8 +332,9 @@ mod tests {
         let p2 = predicate! { y <= 10.0 };
         let formula = operators::And::new(p1.clone(), p2.clone());
         let expected = super::Formula::from([Symbol::And, Symbol::Predicate(p1), Symbol::Predicate(p2)]);
+        let converted = super::Formula::from(&formula);
 
-        assert_eq!(expected, formula.to_stl());
+        assert_eq!(expected, converted);
 
         let trace = make_trace();
 
@@ -344,8 +347,9 @@ mod tests {
         let p2 = predicate! { y <= 10.0 };
         let formula = operators::Or::new(p1.clone(), p2.clone());
         let expected = super::Formula::from([Symbol::Or, Symbol::Predicate(p1), Symbol::Predicate(p2)]);
+        let converted = super::Formula::from(&formula);
 
-        assert_eq!(expected, formula.to_stl());
+        assert_eq!(expected, converted);
 
         let trace = make_trace();
 
@@ -358,8 +362,9 @@ mod tests {
         let p2 = predicate! { y <= 10.0 };
         let formula = operators::Implies::new(p1.clone(), p2.clone());
         let expected = super::Formula::from([Symbol::Implies, Symbol::Predicate(p1), Symbol::Predicate(p2)]);
+        let converted = super::Formula::from(&formula);
 
-        assert_eq!(expected, formula.to_stl());
+        assert_eq!(expected, converted);
 
         let trace = make_trace();
 
