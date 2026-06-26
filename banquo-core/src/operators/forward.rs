@@ -329,6 +329,14 @@ impl<F> Always<F> {
         Self(UnaryOperator::new(Some(interval.into()), formula))
     }
 
+    pub fn bounds(&self) -> Option<&Interval> {
+        self.0.bounds.as_ref()
+    }
+
+    pub fn inner(&self) -> &F {
+        &self.0.subformula
+    }
+
     pub fn apply<I, T>(bounds: Option<I>, trace: Trace<T>) -> Result<Trace<T>, ForwardEvaluationError>
     where
         I: Into<Interval>,
@@ -419,6 +427,14 @@ impl<F> Eventually<F> {
         Self(UnaryOperator::new(Some(interval.into()), formula))
     }
 
+    pub fn bounds(&self) -> Option<&Interval> {
+        self.0.bounds.as_ref()
+    }
+
+    pub fn inner(&self) -> &F {
+        &self.0.subformula
+    }
+
     pub fn apply<I, T>(bounds: Option<I>, trace: Trace<T>) -> Result<Trace<T>, ForwardEvaluationError>
     where
         I: Into<Interval>,
@@ -472,25 +488,6 @@ pub struct Next<F> {
     subformula: F,
 }
 
-impl<F> Next<F> {
-    /// Create a `Next` operator.
-    ///
-    /// A `Next` operator shifts the values in the trace produced by the sub-formula one time-step
-    /// to the left.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use banquo::predicate;
-    /// use banquo::operators::Next;
-    ///
-    /// let phi = Next::new(predicate!{ rpm <= 5000.0 });
-    /// ```
-    pub fn new(subformula: F) -> Self {
-        Self { subformula }
-    }
-}
-
 fn next_op<T, F, U>(trace: Trace<T>, f: F) -> Trace<U>
 where
     F: Fn(&T, T) -> U,
@@ -511,6 +508,36 @@ where
     trace
 }
 
+impl<F> Next<F> {
+    /// Create a `Next` operator.
+    ///
+    /// A `Next` operator shifts the values in the trace produced by the sub-formula one time-step
+    /// to the left.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use banquo::predicate;
+    /// use banquo::operators::Next;
+    ///
+    /// let phi = Next::new(predicate!{ rpm <= 5000.0 });
+    /// ```
+    pub fn new(subformula: F) -> Self {
+        Self { subformula }
+    }
+
+    pub fn inner(&self) -> &F {
+        &self.subformula
+    }
+
+    pub fn apply<T>(trace: Trace<T>) -> Trace<T>
+    where
+        T: Bottom,
+    {
+        next_op(trace, |_, metric| metric)
+    }
+}
+
 impl<State, F, Metric> Formula<State> for Next<F>
 where
     F: Formula<State, Metric = Metric>,
@@ -520,9 +547,7 @@ where
     type Error = F::Error;
 
     fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        self.subformula
-            .evaluate(trace)
-            .map(|inner_trace| next_op(inner_trace, |_, metric| metric))
+        self.subformula.evaluate(trace).map(Self::apply)
     }
 }
 
@@ -551,28 +576,6 @@ where
 pub struct Until<Left, Right> {
     left: Left,
     right: Right,
-}
-
-impl<Left, Right> Until<Left, Right> {
-    /// Create an `Until` operator.
-    ///
-    /// The `Until` ensures that its left formula holds up to and inclusing the time its right
-    /// formula holds.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use banquo::predicate;
-    /// use banquo::operators::Until;
-    ///
-    /// let lhs = predicate!{ x <= 3.0 };
-    /// let rhs = predicate!{ -1.0 * y <= -3.0 };
-    ///
-    /// let phi = Until::new(lhs, rhs);
-    /// ```
-    pub fn new(left: Left, right: Right) -> Self {
-        Self { left, right }
-    }
 }
 
 fn until_eval_time<M>(left: &Trace<M>, time: f64, right: M, prev: &M) -> M
@@ -606,6 +609,48 @@ where
     trace
 }
 
+impl<Left, Right> Until<Left, Right> {
+    /// Create an `Until` operator.
+    ///
+    /// The `Until` ensures that its left formula holds up to and inclusing the time its right
+    /// formula holds.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use banquo::predicate;
+    /// use banquo::operators::Until;
+    ///
+    /// let lhs = predicate!{ x <= 3.0 };
+    /// let rhs = predicate!{ -1.0 * y <= -3.0 };
+    ///
+    /// let phi = Until::new(lhs, rhs);
+    /// ```
+    pub fn new(left: Left, right: Right) -> Self {
+        Self { left, right }
+    }
+
+    pub fn left(&self) -> &Left {
+        &self.left
+    }
+
+    pub fn right(&self) -> &Right {
+        &self.right
+    }
+
+    pub fn apply<T>(left: Trace<T>, right: Trace<T>) -> Trace<T>
+    where
+        T: Top + Bottom + Meet + Join,
+    {
+        let mut iter = right.into_iter().rev();
+
+        match iter.next() {
+            Some((prev_time, prev_metric)) => until_op(left, iter, prev_time, prev_metric),
+            None => Trace::default(),
+        }
+    }
+}
+
 impl<Left, Right, State, Metric> Formula<State> for Until<Left, Right>
 where
     Left: Formula<State, Metric = Metric>,
@@ -618,14 +663,8 @@ where
     fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         let left_trace = self.left.evaluate(trace).map_err(BinaryOperatorError::LeftError)?;
         let right_trace = self.right.evaluate(trace).map_err(BinaryOperatorError::RightError)?;
-        let mut iter = right_trace.into_iter().rev();
 
-        let evaluated_trace = match iter.next() {
-            Some((prev_time, prev_metric)) => until_op(left_trace, iter, prev_time, prev_metric),
-            None => Trace::default(),
-        };
-
-        Ok(evaluated_trace)
+        Ok(Self::apply(left_trace, right_trace))
     }
 }
 

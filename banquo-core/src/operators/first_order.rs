@@ -37,6 +37,10 @@ impl<F> Not<F> {
         Self { subformula }
     }
 
+    pub fn inner(&self) -> &F {
+        &self.subformula
+    }
+
     pub fn apply<T>(trace: Trace<T>) -> Trace<T::Output>
     where
         T: Neg,
@@ -177,6 +181,14 @@ impl<Left, Right> Or<Left, Right> {
         Self(Binop { left, right })
     }
 
+    pub fn left(&self) -> &Left {
+        &self.0.left
+    }
+
+    pub fn right(&self) -> &Right {
+        &self.0.right
+    }
+
     pub fn apply<T>(lhs: Trace<T>, rhs: Trace<T>) -> Result<Trace<T>, BinaryEvaluationError>
     where
         T: Join,
@@ -237,6 +249,14 @@ impl<Left, Right> And<Left, Right> {
         Self(Binop { left, right })
     }
 
+    pub fn left(&self) -> &Left {
+        &self.0.left
+    }
+
+    pub fn right(&self) -> &Right {
+        &self.0.right
+    }
+
     pub fn apply<T>(lhs: Trace<T>, rhs: Trace<T>) -> Result<Trace<T>, BinaryEvaluationError>
     where
         T: Meet,
@@ -295,6 +315,14 @@ pub struct Implies<Ante, Cons>(Binop<Ante, Cons>);
 impl<Ante, Cons> Implies<Ante, Cons> {
     pub fn new(ante: Ante, cons: Cons) -> Self {
         Self(Binop { left: ante, right: cons })
+    }
+
+    pub fn ante(&self) -> &Ante {
+        &self.0.left
+    }
+
+    pub fn cons(&self) -> &Cons {
+        &self.0.right
     }
 
     pub fn apply<T>(lhs: Trace<T>, rhs: Trace<T>) -> Result<Trace<T>, BinaryEvaluationError>
