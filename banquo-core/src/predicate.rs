@@ -766,7 +766,6 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::{EvaluationError, Predicate};
-    use crate::predicate;
 
     #[test]
     fn macro_parsing() {

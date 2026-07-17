@@ -151,6 +151,7 @@ mod forward;
 pub use first_order::{And, BinaryEvaluationError, BinaryOperatorError, Implies, Not, Or};
 pub use forward::{Always, Eventually, ForwardEvaluationError, ForwardOperatorError, Interval, Next, Until};
 
+#[cfg(test)]
 mod test {
     use thiserror::Error;
 

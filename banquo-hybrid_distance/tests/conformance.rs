@@ -133,15 +133,15 @@ fn make_automaton() -> Automaton<usize> {
     Automaton::from(edges)
 }
 
-fn make_p1(automaton: &Automaton<usize>) -> HybridPredicate<usize> {
+fn make_p1(automaton: &Automaton<usize>) -> HybridPredicate<'_, usize> {
     HybridPredicate::new(predicate! { -1.0 * x <= 0.0 }, [1], automaton)
 }
 
-fn make_p2(automaton: &Automaton<usize>) -> HybridPredicate<usize> {
+fn make_p2(automaton: &Automaton<usize>) -> HybridPredicate<'_, usize> {
     HybridPredicate::new(predicate! { -1.0 * x <= -5.0 }, [1], automaton)
 }
 
-fn make_p3(automaton: &Automaton<usize>) -> HybridPredicate<usize> {
+fn make_p3(automaton: &Automaton<usize>) -> HybridPredicate<'_, usize> {
     HybridPredicate::new(predicate! { 1.0 * x <= 30.0 }, [2], automaton)
 }
 

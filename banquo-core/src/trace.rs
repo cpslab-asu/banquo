@@ -951,27 +951,27 @@ fn convert_bound(bound: Bound<&f64>) -> Bound<NotNan<f64>> {
 
 impl<T> Trace<T> {
     /// Create an iterator yielding `(time, &state)` values from the trace in chronological order.
-    pub fn iter(&self) -> Iter<T> {
+    pub fn iter(&self) -> Iter<'_, T> {
         self.into_iter()
     }
 
     /// Create an iterator yielding `(time, &mut state)` values from the trace in chronological order.
-    pub fn iter_mut(&mut self) -> IterMut<T> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         IterMut(self.0.iter_mut())
     }
 
     /// Create an iterator yielding time values from the trace in chronological order.
-    pub fn times(&self) -> Times<Iter<T>> {
+    pub fn times(&self) -> Times<Iter<'_, T>> {
         Times(self.iter())
     }
 
     /// Create an iterator yielding `&state` values from the trace in chronological order.
-    pub fn states(&self) -> States<Iter<T>> {
+    pub fn states(&self) -> States<Iter<'_, T>> {
         States(self.iter())
     }
 
     /// Create an iterator yielding `&mut state values` from the trace in chronological order.
-    pub fn states_mut(&mut self) -> States<IterMut<T>> {
+    pub fn states_mut(&mut self) -> States<IterMut<'_, T>> {
         States(self.iter_mut())
     }
 
@@ -981,7 +981,7 @@ impl<T> Trace<T> {
     /// # Safety
     ///
     /// This function panics if either range bound is NaN.
-    pub fn range<R>(&self, bounds: R) -> Range<T>
+    pub fn range<R>(&self, bounds: R) -> Range<'_, T>
     where
         R: RangeBounds<f64>,
     {
@@ -997,7 +997,7 @@ impl<T> Trace<T> {
     /// # Safety
     ///
     /// This function panics if either range bound is NaN.
-    pub fn range_mut<R>(&mut self, bounds: R) -> RangeMut<T>
+    pub fn range_mut<R>(&mut self, bounds: R) -> RangeMut<'_, T>
     where
         R: RangeBounds<f64>,
     {
