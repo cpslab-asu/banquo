@@ -20,9 +20,13 @@ pub mod ltl;
 pub mod mtl;
 pub mod stl;
 
+use chumsky::error::Rich;
+use chumsky::extra;
 use chumsky::Parser;
 
-fn num<'src>() -> impl Parser<'src, &'src str, f64> + Clone {
+pub type Err<'src> = extra::Err<Rich<'src, char>>;
+
+fn num<'src>() -> impl Parser<'src, &'src str, f64, Err<'src>> + Clone {
     let frac = chumsky::primitive::just(".").then(chumsky::text::int(10));
 
     chumsky::primitive::just("-")

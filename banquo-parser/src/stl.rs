@@ -5,9 +5,10 @@ use chumsky::prelude::*;
 
 use crate::ltl;
 use crate::mtl;
+use crate::Err;
 use predicate::predicate;
 
-fn formula<'src>() -> impl Parser<'src, &'src str, stl::Formula> {
+fn formula<'src>() -> impl Parser<'src, &'src str, stl::Formula, Err<'src>> {
     recursive(|expr| {
         let predicate = predicate()
             .padded()
@@ -42,6 +43,7 @@ fn formula<'src>() -> impl Parser<'src, &'src str, stl::Formula> {
 #[derive(Debug, PartialEq)]
 enum ParseErrorKind {
     Unknown,
+    Reason(String),
 }
 
 impl Default for ParseErrorKind {
@@ -56,5 +58,12 @@ pub struct ParseError {
 }
 
 pub fn parse(phi: &str) -> Result<stl::Formula, ParseError> {
-    formula().parse(phi).into_result().map_err(|_| ParseError::default())
+    formula().parse(phi).into_result().map_err(|e| {
+        let kind = e
+            .first()
+            .map(|msg| ParseErrorKind::Reason(msg.to_string()))
+            .unwrap_or(ParseErrorKind::Unknown);
+
+        ParseError { kind }
+    })
 }

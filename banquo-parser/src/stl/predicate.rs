@@ -3,7 +3,7 @@ use std::ops::Add;
 use banquo_core::predicate::{Predicate, Term};
 use chumsky::prelude::*;
 
-use crate::num;
+use crate::{num, Err};
 
 struct Terms(std::vec::IntoIter<Term>);
 
@@ -57,7 +57,7 @@ impl Add<Term> for Sum {
     }
 }
 
-fn variable<'src>() -> impl Parser<'src, &'src str, (String, f64)> + Clone {
+fn variable<'src>() -> impl Parser<'src, &'src str, (String, f64), Err<'src>> + Clone {
     let mul = just("*").padded();
     let name = text::ascii::ident().map(|name: &'src str| name.to_string());
 
@@ -72,7 +72,7 @@ fn variable<'src>() -> impl Parser<'src, &'src str, (String, f64)> + Clone {
     ))
 }
 
-fn term<'src>() -> impl Parser<'src, &'src str, Term> + Clone {
+fn term<'src>() -> impl Parser<'src, &'src str, Term, Err<'src>> + Clone {
     choice((
         variable().map(|(name, val)| Term::Variable(name, val)),
         num().map(Term::Constant),
@@ -85,7 +85,7 @@ enum SumOp {
     SUB,
 }
 
-fn sum<'src>() -> impl Parser<'src, &'src str, Sum> + Clone {
+fn sum<'src>() -> impl Parser<'src, &'src str, Sum, Err<'src>> + Clone {
     let sum_ops = choice((just("+").padded().to(SumOp::ADD), just("-").padded().to(SumOp::SUB)));
     let op_term = sum_ops.then(term());
     let combine = |sum: Sum, (op, term): (SumOp, Term)| -> Sum {
@@ -104,7 +104,7 @@ enum CmpOp {
     GTE,
 }
 
-pub fn predicate<'src>() -> impl Parser<'src, &'src str, Predicate> + Clone {
+pub fn predicate<'src>() -> impl Parser<'src, &'src str, Predicate, Err<'src>> + Clone {
     let cmp_ops = choice((just("<=").to(CmpOp::LTE), just(">=").to(CmpOp::GTE))).padded();
 
     sum().then(cmp_ops).then(sum()).map(|((lhs, op), rhs)| -> Predicate {
