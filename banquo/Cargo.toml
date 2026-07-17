@@ -10,6 +10,9 @@ repository = "https://github.com/cpslab-asu/banquo"
 license = "BSD-3-Clause"
 readme = "README.md"
 
+[package.metadata.workspaces]
+independent = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 banquo-core = { path = "../banquo-core", version = "0.2.0" }
