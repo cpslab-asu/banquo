@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 ordered-float = "4.2.0"
-thiserror = "1.0.56"
+thiserror = { workspace = true }
 
 [dev-dependencies]
 approx = "0.5.1"

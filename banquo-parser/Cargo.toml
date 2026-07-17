@@ -16,7 +16,7 @@ readme = "README.md"
 banquo-core = { path = "../banquo-core", version = "0.2.0" }
 banquo-hybrid_distance = { path = "../banquo-hybrid_distance", version = "0.1.0" }
 chumsky = "0.13.0"
-thiserror = "2.0.18"
+thiserror = { workspace = true }
 
 [dev-dependencies]
 banquo = { path = "../banquo" }
