@@ -1,7 +1,8 @@
 [package]
 name = "banquo"
 version = "0.2.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
 description = "An offline monitor for Signal Temporal Logic formulas"
 documentation = "https://docs.rs/banquo"

@@ -1,7 +1,8 @@
 [package]
 name = "banquo-hybrid_distance"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
 description = "Hybrid distance implementation for Banquo monitor"
 documentation = "https://docs.rs/banquo"
