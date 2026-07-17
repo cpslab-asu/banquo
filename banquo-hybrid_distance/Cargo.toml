@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 petgraph = "0.6.4"
-banquo-core = { path = "../banquo-core", version = "0.1.0" }
+banquo-core = { path = "../banquo-core", version = "0.2.0" }
 thiserror = "1.0.56"
 
 [dev-dependencies]

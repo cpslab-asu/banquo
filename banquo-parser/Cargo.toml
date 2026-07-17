@@ -12,7 +12,7 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-banquo-core = { path = "../banquo-core", version = "0.1.0" }
+banquo-core = { path = "../banquo-core", version = "0.2.0" }
 banquo-hybrid_distance = { path = "../banquo-hybrid_distance", version = "0.1.0" }
 chumsky = "0.13.0"
 thiserror = "2.0.18"
