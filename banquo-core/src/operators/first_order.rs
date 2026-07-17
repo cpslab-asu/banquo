@@ -36,6 +36,17 @@ impl<F> Not<F> {
     pub fn new(subformula: F) -> Self {
         Self { subformula }
     }
+
+    pub fn inner(&self) -> &F {
+        &self.subformula
+    }
+
+    pub fn apply<T>(trace: Trace<T>) -> Trace<T::Output>
+    where
+        T: Neg,
+    {
+        trace.into_iter().map_states(Neg::neg).collect()
+    }
 }
 
 impl<T, F, M> Formula<T> for Not<F>
@@ -47,9 +58,7 @@ where
     type Error = F::Error;
 
     fn evaluate(&self, trace: &Trace<T>) -> Result<Trace<Self::Metric>, Self::Error> {
-        self.subformula
-            .evaluate(trace)
-            .map(|result| result.into_iter().map_states(|state| state.neg()).collect())
+        self.subformula.evaluate(trace).map(Self::apply)
     }
 }
 
@@ -171,6 +180,21 @@ impl<Left, Right> Or<Left, Right> {
     pub fn new(left: Left, right: Right) -> Self {
         Self(Binop { left, right })
     }
+
+    pub fn left(&self) -> &Left {
+        &self.0.left
+    }
+
+    pub fn right(&self) -> &Right {
+        &self.0.right
+    }
+
+    pub fn apply<T>(lhs: Trace<T>, rhs: Trace<T>) -> Result<Trace<T>, BinaryEvaluationError>
+    where
+        T: Join,
+    {
+        binop(lhs.into_iter(), rhs.into_iter(), T::max)
+    }
 }
 
 impl<Left, Right, State, Metric> Formula<State> for Or<Left, Right>
@@ -185,7 +209,7 @@ where
     fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         let left = self.0.evaluate_left(trace)?;
         let right = self.0.evaluate_right(trace)?;
-        let result = binop(left.into_iter(), right.into_iter(), Metric::max)?;
+        let result = Self::apply(left, right)?;
 
         Ok(result)
     }
@@ -224,6 +248,21 @@ impl<Left, Right> And<Left, Right> {
     pub fn new(left: Left, right: Right) -> Self {
         Self(Binop { left, right })
     }
+
+    pub fn left(&self) -> &Left {
+        &self.0.left
+    }
+
+    pub fn right(&self) -> &Right {
+        &self.0.right
+    }
+
+    pub fn apply<T>(lhs: Trace<T>, rhs: Trace<T>) -> Result<Trace<T>, BinaryEvaluationError>
+    where
+        T: Meet,
+    {
+        binop(lhs.into_iter(), rhs.into_iter(), T::min)
+    }
 }
 
 impl<Left, Right, State, Metric> Formula<State> for And<Left, Right>
@@ -238,7 +277,7 @@ where
     fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
         let left = self.0.evaluate_left(trace)?;
         let right = self.0.evaluate_right(trace)?;
-        let result = binop(left.into_iter(), right.into_iter(), Metric::min)?;
+        let result = Self::apply(left, right)?;
 
         Ok(result)
     }
@@ -277,6 +316,25 @@ impl<Ante, Cons> Implies<Ante, Cons> {
     pub fn new(ante: Ante, cons: Cons) -> Self {
         Self(Binop { left: ante, right: cons })
     }
+
+    pub fn ante(&self) -> &Ante {
+        &self.0.left
+    }
+
+    pub fn cons(&self) -> &Cons {
+        &self.0.right
+    }
+
+    pub fn apply<T>(lhs: Trace<T>, rhs: Trace<T>) -> Result<Trace<T>, BinaryEvaluationError>
+    where
+        T: Neg<Output = T> + Join,
+    {
+        binop(
+            lhs.into_iter().map_states(|state| -state),
+            rhs.into_iter(),
+            |neg_a, c| T::max(neg_a, c),
+        )
+    }
 }
 
 impl<Ante, Cons, State, Metric> Formula<State> for Implies<Ante, Cons>
@@ -289,9 +347,9 @@ where
     type Error = BinaryOperatorError<Ante::Error, Cons::Error>;
 
     fn evaluate(&self, trace: &Trace<State>) -> Result<Trace<Self::Metric>, Self::Error> {
-        let ante = self.0.evaluate_left(trace)?.into_iter().map_states(|state| -state);
+        let ante = self.0.evaluate_left(trace)?;
         let cons = self.0.evaluate_right(trace)?;
-        let result = binop(ante, cons.into_iter(), |neg_a, c| Metric::max(neg_a, c))?;
+        let result = Self::apply(ante, cons)?;
 
         Ok(result)
     }

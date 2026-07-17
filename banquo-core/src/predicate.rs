@@ -300,6 +300,7 @@ impl Neg for Predicate {
 /// ];
 ///
 /// ```
+#[derive(Debug, PartialEq)]
 pub enum Term {
     Variable(String, f64),
     Constant(f64),
