@@ -1,6 +1,6 @@
 [package]
 name = "banquo"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 authors = ["Quinn Thibeault <qthibeau@asu.edu>"]
 description = "An offline monitor for Signal Temporal Logic formulas"
@@ -11,7 +11,7 @@ readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-banquo-core = { path = "../banquo-core", version = "0.1.0" }
+banquo-core = { path = "../banquo-core", version = "0.2.0" }
 banquo-hybrid_distance = { path = "../banquo-hybrid_distance", version = "0.1.0", optional = true }
 banquo-parser = { path = "../banquo-parser", version = "0.2.0", optional = true }
 
