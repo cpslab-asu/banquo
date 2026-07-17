@@ -127,8 +127,8 @@ use std::ops::{AddAssign, Index, Neg, SubAssign};
 
 use thiserror::Error;
 
-use crate::trace::Trace;
 use crate::Formula;
+use crate::trace::Trace;
 
 /// System requirements expressed as the inequality **`ax`**`≤ b`.
 ///

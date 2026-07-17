@@ -132,7 +132,7 @@
 extern crate banquo_core as core;
 
 #[doc(inline)]
-pub use core::{evaluate, EvaluationError, Formula};
+pub use core::{EvaluationError, Formula, evaluate};
 
 #[doc(inline)]
 pub use core::metrics::{Bottom, Join, Meet, Top};
@@ -158,13 +158,13 @@ pub mod stl {
 
     #[cfg(feature = "parser")]
     #[doc(inline)]
-    pub use banquo_parser::stl::{parse, ParseError};
+    pub use banquo_parser::stl::{ParseError, parse};
 }
 
 #[cfg(feature = "hybrid-distance")]
 #[doc(inline)]
 pub use banquo_hybrid_distance::{
-    automaton, predicate as hybrid_predicate, HybridDistance, HybridPredicate, HybridState,
+    HybridDistance, HybridPredicate, HybridState, automaton, predicate as hybrid_predicate,
 };
 
 #[doc = include_str!("../README.md")]

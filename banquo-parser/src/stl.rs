@@ -3,9 +3,7 @@ mod predicate;
 use banquo_core::stl;
 use chumsky::prelude::*;
 
-use crate::ltl;
-use crate::mtl;
-use crate::Err;
+use crate::{Err, ltl, mtl};
 use predicate::predicate;
 
 fn formula<'src>() -> impl Parser<'src, &'src str, stl::Formula, Err<'src>> {

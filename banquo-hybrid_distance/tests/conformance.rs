@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use banquo_core::operators::{Always, And, Eventually, Or};
-use banquo_core::{evaluate, predicate, Trace};
+use banquo_core::{Trace, evaluate, predicate};
 use banquo_hybrid_distance::automaton::Automaton;
 use banquo_hybrid_distance::{HybridDistance, HybridPredicate, HybridState};
 

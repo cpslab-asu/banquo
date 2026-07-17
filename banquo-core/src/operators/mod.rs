@@ -154,8 +154,8 @@ pub use forward::{Always, Eventually, ForwardEvaluationError, ForwardOperatorErr
 mod test {
     use thiserror::Error;
 
-    use crate::trace::Trace;
     use crate::Formula;
+    use crate::trace::Trace;
 
     pub struct Const;
 

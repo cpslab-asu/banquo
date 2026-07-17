@@ -270,10 +270,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::Symbol;
-    use crate::operators;
-    use crate::predicate;
-    use crate::Formula;
-    use crate::Trace;
+    use crate::{Formula, Trace, operators, predicate};
 
     fn make_trace() -> Trace<HashMap<&'static str, f64>> {
         let values = [(0, (0.0, 1.0)), (1, (1.0, 0.0)), (2, (2.0, 4.0)), (3, (3.0, 6.0))];

@@ -3,7 +3,7 @@ use std::ops::Add;
 use banquo_core::predicate::{Predicate, Term};
 use chumsky::prelude::*;
 
-use crate::{num, Err};
+use crate::{Err, num};
 
 struct Terms(std::vec::IntoIter<Term>);
 

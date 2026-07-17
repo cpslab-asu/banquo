@@ -20,9 +20,9 @@ pub mod ltl;
 pub mod mtl;
 pub mod stl;
 
+use chumsky::Parser;
 use chumsky::error::Rich;
 use chumsky::extra;
-use chumsky::Parser;
 
 pub type Err<'src> = extra::Err<Rich<'src, char>>;
 

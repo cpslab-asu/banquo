@@ -2,7 +2,7 @@ use banquo_core::operators::Interval;
 use chumsky::prelude::*;
 
 use crate::ltl;
-use crate::{num, Err};
+use crate::{Err, num};
 
 pub fn bounds<'src>() -> impl Parser<'src, &'src str, Interval, Err<'src>> + Clone {
     num()

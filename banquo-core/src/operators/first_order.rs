@@ -2,9 +2,9 @@ use std::ops::Neg;
 
 use thiserror::Error;
 
+use crate::Formula;
 use crate::metrics::{Join, Meet};
 use crate::trace::Trace;
-use crate::Formula;
 
 /// First-order operator that inverts its subformula, written `!`, or `not`.
 ///
@@ -358,10 +358,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::{And, Implies, Not, Or};
-    use crate::operators::test::*;
-    use crate::operators::BinaryOperatorError;
-    use crate::trace::Trace;
     use crate::Formula;
+    use crate::operators::BinaryOperatorError;
+    use crate::operators::test::{Const, ConstError, ConstLeft, ConstRight};
+    use crate::trace::Trace;
 
     #[test]
     fn not() -> Result<(), ConstError> {

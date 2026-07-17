@@ -588,10 +588,10 @@ where
 mod tests {
     use std::collections::HashMap;
 
-    use banquo_core::{predicate, Join, Meet};
+    use banquo_core::{Join, Meet, predicate};
 
-    use super::{HybridDistance, HybridPredicate};
-    use crate::{automaton::Automaton, HybridState};
+    use super::{HybridDistance, HybridPredicate, HybridState};
+    use crate::automaton::Automaton;
 
     #[test]
     fn meet() {

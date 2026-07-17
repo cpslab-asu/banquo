@@ -4,9 +4,9 @@ use std::ops::{Bound, RangeBounds};
 use thiserror::Error;
 
 use super::BinaryOperatorError;
+use crate::Formula;
 use crate::metrics::{Bottom, Join, Meet, Top};
 use crate::trace::{Range, Trace};
-use crate::Formula;
 
 struct ForwardIter<'a, T, F> {
     rest: Range<'a, T>,
@@ -671,10 +671,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::{Always, Eventually, ForwardOperatorError, Next, Until};
-    use crate::operators::test::*;
-    use crate::operators::BinaryOperatorError;
-    use crate::trace::Trace;
     use crate::Formula;
+    use crate::operators::BinaryOperatorError;
+    use crate::operators::test::{Const, ConstError, ConstLeft, ConstRight};
+    use crate::trace::Trace;
 
     #[test]
     fn always() -> Result<(), ForwardOperatorError<ConstError>> {
