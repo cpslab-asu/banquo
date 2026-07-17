@@ -1,5 +1,4 @@
-edition = "2021"
+edition = "2024"
 max_width = 120
 struct_lit_width = 30
 struct_variant_width = 60
-
